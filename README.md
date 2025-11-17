@@ -1,4 +1,4 @@
-# Free-AI-Artist-Gallery-Kit
+# Free-Artist-Gallery-Kit
 
 A modern, feature-rich website template designed specifically for artists to showcase their work. This template provides a beautiful gallery interface, artist biography section, admin panel for content management, and various interactive features. Includes AI-powered features for image processing and content generation.
 
