@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme: light only;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Administration der Herzfabrik</title>
+  <style>
+    html { color-scheme: light; background: #fff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; background: #fff; color: #000; }
+    h1 { font-size: 20px; margin: 0 0 16px; color: #000; }
+    h2 { font-size: 16px; margin: 24px 0 12px; color: #000; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; }
+    .upload-area { border: 3px dashed #888; border-radius: 12px; padding: 32px; background: #f5f5f5; text-align: center; transition: all 0.3s ease; cursor: pointer; }
+    .upload-area:hover { background: #e8e8e8; border-color: #666; }
+    .upload-area.dragover { background: #ddd; border-color: #666; border-style: solid; }
+    .upload-area-text { color: #555; font-weight: 500; margin-bottom: 8px; }
+    .upload-area-hint { color: #666; font-size: 13px; }
+    .list { display: flex; flex-direction: column; gap: 12px; }
+    .rowItem { display: grid; grid-template-columns: 300px 1fr 280px; gap: 24px; border: 1px solid #eee; border-radius: 8px; padding: 16px; align-items: start; position: relative; background: #fff; }
+    .rowItem.live { border-color: #28a745; background: #f6fffa; }
+    .live-badge { position: absolute; top: 12px; left: 12px; background: #28a745; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .draft-badge { position: absolute; top: 12px; left: 12px; background: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .main-image { width: 100%; max-width: 300px; border-radius: 8px; background: #fafafa; }
+    
+    /* Responsive design */
+    @media (max-width: 1024px) {
+      body { margin: 12px; }
+      .rowItem { grid-template-columns: 1fr; gap: 16px; }
+      .main-image { max-width: 100%; }
+      .btns { width: 100%; flex-direction: column; }
+      .btns button { width: 100%; }
+      .card { padding: 12px; }
+      .upload-area { padding: 24px 16px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .toolbar button { width: 100%; }
+    }
+    
+    @media (max-width: 768px) {
+      body { margin: 8px; }
+      h1 { font-size: 18px; }
+      h2 { font-size: 14px; }
+      .rowItem { padding: 12px; }
+      .live-badge, .draft-badge { font-size: 10px; padding: 3px 8px; }
+    }
+    .variant-thumbs { display: flex; flex-wrap: nowrap; gap: 8px; margin-top: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .variant-thumb-wrapper { position: relative; flex-shrink: 0; }
+    .variant-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #fafafa; cursor: pointer; border: 2px solid transparent; display: block; }
+    .variant-thumb:hover { border-color: #888; }
+    .variant-thumb.active { border-color: #666; }
+    .variant-thumb-delete { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: #dc3545; color: #fff; border: 1px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; padding: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .variant-thumb-delete:hover { background: #c82333; }
+    .selectable-variants { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+    .selectable-variants-title { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; }
+    .selectable-variants-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .selectable-variant-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background: #fafafa; cursor: pointer; border: 2px solid #ddd; transition: all 0.2s; }
+    .selectable-variant-thumb:hover { border-color: #888; transform: scale(1.05); }
+    .selectable-variant-thumb:active { transform: scale(0.95); }
+    .thumb { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; background: #fafafa; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+    button.primary { background: #666; color: #fff; border-color: #666; }
+    button.primary:hover { background: #555; border-color: #555; }
+    .muted { color: #666; font-size: 12px; }
+    .toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+    .hidden { display: none; }
+    .flash { border: 1px solid #f2c6c6; background: #fff5f5; color: #8a1f1f; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
+    .flash.success { border-color: #bfe1c7; background: #f6fffa; color: #1f6b3a; }
+    .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+    .field label { font-size: 12px; color: #555; }
+    .field input, .field textarea { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; background: #fff; color: #000; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; animation: toastSlideIn 0.3s ease-out; }
+    .toast.success { border-color: #28a745; background: #f6fffa; color: #1f6b3a; }
+    .toast.error { border-color: #dc3545; background: #fff5f5; color: #8a1f1f; }
+    .toast.info { border-color: #888; background: #f5f5f5; color: #333; }
+    @keyframes toastSlideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes toastSlideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .toast.hiding { animation: toastSlideOut 0.3s ease-in forwards; }
+  </style>
+  <script>
+    // Set admin flag in localStorage when admin page loads successfully
+    if (typeof Storage !== 'undefined') {
+      localStorage.setItem('admin', 'true');
+    }
+    
+    let availableVariants = [];
+
+    async function fetchVariants() {
+      try {
+        const res = await fetch('variants.php?action=list');
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.ok ? (data.variants || []) : [];
+      } catch (error) {
+        console.error('Error fetching variants:', error);
+        return [];
+      }
+    }
+
+    async function fetchImages() {
+      const res = await fetch('list_images.php');
+      if (!res.ok) return { images: [] };
+      return res.json();
+    }
+
+    function renderImageRow(g) {
+      const row = document.createElement('div');
+      row.className = g.in_gallery ? 'rowItem live' : 'rowItem';
+      row.id = `painting-${g.base}`;
+      const meta = g.meta || {};
+      const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+      
+      // Find final image
+      const finalVariant = g.variants.find(v => v.variant === 'final');
+      // Find variant images (those that start with "variant_")
+      const imageVariants = g.variants.filter(v => v.variant && v.variant.startsWith('variant_'));
+      // Combine: final first, then variants
+      const allVariants = [];
+      if (finalVariant) {
+        allVariants.push(finalVariant);
+      }
+      allVariants.push(...imageVariants);
+      
+      // Add cache-busting timestamp to image URLs to ensure fresh load
+      const cacheBuster = '?t=' + Date.now();
+      row.innerHTML = `
+        ${g.in_gallery ? '<div class="live-badge">Live</div>' : '<div class="draft-badge">Entwurf</div>'}
+        <div>
+          ${finalVariant ? `
+            <img class="main-image" id="main-img-${g.base}" loading="lazy" src="${finalVariant.url}${cacheBuster}" alt="${finalVariant.name}">
+          ` : '<div class="main-image" style="aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; color: #999;">Kein Final-Bild</div>'}
+          ${allVariants.length > 0 ? `
+            <div class="variant-thumbs" id="thumbs-${g.base}">
+              ${allVariants.map((v) => `
+                <div class="variant-thumb-wrapper">
+                  <img class="variant-thumb ${v.variant === 'final' ? 'active' : ''}" 
+                       loading="lazy" 
+                       src="${v.url}${cacheBuster}" 
+                       alt="${v.name}"
+                       onclick="const mainImg = document.getElementById('main-img-${g.base}'); if(mainImg) { mainImg.src = '${v.url}?t=' + Date.now(); const thumbs = document.getElementById('thumbs-${g.base}'); if(thumbs) thumbs.querySelectorAll('.variant-thumb').forEach(t => t.classList.remove('active')); this.classList.add('active'); }"
+                       title="${v.name}">
+                  ${v.variant && v.variant.startsWith('variant_') ? `
+                    <button class="variant-thumb-delete" 
+                            onclick="event.stopPropagation(); deleteImageVariant('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', this)"
+                            title="Löschen">×</button>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
+        <div style="padding-right: 8px;">
+          <div class="field">
+            <label>Titel</label>
+            <input type="text" name="title" value="${escapeHtml(meta.title || '')}">
+          </div>
+          <div class="field">
+            <label>Beschreibung</label>
+            <textarea name="description" rows="3">${escapeHtml(meta.description || '')}</textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: auto auto; gap: 8px; align-items: end;">
+            <div class="field" style="max-width: 120px;">
+              <label>Breite (cm)</label>
+              <input type="text" name="width" value="${escapeHtml(meta.width || '')}">
+            </div>
+            <div class="field" style="max-width: 120px;">
+              <label>Höhe (cm)</label>
+              <input type="text" name="height" value="${escapeHtml(meta.height || '')}">
+            </div>
+          </div>
+          <div class="field">
+            <label>Tags</label>
+            <input type="text" name="tags" value="${escapeHtml(meta.tags || '')}">
+          </div>
+          <div class="field">
+            <label>Datum (dd.mm.yyyy)</label>
+            <input type="text" name="date" value="${escapeHtml(meta.date || '')}">
+          </div>
+          <div class="field">
+            <label style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} style="width: auto; margin: 0;">
+              Verkauft
+            </label>
+          </div>
+          <div class="row" style="justify-content:flex-end;">
+            <button type="button" onclick='saveMeta(${JSON.stringify(originalVariant.name)}, this)'>Speichern</button>
+          </div>
+        </div>
+        <div>
+          <div class="btns" style="display: flex; flex-direction: column; gap: 8px;">
+            ${g.in_gallery && g.gallery_filename ? `
+              <a href="/index.html?painting=${encodeURIComponent(g.gallery_filename)}" style="display: block; text-align: center; padding: 12px 24px; border: none; border-radius: 8px; background: #7A3A45; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: all 0.3s ease;" onmouseover="this.style.background='#8B4A55'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0, 0, 0, 0.2)';" onmouseout="this.style.background='#7A3A45'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)';">Auf Webseite anzeigen</a>
+            ` : ''}
+            <button type="button" onclick='doAction(${JSON.stringify(originalVariant.name)}, "room", this)'>Varianten generieren</button>
+            <button type="button" onclick='doAction(${JSON.stringify(originalVariant.name)}, "restore", this)'>Originalbild verwenden</button>
+            <button type="button" onclick='doCorners(${JSON.stringify(originalVariant.name)}, this)'>KI Bild freistellen lassen</button>
+            ${finalVariant ? `<button type="button" onclick='addWatermark(${JSON.stringify(finalVariant.name)}, ${JSON.stringify(g.base)}, this)'>Wasserzeichen einfügen</button>` : ''}
+            <button type="button" onclick='fillFormWithAI(${JSON.stringify(originalVariant.name)}, this)'>KI Formular ausfüllen lassen</button>
+            ${g.in_gallery ? 
+              `<button type="button" onclick='removeFromGallery(${JSON.stringify(originalVariant.name)}, this)' style="background: #ffc107; color: #000; border-color: #ffc107;">Zurück auf Entwurf</button>` :
+              `<button type="button" onclick='copyToGallery(${JSON.stringify(originalVariant.name)}, this)' style="background: #28a745; color: #fff; border-color: #28a745;">Live schalten</button>`
+            }
+            <button type="button" onclick='deleteCompletely(${JSON.stringify(originalVariant.name)}, this)' style="background: #dc3545; color: #fff; border-color: #dc3545; margin-top: 8px;">Vollständig löschen</button>
+            <div class="selectable-variants">
+              <div class="selectable-variants-title">KI Variante erstellen:</div>
+              <div class="selectable-variants-grid" id="variants-${g.base}">
+                ${availableVariants.length > 0 ? availableVariants.map(v => `
+                  <img class="selectable-variant-thumb" 
+                       src="${escapeHtml(v.url)}" 
+                       alt="${escapeHtml(v.name)}"
+                       title="${escapeHtml(v.name)}"
+                       onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
+                `).join('') : '<span class="muted" style="font-size: 11px;">Keine Varianten verfügbar</span>'}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      return row;
+    }
+
+    function renderImages(groups) {
+      const container = document.getElementById('images');
+      container.innerHTML = '';
+      if (!groups.length) {
+        container.innerHTML = '<p class="muted">Noch keine Bilder vorhanden.</p>';
+        return;
+      }
+
+      for (const g of groups) {
+        const row = renderImageRow(g);
+        container.appendChild(row);
+      }
+    }
+
+    async function refresh() {
+      // Fetch variants first
+      availableVariants = await fetchVariants();
+      
+      const { groups } = await fetchImages();
+      renderImages(groups);
+      
+      // Check for painting parameter in URL and scroll to it
+      const urlParams = new URLSearchParams(window.location.search);
+      const paintingParam = urlParams.get('painting');
+      if (paintingParam) {
+        // Try to find by gallery_filename first, then fallback to base
+        let targetElement = null;
+        for (const g of groups) {
+          if (g.gallery_filename && g.gallery_filename.toLowerCase() === paintingParam.toLowerCase()) {
+            targetElement = document.getElementById(`painting-${g.base}`);
+            break;
+          }
+          if (g.base.toLowerCase() === paintingParam.toLowerCase()) {
+            targetElement = document.getElementById(`painting-${g.base}`);
+            break;
+          }
+        }
+        if (targetElement) {
+          setTimeout(() => {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Highlight the element briefly
+            targetElement.style.transition = 'box-shadow 0.3s ease';
+            targetElement.style.boxShadow = '0 0 0 4px rgba(11, 95, 255, 0.5)';
+            setTimeout(() => {
+              targetElement.style.boxShadow = '';
+            }, 2000);
+          }, 100);
+        }
+      }
+    }
+
+    async function deleteImageVariant(filename, imageBaseName, btn) {
+      if (!confirm('Möchten Sie diese Variante wirklich löschen?')) {
+        return;
+      }
+
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+
+      try {
+        const body = new FormData();
+        body.set('filename', filename);
+
+        const res = await fetch('delete_image_variant.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Löschen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Löschen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        showToast('Variante erfolgreich gelöscht', 'success');
+        refresh();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = '';
+      }
+    }
+
+    async function copyVariantToImage(variantFilename, imageBaseName, isLive, originalImageName, thumbElement) {
+      const prevOpacity = thumbElement.style.opacity;
+      thumbElement.style.opacity = '0.5';
+      thumbElement.style.cursor = 'wait';
+      showToast('KI generiert Variante...', 'info', 300000); // 5 minutes max
+
+      try {
+        const body = new FormData();
+        body.set('action', 'copy_to_image');
+        body.set('variant_filename', variantFilename);
+        body.set('image_base_name', imageBaseName);
+
+        const res = await fetch('variants.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Fehler beim Generieren: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler beim Generieren: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        // If image is live, copy to gallery
+        if (isLive) {
+          showToast('Variante generiert. Aktualisiere Live-Version...', 'info');
+          try {
+            const copyBody = new FormData();
+            copyBody.set('image', originalImageName);
+            const copyRes = await fetch('copy_to_gallery.php', { method: 'POST', body: copyBody });
+            if (!copyRes.ok) {
+              const copyMsg = await copyRes.text();
+              showToast('Variante generiert, aber Live-Aktualisierung fehlgeschlagen: ' + copyMsg, 'error');
+              // Still update the UI even if copy failed
+              await updateImageRow(imageBaseName);
+              return;
+            }
+            const copyData = await copyRes.json().catch(() => ({}));
+            if (!copyData.ok) {
+              showToast('Variante generiert, aber Live-Aktualisierung fehlgeschlagen: ' + (copyData.error || 'Unknown'), 'error');
+              // Still update the UI even if copy failed
+              await updateImageRow(imageBaseName);
+              return;
+            }
+            showToast('Variante erfolgreich generiert und Live-Version aktualisiert', 'success');
+          } catch (copyError) {
+            showToast('Variante generiert, aber Live-Aktualisierung fehlgeschlagen: ' + copyError.message, 'error');
+            // Still update the UI even if copy failed
+            await updateImageRow(imageBaseName);
+            return;
+          }
+        } else {
+          showToast('Variante erfolgreich generiert', 'success');
+        }
+
+        // Update only the affected image row instead of full page reload
+        await updateImageRow(imageBaseName);
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        thumbElement.style.opacity = prevOpacity || '';
+        thumbElement.style.cursor = '';
+      }
+    }
+
+    async function updateImageRow(imageBaseName) {
+      // Fetch updated image data
+      const { groups } = await fetchImages();
+      const updatedGroup = groups.find(g => g.base === imageBaseName);
+      
+      if (!updatedGroup) {
+        // If image not found, do full refresh as fallback
+        refresh();
+        return;
+      }
+
+      // Find the existing row element
+      const existingRow = document.getElementById(`painting-${imageBaseName}`);
+      if (!existingRow) {
+        // If row not found, do full refresh as fallback
+        refresh();
+        return;
+      }
+
+      // Fetch variants first to ensure they're available
+      availableVariants = await fetchVariants();
+
+      // Render the new row
+      const newRow = renderImageRow(updatedGroup);
+      
+      // Replace the old row with the new one
+      existingRow.replaceWith(newRow);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
+    }
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      // Limit duration to maximum 20 seconds
+      const maxDuration = 20000;
+      const actualDuration = Math.min(duration, maxDuration);
+      
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, actualDuration);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      showFlashFromQuery();
+      refresh();
+      
+      const fileInput = document.getElementById('fileInput');
+      const uploadArea = document.getElementById('uploadArea');
+      const uploadForm = document.getElementById('uploadForm');
+      
+      // Click on upload area to trigger file input
+      uploadArea.addEventListener('click', () => {
+        fileInput.click();
+      });
+      
+      // File input change handler
+      fileInput.addEventListener('change', async (e) => {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        await uploadFiles(fileInput.files);
+      }, { passive: true });
+      
+      // Drag and drop handlers
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.add('dragover');
+      });
+      
+      uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+      });
+      
+      uploadArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          await uploadFiles(files);
+        }
+      });
+      
+      async function uploadFiles(files) {
+        const fd = new FormData(uploadForm);
+        // Clear existing files and add dropped files
+        for (let i = 0; i < files.length; i++) {
+          fd.append('images[]', files[i]);
+        }
+        
+        try {
+          const res = await fetch('upload.php', { method: 'POST', body: fd });
+          if (res.ok) {
+            showToast(`${files.length} Bild(er) erfolgreich hochgeladen`, 'success');
+          } else {
+            showToast('Fehler beim Hochladen', 'error');
+          }
+        } catch (error) {
+          showToast('Fehler beim Hochladen: ' + error.message, 'error');
+        }
+        
+        fileInput.value = '';
+        refresh();
+      }
+    });
+  </script>
+  <noscript>Please enable JavaScript to view and select images.</noscript>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="icon" href="data:,">
+  <title>Administration der Herzfabrik</title>
+  </head>
+<body>
+  <div id="toastContainer" class="toast-container"></div>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <h1 style="margin: 0;">Administration der <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Gemälde</a>
+      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Raum-Mockups</a>
+      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Künstler</a>
+    </div>
+  </div>
+  <div id="flash" class="flash hidden"></div>
+
+  <div class="card">
+    <h2>Gemälde hochladen</h2>
+    <form id="uploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
+      <div id="uploadArea" class="upload-area">
+        <div class="upload-area-text">📷 Bilder hier ablegen oder klicken zum Auswählen</div>
+        <div class="upload-area-hint">Sie können mehrere Bilder gleichzeitig hochladen</div>
+        <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="fileInput">
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <h2>Gemälde</h2>
+      <button type="button" onclick="refresh()">Aktualisieren</button>
+    </div>
+    <div id="images" class="list"></div>
+  </div>
+
+  <script>
+    function showFlashFromQuery() {
+      const url = new URL(window.location.href);
+      const processed = url.searchParams.get('processed');
+      const errors = url.searchParams.get('errors');
+      const errorsDetailRaw = url.searchParams.get('errors_detail');
+      if (!processed && !errors) return;
+      const box = document.getElementById('flash');
+      box.classList.remove('hidden');
+      const p = parseInt(processed || '0', 10);
+      const e = parseInt(errors || '0', 10);
+      let html = '';
+      if (e > 0) {
+        box.classList.remove('success');
+        html += `<strong>Processing finished:</strong> ${p} succeeded, ${e} failed.`;
+        if (errorsDetailRaw) {
+          try {
+            const details = JSON.parse(errorsDetailRaw);
+            if (Array.isArray(details) && details.length) {
+              html += '<div style="margin-top:8px"><strong>Errors:</strong><ul>' +
+                details.map(d => `<li>${String(d)}</li>`).join('') + '</ul></div>';
+            }
+          } catch {}
+        }
+      } else {
+        box.classList.add('success');
+        html += `<strong>Success:</strong> Processed ${p} image(s).`;
+      }
+      box.innerHTML = html;
+      // Clean params from URL without reloading
+      window.history.replaceState({}, '', url.pathname);
+    }
+
+    async function saveMeta(image, btn) {
+      const item = btn.closest('.rowItem');
+      const body = new FormData();
+      body.set('image', image);
+      body.set('title', item.querySelector('input[name=\"title\"]').value);
+      body.set('description', item.querySelector('textarea[name=\"description\"]').value);
+      body.set('width', item.querySelector('input[name=\"width\"]').value);
+      body.set('height', item.querySelector('input[name=\"height\"]').value);
+      body.set('tags', item.querySelector('input[name=\"tags\"]').value);
+      body.set('date', item.querySelector('input[name=\"date\"]').value);
+      const soldCheckbox = item.querySelector('input[name=\"sold\"]');
+      body.set('sold', soldCheckbox && soldCheckbox.checked ? '1' : '0');
+      btn.disabled = true;
+      const res = await fetch('save_meta.php', { method: 'POST', body });
+      btn.disabled = false;
+      if (!res.ok) {
+        showToast('Fehler beim Speichern der Metadaten', 'error');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.in_gallery) {
+        showToast('Metadaten gespeichert und Live-Version aktualisiert', 'success');
+        // Refresh to update button state
+        refresh();
+      } else {
+        showToast('Metadaten gespeichert', 'success');
+      }
+    }
+
+    async function doAction(image, action, btn) {
+      btn.disabled = true;
+      const body = new FormData();
+      body.set('image', image);
+      body.set('action', action);
+      const res = await fetch('action.php', { method: 'POST', body });
+      btn.disabled = false;
+      if (!res.ok) {
+        const msg = await res.text();
+        showToast('Fehler: ' + msg, 'error');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!data.ok) {
+        showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+        return;
+      }
+      if (action === 'restore') {
+        showToast('Originalbild erfolgreich verwendet', 'success');
+      }
+      await refresh();
+      // Force reload the main image after refresh (especially for restore action)
+      if (action === 'restore') {
+        // Extract base name: remove _original, _color, _final, or _variant_* suffix and extension
+        const base = image.replace(/_variant_[^_]+\.(jpg|jpeg|png)$/i, '').replace(/_(original|color|final)\.(jpg|jpeg|png)$/i, '').replace(/\.(jpg|jpeg|png)$/i, '');
+        const mainImg = document.getElementById(`main-img-${base}`);
+        if (mainImg) {
+          // Force reload by adding/updating cache-busting parameter
+          const currentSrc = mainImg.src;
+          const separator = currentSrc.includes('?') ? '&' : '?';
+          mainImg.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
+        }
+      }
+    }
+
+    async function doCorners(imageOriginalName, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'KI…';
+      try {
+        const body = new FormData();
+        body.set('image_path', 'admin/images/' + imageOriginalName);
+        body.set('color', '#ffffff');
+        const res = await fetch('corners.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('KI-Verarbeitung fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          showToast('KI-Verarbeitung fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        showToast('KI-Verarbeitung erfolgreich abgeschlossen', 'success');
+        // Extract base name: remove _original, _color, _final, or _variant_* suffix and extension
+        const base = imageOriginalName.replace(/_variant_[^_]+\.(jpg|jpeg|png)$/i, '').replace(/_(original|color|final)\.(jpg|jpeg|png)$/i, '').replace(/\.(jpg|jpeg|png)$/i, '');
+        await refresh();
+        // Force reload the main image after refresh with a small delay to ensure DOM is ready
+        setTimeout(() => {
+          const mainImg = document.getElementById(`main-img-${base}`);
+          if (mainImg) {
+            // Force reload by adding/updating cache-busting parameter
+            const currentSrc = mainImg.src;
+            const separator = currentSrc.includes('?') ? '&' : '?';
+            mainImg.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
+          }
+        }, 100);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    async function addWatermark(finalImageName, imageBaseName, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Wasserzeichen…';
+      try {
+        // Construct URL with proper encoding
+        const fileParam = 'images/' + finalImageName;
+        const textParam = 'herzfabrik.com';
+        const url = `watermark.php?file=${encodeURIComponent(fileParam)}&text=${encodeURIComponent(textParam)}`;
+        
+        console.log('Calling watermark.php with URL:', url);
+        
+        const res = await fetch(url);
+        if (!res.ok) {
+          const msg = await res.text();
+          console.error('Watermark request failed:', msg);
+          showToast('Wasserzeichen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        
+        const data = await res.json().catch(() => ({}));
+        console.log('Watermark response:', data);
+        if (!data.success) {
+          showToast('Wasserzeichen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        showToast('Wasserzeichen erfolgreich eingefügt', 'success');
+        // Refresh the image display
+        await refresh();
+        // Force reload the main image after refresh
+        setTimeout(() => {
+          const mainImg = document.getElementById(`main-img-${imageBaseName}`);
+          if (mainImg) {
+            const currentSrc = mainImg.src;
+            const separator = currentSrc.includes('?') ? '&' : '?';
+            mainImg.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
+          }
+        }, 100);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    async function fillFormWithAI(imageOriginalName, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'KI…';
+      try {
+        const item = btn.closest('.rowItem');
+        
+        // Find the final image URL to log
+        const mainImg = item.querySelector('.main-image');
+        const imageUrl = mainImg ? mainImg.src : 'images/' + imageOriginalName;
+        console.log('KI Formular ausfüllen: Verwende Bild:', imageUrl);
+        
+        const body = new FormData();
+        body.set('image', imageOriginalName);
+        const res = await fetch('ai_fill_form.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('KI-Formularausfüllung fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          showToast('KI-Formularausfüllung fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        // Check for warning
+        if (data.warning) {
+          showToast(data.warning, 'error');
+          return;
+        }
+        
+        // Fill form fields with AI-generated data
+        let filled = false;
+        if (data.title) {
+          item.querySelector('input[name="title"]').value = data.title;
+          filled = true;
+        }
+        if (data.description) {
+          item.querySelector('textarea[name="description"]').value = data.description;
+          filled = true;
+        }
+        if (data.tags) {
+          item.querySelector('input[name="tags"]').value = data.tags;
+          filled = true;
+        }
+        if (data.date) {
+          item.querySelector('input[name="date"]').value = data.date;
+          filled = true;
+        }
+        if (data.width) {
+          item.querySelector('input[name="width"]').value = data.width;
+          filled = true;
+        }
+        if (data.height) {
+          item.querySelector('input[name="height"]').value = data.height;
+          filled = true;
+        }
+        
+        if (filled) {
+          showToast('Formular erfolgreich von KI ausgefüllt', 'success');
+          // Automatically save the form
+          const saveBtn = item.querySelector('button[onclick*="saveMeta"]');
+          if (saveBtn) {
+            await saveMeta(imageOriginalName, saveBtn);
+          }
+        } else {
+          showToast('Keine Daten von KI erhalten', 'error');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    async function copyToGallery(imageOriginalName, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Schalte live…';
+      try {
+        const body = new FormData();
+        body.set('image', imageOriginalName);
+        const res = await fetch('copy_to_gallery.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Live schalten fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          showToast('Live schalten fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        showToast('Erfolgreich live geschaltet', 'success');
+        refresh();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    async function removeFromGallery(imageOriginalName, btn) {
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Entferne live…';
+      try {
+        const body = new FormData();
+        body.set('image', imageOriginalName);
+        const res = await fetch('remove_from_gallery.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Live entfernen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          showToast('Live entfernen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        showToast('Erfolgreich live entfernt', 'success');
+        refresh();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    async function deleteCompletely(imageOriginalName, btn) {
+      if (!confirm('Möchten Sie wirklich alle Dateien dieses Gemäldes löschen? Dies kann nicht rückgängig gemacht werden.')) {
+        return;
+      }
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Lösche…';
+      try {
+        const body = new FormData();
+        body.set('image', imageOriginalName);
+        const res = await fetch('delete_completely.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Löschen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          showToast('Löschen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        showToast('Alle Dateien erfolgreich gelöscht', 'success');
+        refresh();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+    
+    // Update site domain link in header
+    async function updateSiteDomainLink() {
+      try {
+        const res = await fetch('get_artist_content.php');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && data.domain) {
+          const domainLink = document.getElementById('site-domain-link');
+          if (domainLink) {
+            // Capitalize first letter
+            const domainText = data.domain.charAt(0).toUpperCase() + data.domain.slice(1);
+            domainLink.textContent = domainText;
+          }
+        }
+      } catch (error) {
+        // Silently fail - keep default "Herzfabrik"
+      }
+    }
+    
+    // Update domain link on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateSiteDomainLink);
+    } else {
+      updateSiteDomainLink();
+    }
+  </script>
+</body>
+</html>
+
+

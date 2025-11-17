@@ -1,0 +1,506 @@
+<?php
+declare(strict_types=1);
+
+function load_replicate_token(): string {
+    $envPath = dirname(__DIR__).'/.env';
+    if (!file_exists($envPath)) {
+        throw new RuntimeException('.env not found at project root');
+    }
+    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach ($lines as $line) {
+        if (strpos(ltrim($line), '#') === 0) continue;
+        $pos = strpos($line, '=');
+        if ($pos === false) continue;
+        $key = trim(substr($line, 0, $pos));
+        $val = trim(substr($line, $pos + 1));
+        // Strip quotes
+        if ((str_starts_with($val, '"') && str_ends_with($val, '"')) || (str_starts_with($val, "'") && str_ends_with($val, "'"))) {
+            $val = substr($val, 1, -1);
+        }
+        if ($key === 'REPLICATE_API_TOKEN' && $val !== '') {
+            return $val;
+        }
+    }
+    throw new RuntimeException('REPLICATE_API_TOKEN not found in .env');
+}
+
+function http_json_post(string $url, array $headers, array $payload): array {
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $headers[] = 'Content-Type: application/json';
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+    $res = curl_exec($ch);
+    if ($res === false) {
+        $err = curl_error($ch);
+        curl_close($ch);
+        throw new RuntimeException('HTTP POST error: '.$err);
+    }
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $data = json_decode($res, true);
+    if ($code < 200 || $code >= 300) {
+        throw new RuntimeException('HTTP '.$code.' response: '.($res ?: '')); 
+    }
+    if (!is_array($data)) {
+        throw new RuntimeException('Invalid JSON response');
+    }
+    return $data;
+}
+
+function replicate_upload_file(string $token, string $filePath): string {
+    if (!file_exists($filePath)) throw new InvalidArgumentException('File not found: '.$filePath);
+    $ch = curl_init('https://api.replicate.com/v1/files');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $headers = [ 'Authorization: Bearer '.$token ];
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    $cfile = new CURLFile($filePath);
+    // Replicate expects multipart field named 'content'
+    $post = [ 'content' => $cfile ];
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+    $res = curl_exec($ch);
+    if ($res === false) {
+        $err = curl_error($ch);
+        curl_close($ch);
+        throw new RuntimeException('Upload error: '.$err);
+    }
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    $data = json_decode($res, true);
+    if ($code < 200 || $code >= 300) {
+        throw new RuntimeException('Upload HTTP '.$code.': '.($res ?: ''));
+    }
+    // Prefer 'url', fallback to nested fields
+    if (isset($data['url']) && is_string($data['url'])) return $data['url'];
+    if (isset($data['urls']['get']) && is_string($data['urls']['get'])) return $data['urls']['get'];
+    if (isset($data['id']) && is_string($data['id'])) return 'https://api.replicate.com/v1/files/'.$data['id'];
+    throw new RuntimeException('Unexpected upload response: '.json_encode($data));
+}
+
+function replicate_expand_square(string $token, string $imageUrl): string {
+    $headers = [
+        'Authorization: Bearer '.$token,
+        'Prefer: wait',
+    ];
+    $payload = [
+        'input' => [
+            'sync' => true,
+            'image' => $imageUrl,
+            'aspect_ratio' => '1:1',
+            'preserve_alpha' => false,
+            'content_moderation' => false,
+        ],
+    ];
+    $data = http_json_post('https://api.replicate.com/v1/models/bria/expand-image/predictions', $headers, $payload);
+    // Output can be a string URL or array of URLs
+    if (isset($data['output']) && is_string($data['output'])) return $data['output'];
+    if (isset($data['output'][0]) && is_string($data['output'][0])) return $data['output'][0];
+    // Some responses nest inside 'output' -> 'image'
+    if (isset($data['output']['image']) && is_string($data['output']['image'])) return $data['output']['image'];
+    throw new RuntimeException('Unexpected prediction response: '.json_encode($data));
+}
+
+function image_create_from_any(string $path) {
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    return match ($ext) {
+        'jpg', 'jpeg' => imagecreatefromjpeg($path),
+        'png' => imagecreatefrompng($path),
+        'webp' => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($path) : null,
+        default => null,
+    };
+}
+
+function image_save_as(string $path, $im): void {
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    switch ($ext) {
+        case 'jpg':
+        case 'jpeg':
+            imagejpeg($im, $path, 90);
+            break;
+        case 'png':
+            imagepng($im, $path, 6);
+            break;
+        case 'webp':
+            if (!function_exists('imagewebp')) {
+                // Fallback to JPEG
+                $alt = preg_replace('/\.webp$/i', '.jpg', $path);
+                imagejpeg($im, $alt, 90);
+            } else {
+                imagewebp($im, $path, 85);
+            }
+            break;
+        default:
+            imagejpeg($im, $path, 90);
+    }
+}
+
+function ensure_1000_square(string $path): void {
+    $src = image_create_from_any($path);
+    if (!$src) return; // silently skip if unsupported
+    $srcW = imagesx($src);
+    $srcH = imagesy($src);
+    if ($srcW === 1000 && $srcH === 1000) { imagedestroy($src); return; }
+    $dst = imagecreatetruecolor(1000, 1000);
+    // Fill white background
+    $white = imagecolorallocate($dst, 255, 255, 255);
+    imagefill($dst, 0, 0, $white);
+    // Scale to fit, keep aspect
+    $scale = min(1000 / $srcW, 1000 / $srcH);
+    $newW = (int) floor($srcW * $scale);
+    $newH = (int) floor($srcH * $scale);
+    $dstX = (int) floor((1000 - $newW) / 2);
+    $dstY = (int) floor((1000 - $newH) / 2);
+    imagecopyresampled($dst, $src, $dstX, $dstY, 0, 0, $newW, $newH, $srcW, $srcH);
+    image_save_as($path, $dst);
+    imagedestroy($src);
+    imagedestroy($dst);
+}
+
+function ensure_max_1000(string $path): void {
+    $src = image_create_from_any($path);
+    if (!$src) return;
+    $srcW = imagesx($src);
+    $srcH = imagesy($src);
+    $max = max($srcW, $srcH);
+    if ($max <= 1000) { imagedestroy($src); return; }
+    $scale = 1000 / $max;
+    $newW = (int) floor($srcW * $scale);
+    $newH = (int) floor($srcH * $scale);
+    $dst = imagecreatetruecolor($newW, $newH);
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $srcW, $srcH);
+    image_save_as($path, $dst);
+    imagedestroy($src);
+    imagedestroy($dst);
+}
+
+function convert_to_jpg(string $sourcePath, string $targetPath): bool {
+    // Try Imagick first if available
+    if (extension_loaded('imagick')) {
+        try {
+            $imagick = new Imagick($sourcePath);
+            $imagick->setImageFormat('jpeg');
+            $imagick->setImageCompressionQuality(90);
+            // Handle transparency: flatten to white background
+            if ($imagick->getImageAlphaChannel()) {
+                $white = new ImagickPixel('white');
+                $imagick->setImageBackgroundColor($white);
+                $imagick->setImageAlphaChannel(Imagick::ALPHACHANNEL_REMOVE);
+                $imagick = $imagick->mergeImageLayers(Imagick::LAYER_METHOD_FLATTEN);
+            }
+            $result = $imagick->writeImage($targetPath);
+            $imagick->clear();
+            $imagick->destroy();
+            return $result;
+        } catch (Exception $e) {
+            // Fall through to GD fallback
+        }
+    }
+    
+    // Fallback to GD
+    $imageInfo = getimagesize($sourcePath);
+    if ($imageInfo === false) return false;
+    
+    $sourceImage = null;
+    switch ($imageInfo[2]) {
+        case IMAGETYPE_JPEG:
+            $sourceImage = imagecreatefromjpeg($sourcePath);
+            break;
+        case IMAGETYPE_PNG:
+            $sourceImage = imagecreatefrompng($sourcePath);
+            break;
+        case IMAGETYPE_WEBP:
+            $sourceImage = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($sourcePath) : null;
+            break;
+    }
+    
+    if ($sourceImage === null) return false;
+    
+    // Handle PNG transparency with white background
+    if ($imageInfo[2] === IMAGETYPE_PNG) {
+        $jpg = imagecreatetruecolor(imagesx($sourceImage), imagesy($sourceImage));
+        $white = imagecolorallocate($jpg, 255, 255, 255);
+        imagefill($jpg, 0, 0, $white);
+        imagecopy($jpg, $sourceImage, 0, 0, 0, 0, imagesx($sourceImage), imagesy($sourceImage));
+        imagedestroy($sourceImage);
+        $sourceImage = $jpg;
+    }
+    
+    $result = imagejpeg($sourceImage, $targetPath, 90);
+    imagedestroy($sourceImage);
+    return $result;
+}
+
+/**
+ * Unified function to update live version in gallery
+ * Copies final image, JSON metadata, and all variants
+ */
+function update_gallery_entry(string $base, array $meta, string $imagesDir, string $galleryDir): array {
+    // Find the _final variant
+    $finalImage = null;
+    $jsonFile = null;
+    $variantFiles = [];
+    
+    $files = scandir($imagesDir) ?: [];
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $fileStem = pathinfo($file, PATHINFO_FILENAME);
+        
+        // Find final image
+        if (strpos($fileStem, $base.'_final') === 0) {
+            $finalImage = $file;
+        }
+        
+        // Find JSON file
+        if (strpos($file, $base) === 0 && pathinfo($file, PATHINFO_EXTENSION) === 'json') {
+            $jsonFile = $file;
+        }
+        
+        // Find variant files (those with _variant_ in the name)
+        if (strpos($fileStem, $base.'_variant_') === 0) {
+            $variantFiles[] = $file;
+        }
+    }
+    
+    if (!$finalImage || !is_file($imagesDir.$finalImage)) {
+        return ['ok' => false, 'error' => 'Final image not found for base: '.$base];
+    }
+    
+    if (!$jsonFile || !is_file($imagesDir.$jsonFile)) {
+        return ['ok' => false, 'error' => 'JSON metadata not found'];
+    }
+    
+    $title = trim($meta['title'] ?? '');
+    if ($title === '') {
+        return ['ok' => false, 'error' => 'Title is required in metadata'];
+    }
+    
+    // Convert title to filename
+    $filename = mb_strtolower($title);
+    $filename = preg_replace('/[^a-z0-9]+/u', '_', $filename);
+    $filename = trim($filename, '_');
+    
+    if ($filename === '') {
+        return ['ok' => false, 'error' => 'Invalid title for filename'];
+    }
+    
+    // Ensure gallery directory exists
+    if (!is_dir($galleryDir)) {
+        if (!mkdir($galleryDir, 0755, true)) {
+            return ['ok' => false, 'error' => 'Failed to create gallery directory'];
+        }
+    }
+    
+    // Check if entry already exists and delete old files
+    $oldGalleryFiles = [];
+    if (is_dir($galleryDir)) {
+        $galleryFiles = scandir($galleryDir) ?: [];
+        foreach ($galleryFiles as $gFile) {
+            if ($gFile === '.' || $gFile === '..') continue;
+            $gJsonPath = $galleryDir.$gFile;
+            if (pathinfo($gFile, PATHINFO_EXTENSION) === 'json') {
+                $gJsonContent = file_get_contents($gJsonPath);
+                $gMeta = json_decode($gJsonContent, true);
+                if (is_array($gMeta) && isset($gMeta['original_filename']) && $gMeta['original_filename'] === $base) {
+                    // Found matching entry, mark all related files for deletion
+                    $oldBase = pathinfo($gFile, PATHINFO_FILENAME);
+                    foreach ($galleryFiles as $gFile2) {
+                        if ($gFile2 === '.' || $gFile2 === '..') continue;
+                        $fileStem = pathinfo($gFile2, PATHINFO_FILENAME);
+                        if (strpos($fileStem, $oldBase) === 0) {
+                            $oldGalleryFiles[] = $gFile2;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Delete old files
+    foreach ($oldGalleryFiles as $oldFile) {
+        $oldPath = $galleryDir.$oldFile;
+        if (is_file($oldPath)) {
+            @unlink($oldPath);
+        }
+    }
+    
+    // Copy final image
+    $finalExt = pathinfo($finalImage, PATHINFO_EXTENSION);
+    $destImage = $galleryDir.$filename.'.'.$finalExt;
+    if (!copy($imagesDir.$finalImage, $destImage)) {
+        return ['ok' => false, 'error' => 'Failed to copy image'];
+    }
+    
+    // Add original_filename to metadata
+    $meta['original_filename'] = $base;
+    
+    // Copy JSON
+    $destJson = $galleryDir.$filename.'.json';
+    $updatedJsonContent = json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    if (!file_put_contents($destJson, $updatedJsonContent)) {
+        @unlink($destImage);
+        return ['ok' => false, 'error' => 'Failed to copy JSON'];
+    }
+    
+    // Copy all variants
+    $copiedVariants = [];
+    foreach ($variantFiles as $variantFile) {
+        // Extract variant name: base_variant_name.jpg -> variant_name
+        $variantStem = pathinfo($variantFile, PATHINFO_FILENAME);
+        $variantName = substr($variantStem, strlen($base) + 9); // +9 for '_variant_'
+        
+        $variantExt = pathinfo($variantFile, PATHINFO_EXTENSION);
+        $destVariant = $galleryDir.$filename.'_variant_'.$variantName.'.'.$variantExt;
+        
+        if (copy($imagesDir.$variantFile, $destVariant)) {
+            $copiedVariants[] = basename($destVariant);
+        }
+    }
+    
+    return [
+        'ok' => true,
+        'image' => $filename.'.'.$finalExt,
+        'json' => $filename.'.json',
+        'variants' => $copiedVariants
+    ];
+}
+
+/**
+ * Extract base name from image filename (removes variant suffix)
+ */
+function extract_base_name(string $image): string {
+    $stem = pathinfo($image, PATHINFO_FILENAME);
+    return preg_replace('/_[^_]+$/', '', $stem);
+}
+
+/**
+ * Find JSON metadata file for a given base name
+ */
+function find_json_file(string $base, string $imagesDir): ?string {
+    $files = scandir($imagesDir) ?: [];
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        if (strpos($file, $base) === 0 && pathinfo($file, PATHINFO_EXTENSION) === 'json') {
+            return $file;
+        }
+    }
+    return null;
+}
+
+/**
+ * Find gallery entry by original_filename
+ */
+function find_gallery_entry(string $originalFilename, string $galleryDir): ?string {
+    if (!is_dir($galleryDir)) {
+        return null;
+    }
+    $galleryFiles = scandir($galleryDir) ?: [];
+    foreach ($galleryFiles as $gFile) {
+        if ($gFile === '.' || $gFile === '..') continue;
+        if (pathinfo($gFile, PATHINFO_EXTENSION) !== 'json') continue;
+        $gJsonPath = $galleryDir.$gFile;
+        $gJsonContent = file_get_contents($gJsonPath);
+        $gMeta = json_decode($gJsonContent, true);
+        if (is_array($gMeta) && isset($gMeta['original_filename']) && $gMeta['original_filename'] === $originalFilename) {
+            return pathinfo($gFile, PATHINFO_FILENAME);
+        }
+    }
+    return null;
+}
+
+/**
+ * Fetch image bytes from various formats (URL, data URI, array)
+ */
+function fetch_image_bytes($thing): ?string {
+    if (is_string($thing)) {
+        if (preg_match('#^https?://#i', $thing)) {
+            $ch = curl_init($thing);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => 120
+            ]);
+            $bin = curl_exec($ch);
+            curl_close($ch);
+            return $bin !== false ? $bin : null;
+        }
+        if (str_starts_with($thing, 'data:image/')) {
+            $comma = strpos($thing, ',');
+            if ($comma === false) return null;
+            return base64_decode(substr($thing, $comma + 1));
+        }
+    }
+    if (is_array($thing)) {
+        if (isset($thing['image'])) return fetch_image_bytes($thing['image']);
+        if (isset($thing[0])) return fetch_image_bytes($thing[0]);
+    }
+    return null;
+}
+
+/**
+ * Call Replicate API with version
+ */
+function replicate_call_version(string $token, string $version, array $payload): array {
+    $payload['version'] = $version;
+    $ch = curl_init("https://api.replicate.com/v1/predictions");
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => ["Authorization: Token $token", "Content-Type: application/json", "Prefer: wait"],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_TIMEOUT => 300
+    ]);
+    $res = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    
+    if ($res === false || $http >= 400) {
+        throw new RuntimeException('Replicate API error: ' . ($err ?: $res));
+    }
+    
+    $resp = json_decode($res, true);
+    if (!is_array($resp)) {
+        throw new RuntimeException('Invalid JSON response');
+    }
+    
+    return $resp;
+}
+
+/**
+ * Call Replicate API with model name
+ */
+function replicate_call_model(string $token, string $model, array $payload): array {
+    $ch = curl_init("https://api.replicate.com/v1/models/$model/predictions");
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => ["Authorization: Token $token", "Content-Type: application/json", "Prefer: wait"],
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_TIMEOUT => 300
+    ]);
+    $res = curl_exec($ch);
+    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    
+    if ($res === false || $http >= 400) {
+        throw new RuntimeException('Replicate API error: ' . ($err ?: $res));
+    }
+    
+    $resp = json_decode($res, true);
+    if (!is_array($resp)) {
+        throw new RuntimeException('Invalid JSON response');
+    }
+    
+    return $resp;
+}
+
+

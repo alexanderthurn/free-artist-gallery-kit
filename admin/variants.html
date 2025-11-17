@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme: light only;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Varianten Verwaltung - Herzfabrik</title>
+  <style>
+    html { color-scheme: light; background: #fff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; background: #fff; color: #000; }
+    h1 { font-size: 20px; margin: 0 0 16px; color: #000; }
+    h2 { font-size: 16px; margin: 24px 0 12px; color: #000; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; }
+    .upload-area { border: 3px dashed #888; border-radius: 12px; padding: 32px; background: #f5f5f5; text-align: center; transition: all 0.3s ease; cursor: pointer; }
+    .upload-area:hover { background: #e8e8e8; border-color: #666; }
+    .upload-area.dragover { background: #ddd; border-color: #666; border-style: solid; }
+    .upload-area-text { color: #555; font-weight: 500; margin-bottom: 8px; }
+    .upload-area-hint { color: #666; font-size: 13px; }
+    .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .variant-item { border: 1px solid #eee; border-radius: 8px; padding: 12px; background: #fff; position: relative; }
+    .variant-image { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; background: #fafafa; margin-bottom: 8px; }
+    .variant-name { font-size: 12px; color: #666; margin-bottom: 8px; word-break: break-word; }
+    button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button.primary { background: #666; color: #fff; border-color: #666; }
+    button.primary:hover { background: #555; border-color: #555; }
+    button.danger { background: #dc3545; color: #fff; border-color: #dc3545; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .field label { font-size: 12px; color: #555; font-weight: 500; }
+    .field textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; background: #fff; color: #000; min-height: 120px; resize: vertical; }
+    .field input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; background: #fff; color: #000; }
+    .muted { color: #666; font-size: 12px; }
+    .variant-name-input { width: 100%; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; margin-bottom: 4px; }
+    .variant-name-display { font-size: 12px; color: #666; margin-bottom: 8px; word-break: break-word; cursor: pointer; }
+    .variant-name-display:hover { color: #666; }
+    .variant-actions { display: flex; gap: 4px; flex-direction: column; }
+    .variant-actions button { width: 100%; font-size: 12px; padding: 6px 8px; }
+    .hidden { display: none; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; animation: toastSlideIn 0.3s ease-out; }
+    .toast.success { border-color: #28a745; background: #f6fffa; color: #1f6b3a; }
+    .toast.error { border-color: #dc3545; background: #fff5f5; color: #8a1f1f; }
+    .toast.info { border-color: #888; background: #f5f5f5; color: #333; }
+    @keyframes toastSlideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes toastSlideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .toast.hiding { animation: toastSlideOut 0.3s ease-in forwards; }
+    .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 10001; }
+    .loading-overlay.active { display: flex; }
+    .loading-content { background: #fff; padding: 24px; border-radius: 8px; text-align: center; }
+    .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid #666; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+    @media (max-width: 768px) {
+      body { margin: 12px; }
+      .list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    }
+  </style>
+  <script>
+    // Set admin flag in localStorage when admin page loads successfully
+    if (typeof Storage !== 'undefined') {
+      localStorage.setItem('admin', 'true');
+    }
+    
+    const DEFAULT_PROMPT = `Ein modernes Arbeitszimmer mit Elementen des industriellen Designs. Eine raue Ziegelwand bildet den Hintergrund, leicht schräg von rechts gesehen. Ein minimalistischer Schreibtisch aus Metall und Holz steht im Vordergrund. Über dem Schreibtisch an der Ziegelwand ist eine freie, große Fläche für ein Gemälde vorgesehen. Indirektes Licht von einer stylischen Pendelleuchte sorgt für eine produktive, aber gemütliche Atmosphäre.`;
+
+    async function fetchVariants() {
+      const res = await fetch('variants.php?action=list');
+      if (!res.ok) return { variants: [] };
+      const data = await res.json();
+      return data.ok ? data : { variants: [] };
+    }
+
+    function renderVariants(variants) {
+      const container = document.getElementById('variants');
+      container.innerHTML = '';
+      if (!variants || variants.length === 0) {
+        container.innerHTML = '<p class="muted">Noch keine Varianten vorhanden.</p>';
+        return;
+      }
+
+      variants.forEach(variant => {
+        const item = document.createElement('div');
+        item.className = 'variant-item';
+        item.id = `variant-${escapeHtml(variant.name)}`;
+        const date = new Date(variant.mtime * 1000).toLocaleString('de-DE');
+        const nameWithoutExt = variant.name.replace(/\.[^/.]+$/, '');
+        // Add cache-busting parameter using mtime timestamp
+        const cacheBuster = variant.mtime ? `?t=${variant.mtime}` : `?t=${Date.now()}`;
+        const imageUrl = escapeHtml(variant.url) + cacheBuster;
+        item.innerHTML = `
+          <img class="variant-image" src="${imageUrl}" alt="${escapeHtml(variant.name)}" loading="lazy">
+          <div class="variant-name-display" onclick="startRename('${escapeHtml(variant.name)}')" title="Klicken zum Umbenennen">${escapeHtml(variant.name)}</div>
+          <div class="muted" style="font-size: 11px; margin-bottom: 8px;">${date}</div>
+          <div class="variant-actions">
+            <button type="button" onclick="startRename('${escapeHtml(variant.name)}')">Umbenennen</button>
+            <button type="button" class="danger" onclick="deleteVariant('${escapeHtml(variant.name)}', this)">Löschen</button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
+    }
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      // Limit duration to maximum 20 seconds
+      const maxDuration = 20000;
+      const actualDuration = Math.min(duration, maxDuration);
+      
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, actualDuration);
+    }
+
+    function showLoading(message = 'Bitte warten...') {
+      const overlay = document.getElementById('loadingOverlay');
+      const messageEl = document.getElementById('loadingMessage');
+      messageEl.textContent = message;
+      overlay.classList.add('active');
+    }
+
+    function hideLoading() {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.remove('active');
+    }
+
+    async function refresh() {
+      const data = await fetchVariants();
+      renderVariants(data.variants || []);
+      // Force reload all images to bypass cache
+      setTimeout(() => {
+        document.querySelectorAll('.variant-image').forEach(img => {
+          const currentSrc = img.src;
+          const separator = currentSrc.includes('?') ? '&' : '?';
+          img.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
+        });
+      }, 50);
+    }
+
+    async function generateVariant() {
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) {
+        showToast('Bitte geben Sie einen Prompt ein', 'error');
+        return;
+      }
+
+      const name = document.getElementById('generateName').value.trim();
+      let replace = false;
+
+      // Check if name exists
+      if (name) {
+        try {
+          const checkBody = new FormData();
+          checkBody.set('action', 'check_name');
+          checkBody.set('name', name);
+          const checkRes = await fetch('variants.php', { method: 'POST', body: checkBody });
+          const checkData = await checkRes.json();
+          if (checkData.exists) {
+            if (!confirm(`Eine Variante mit dem Namen "${checkData.filename}" existiert bereits. Möchten Sie sie ersetzen?`)) {
+              return;
+            }
+            replace = true;
+          }
+        } catch (error) {
+          // Continue anyway
+        }
+      }
+
+      const btn = document.getElementById('generateBtn');
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Generiere...';
+      showLoading('Bild wird generiert. Dies kann einige Zeit dauern...');
+
+      try {
+        const body = new FormData();
+        body.set('action', 'generate');
+        body.set('prompt', prompt);
+        if (name) {
+          body.set('name', name);
+        }
+        if (replace) {
+          body.set('replace', 'true');
+        }
+
+        const res = await fetch('variants.php', { method: 'POST', body });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'file_exists') {
+            if (confirm(data.message + ' Möchten Sie sie ersetzen?')) {
+              body.set('replace', 'true');
+              const retryRes = await fetch('variants.php', { method: 'POST', body });
+              const retryData = await retryRes.json();
+              if (retryData.ok) {
+                showToast('Variante erfolgreich generiert und ersetzt', 'success');
+                refresh();
+                return;
+              }
+            }
+            return;
+          }
+          const msg = await res.text();
+          showToast('Generierung fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          if (data.error === 'file_exists') {
+            if (confirm(data.message + ' Möchten Sie sie ersetzen?')) {
+              body.set('replace', 'true');
+              const retryRes = await fetch('variants.php', { method: 'POST', body });
+              const retryData = await retryRes.json();
+              if (retryData.ok) {
+                showToast('Variante erfolgreich generiert und ersetzt', 'success');
+                refresh();
+                return;
+              }
+            }
+            return;
+          }
+          showToast('Generierung fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        showToast(data.replaced ? 'Variante erfolgreich generiert und ersetzt' : 'Variante erfolgreich generiert', 'success');
+        refresh();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+        hideLoading();
+      }
+    }
+
+    async function uploadVariant(files) {
+      if (!files || files.length === 0) return;
+
+      const name = document.getElementById('uploadName').value.trim();
+      let replace = false;
+
+      // Check if name exists
+      if (name) {
+        try {
+          const checkBody = new FormData();
+          checkBody.set('action', 'check_name');
+          checkBody.set('name', name);
+          const checkRes = await fetch('variants.php', { method: 'POST', body: checkBody });
+          const checkData = await checkRes.json();
+          if (checkData.exists) {
+            if (!confirm(`Eine Variante mit dem Namen "${checkData.filename}" existiert bereits. Möchten Sie sie ersetzen?`)) {
+              return;
+            }
+            replace = true;
+          }
+        } catch (error) {
+          // Continue anyway
+        }
+      }
+
+      showLoading('Bild wird hochgeladen...');
+
+      try {
+        const body = new FormData();
+        body.set('action', 'upload');
+        body.set('image', files[0]);
+        if (name) {
+          body.set('name', name);
+        }
+        if (replace) {
+          body.set('replace', 'true');
+        }
+
+        const res = await fetch('variants.php', { method: 'POST', body });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'file_exists') {
+            if (confirm(data.message + ' Möchten Sie sie ersetzen?')) {
+              body.set('replace', 'true');
+              const retryRes = await fetch('variants.php', { method: 'POST', body });
+              const retryData = await retryRes.json();
+              if (retryData.ok) {
+                showToast('Bild erfolgreich hochgeladen und ersetzt', 'success');
+                refresh();
+                return;
+              }
+            }
+            return;
+          }
+          const msg = await res.text();
+          showToast('Upload fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          if (data.error === 'file_exists') {
+            if (confirm(data.message + ' Möchten Sie sie ersetzen?')) {
+              body.set('replace', 'true');
+              const retryRes = await fetch('variants.php', { method: 'POST', body });
+              const retryData = await retryRes.json();
+              if (retryData.ok) {
+                showToast('Bild erfolgreich hochgeladen und ersetzt', 'success');
+                refresh();
+                return;
+              }
+            }
+            return;
+          }
+          showToast('Upload fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        showToast(data.replaced ? 'Bild erfolgreich hochgeladen und ersetzt' : 'Bild erfolgreich hochgeladen', 'success');
+        refresh();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function startRename(filename) {
+      const newName = prompt('Neuer Name für die Variante:', filename.replace(/\.[^/.]+$/, ''));
+      if (newName === null || newName.trim() === '') {
+        return;
+      }
+      renameVariant(filename, newName.trim());
+    }
+
+    async function renameVariant(oldFilename, newName) {
+      // Check if new name exists
+      try {
+        const checkBody = new FormData();
+        checkBody.set('action', 'check_name');
+        checkBody.set('name', newName);
+        const checkRes = await fetch('variants.php', { method: 'POST', body: checkBody });
+        const checkData = await checkRes.json();
+        if (checkData.exists && checkData.filename !== oldFilename) {
+          if (!confirm(`Eine Variante mit dem Namen "${checkData.filename}" existiert bereits. Möchten Sie fortfahren?`)) {
+            return;
+          }
+        }
+      } catch (error) {
+        // Continue anyway
+      }
+
+      try {
+        const body = new FormData();
+        body.set('action', 'rename');
+        body.set('old_filename', oldFilename);
+        body.set('new_name', newName);
+
+        const res = await fetch('variants.php', { method: 'POST', body });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.error === 'file_exists') {
+            showToast(data.message, 'error');
+            return;
+          }
+          const msg = await res.text();
+          showToast('Umbenennen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          if (data.error === 'file_exists') {
+            showToast(data.message, 'error');
+            return;
+          }
+          showToast('Umbenennen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        showToast('Variante erfolgreich umbenannt', 'success');
+        refresh();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      }
+    }
+
+    async function deleteVariant(filename, btn) {
+      if (!confirm('Möchten Sie diese Variante wirklich löschen?')) {
+        return;
+      }
+
+      const prev = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Lösche...';
+
+      try {
+        const body = new FormData();
+        body.set('action', 'delete');
+        body.set('filename', filename);
+
+        const res = await fetch('variants.php', { method: 'POST', body });
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Löschen fehlgeschlagen: ' + msg, 'error');
+          return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Löschen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+
+        showToast('Variante erfolgreich gelöscht', 'success');
+        refresh();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Set default prompt
+      document.getElementById('prompt').value = DEFAULT_PROMPT;
+
+      refresh();
+
+      const fileInput = document.getElementById('fileInput');
+      const uploadArea = document.getElementById('uploadArea');
+      const uploadForm = document.getElementById('uploadForm');
+
+      // Click on upload area to trigger file input
+      uploadArea.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      // File input change handler
+      fileInput.addEventListener('change', async (e) => {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        await uploadVariant(fileInput.files);
+        fileInput.value = '';
+      }, { passive: true });
+
+      // Drag and drop handlers
+      uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.add('dragover');
+      });
+
+      uploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+      });
+
+      uploadArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        uploadArea.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          await uploadVariant(files);
+        }
+      });
+    });
+    
+    // Update site domain link in header
+    async function updateSiteDomainLink() {
+      try {
+        const res = await fetch('get_artist_content.php');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && data.domain) {
+          const domainLink = document.getElementById('site-domain-link');
+          if (domainLink) {
+            // Capitalize first letter
+            const domainText = data.domain.charAt(0).toUpperCase() + data.domain.slice(1);
+            domainLink.textContent = domainText;
+          }
+        }
+      } catch (error) {
+        // Silently fail - keep default "Herzfabrik"
+      }
+    }
+    
+    // Update domain link on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateSiteDomainLink);
+    } else {
+      updateSiteDomainLink();
+    }
+  </script>
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="toastContainer" class="toast-container"></div>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div id="loadingMessage">Bitte warten...</div>
+    </div>
+  </div>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <h1 style="margin: 0;">Varianten Verwaltung - <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Gemälde</a>
+      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Raum-Mockups</a>
+      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Künstler</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Variante generieren</h2>
+    <form id="generateForm" onsubmit="event.preventDefault(); generateVariant();">
+      <div class="field">
+        <label>Name (optional)</label>
+        <input type="text" id="generateName" name="name" placeholder="z.B. arbeitszimmer_modern">
+      </div>
+      <div class="field">
+        <label>Prompt</label>
+        <textarea id="prompt" name="prompt" required></textarea>
+      </div>
+      <button type="submit" id="generateBtn" class="primary">Variante generieren</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Bild hochladen</h2>
+    <form id="uploadForm" action="variants.php" method="post" enctype="multipart/form-data">
+      <div class="field">
+        <label>Name (optional)</label>
+        <input type="text" id="uploadName" name="name" placeholder="z.B. schlafzimmer_variant">
+      </div>
+      <div id="uploadArea" class="upload-area">
+        <div class="upload-area-text">📷 Bild hier ablegen oder klicken zum Auswählen</div>
+        <div class="upload-area-hint">PNG, JPG, WEBP werden unterstützt und automatisch zu JPG konvertiert</div>
+        <input type="file" name="image" accept="image/*" required style="display: none;" id="fileInput">
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <h2>Verfügbare Varianten</h2>
+      <button type="button" onclick="refresh()">Aktualisieren</button>
+    </div>
+    <div id="variants" class="list"></div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="page-title" content="Herzfabrik - Annegret Thurn">
+  <link rel="shortcut icon" href="img/upload/favicon.ico">
+  <link rel="icon" href="img/upload/favicon.ico">
+  <meta name="artist-email" content="anne@herzfabrik.com">
+  <meta name="artist-name" content="Annegret Thurn">
+  <meta name="site-domain" content="herzfabrik.com">
+  <meta name="imprint-address" content="Gerhardstr. 16">
+  <meta name="imprint-postal-code" content="53229">
+  <meta name="imprint-city" content="Bonn">
+  <meta name="imprint-phone" content="+4917623570003">
+  <title>Herzfabrik - Annegret Thurn</title>
+  <!-- Required portrait files in img/upload/: artist.jpg (main), artist-alternative-1.jpg, artist-alternative-2.jpg, etc. -->
+  <link rel="stylesheet" href="styles.css">
+  <style id="custom-css-variables">
+    :root {
+      --color-primary: #7a3a45;
+      --color-primary-hover: #8b4a55;
+      --color-contrast: #f3d9b1;
+      --color-primary-rgb: 122, 58, 69;
+    }
+  </style>
+  <svg width="0" height="0" style="position: absolute;">
+    <defs>
+      <clipPath id="heart-top-clip" clipPathUnits="objectBoundingBox">
+        <path d="M0,0 L1,0 L1,0.33 L0,0.33 L0,0 Z"/>
+      </clipPath>
+    </defs>
+  </svg>
+</head>
+<body>
+  <!-- Flashlight Overlay -->
+  <div id="flashlight-overlay" class="flashlight-overlay"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <h1><a href="https://herzfabrik.com" class="site-title" data-domain-text="Herzfabrik.com">Herzfabrik.com</a></h1>
+      <!-- Admin Button -->
+      <a id="admin-btn" href="#" class="admin-btn" style="display: none;">Admin</a>
+      <!-- Author Section -->
+      <div id="author-section" class="author-section">
+        <div class="author-layout">
+          <div class="author-text-content">
+            <div class="author-short"><p>Annegret Thurn ist eine Künstlerin, die ihre Werke mit Leidenschaft und Hingabe schafft. Ihre Kunst spiegelt die Tiefe menschlicher Emotionen wider und lädt den Betrachter ein, in die Welt der Farben und Formen einzutauchen.</p>
+              
+              <p><strong>Aktuelles: Ausstellung in Hückeswagen vom 19.12.2025 bis 15.03.2026</strong></p></div><button id="author-toggle-collapsed" class="author-toggle author-toggle-inline" type="button">Mehr anzeigen</button><a id="admin-artist-btn" href="./admin/artist.html" class="admin-artist-btn" style="display: none;">Bearbeiten</a>
+            <div class="author-content">
+              <div class="author-bio"><p><strong>VITA</strong></p><p><strong>Annegret Thurn</strong></p><p><strong>Autodidaktische Künstlerin, Kunstentwicklung &amp; Projektleitung von Ausstellungen,&nbsp;2009 bis 2016 in Köln.</strong></p><p>Geboren 1960, in Meschede im Sauerland, zwei erwachsene Kinder, gewohnt 1960 bis 1984 Meschede. 30 Jahre Köln und nun im Bergischen Land.</p><p></p><ul><li>1984 bis 1986 Köln</li><li>1986 bis 1993 Koblenz</li><li>1993 bis 2019 Köln</li><li>2019 bis heute Wermelskirchen</li></ul><p></p><p>Künstlerin und Kunst Organisation von 2001 bis 2025 mit Herz und Seele.</p><p><strong>Wie kam ich zur Kunst?</strong></p><p>Meine erste Inspiration 2003 war die Malerei mit 3D-modellierten „Herzen". Die Idee war die Herzen der Menschen zu begeistern. Die Berührung der Menschen wurde im Anschluss meine Strategie Ich nannte mich als Künstlerin „Galerie Herzfabrik".</p><p>Hinzu kam meine Idee 2009 die Kunstmeile Köln Longerich ins Leben zu rufen. Diese Idee wurde ein sehr großer Erfolg bis 2015. Durch die Kunstmeile Köln Longerich entstand meine Gruppe HopeART Colonia. Mein Herz schlägt für die Kölner Zeit.</p><p>Zu meiner Kunst: Spirituelle Kunst seit 2020. Oft werden auf meinen Bildern die Menschen dargestellt, es ist immer eine Berührung zu sehen. Zusammen sind wir stark. Es ging mir um das menschliche Verhalten und das Miteinander in meinen Darstellungen von Figuren. Auch die Klarheit und Harmonie der Farben setzen ineinander greifende Akzente oft in minimalistischen Farbkombinationen. Im Moment entwickle ich Spirituelle Kunst. Kunst ist die Lehre meines Lebens. Der Frieden und die Ruhe in meinen Künstlerherz durch Kreativität war der Anfang meiner eigenen Freiheit.&nbsp;</p><p>Herzenergie wirkt Wunder!</p></div><button id="author-toggle" class="author-toggle author-toggle-end" type="button">Weniger anzeigen</button>
+            </div>
+          </div>
+          <div class="author-image-wrapper" id="author-image-wrapper">
+            <canvas id="author-face-canvas" class="author-photo"></canvas>
+            <!-- Variant reveal layer for alternative portrait -->
+            <div class="author-variant-reveal">
+              <img src="" alt="Alternative Portrait" class="author-variant-image-sharp" loading="lazy" id="author-variant-sharp">
+              <img src="" alt="Alternative Portrait" class="author-variant-image-blurred" loading="lazy" id="author-variant-blurred">
+              <div class="author-reveal-mask"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Gallery -->
+  <main>
+    <div id="gallery" class="gallery">
+      <div class="loading">Lade Gemälde...</div>
+    </div>
+    
+    <!-- Load More Button -->
+    <div id="load-more-container" class="load-more-container" style="display: none;">
+      <button id="load-more-btn" class="load-more-btn">Mehr laden</button>
+    </div>
+  </main>
+
+  <!-- Fullscreen Modal -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <h1><a href="https://herzfabrik.com" class="site-title" data-domain-text="Herzfabrik.com">Herzfabrik.com</a></h1>
+      <button id="modal-close" class="modal-close" aria-label="Schließen">×</button>
+      <!-- Admin Button in Modal -->
+      <a id="admin-btn-modal" href="#" class="admin-btn admin-btn-modal" style="display: none;">Bearbeiten</a>
+      
+      <div class="modal-image-container">
+        <button id="modal-prev" class="modal-nav prev" aria-label="Vorheriges">‹</button>
+        <button id="modal-next" class="modal-nav next" aria-label="Nächstes">›</button>
+        <a id="modal-image-link" href="" target="_blank" rel="noopener noreferrer" class="modal-image-link">
+          <img id="modal-image" class="modal-image" src="" alt="">
+        </a>
+        <div id="modal-variants" class="modal-variants"></div>
+      </div>
+      
+      <div class="modal-info">
+        <h2 id="modal-title" class="modal-title"></h2>
+        <p id="modal-description" class="modal-description"></p>
+        
+        <div id="modal-meta" class="modal-meta"></div>
+        
+        <!-- Mail Button - Detail View -->
+        <a href="#" id="mail-btn-modal" class="mail-btn mail-btn-modal" aria-label="E-Mail senden">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span class="mail-text">
+            <span class="mail-email"></span>
+            <span class="mail-action">bzgl. diesem Bild anschreiben</span>
+          </span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mail Button - List View -->
+  <a href="#" id="mail-btn-list" class="mail-btn mail-btn-list" aria-label="E-Mail senden">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mail-icon">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+      <polyline points="22,6 12,13 2,6"></polyline>
+    </svg>
+    <span class="mail-text"><span class="mail-email">anne@herzfabrik.com</span></span>
+  </a>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-vita-container">
+      <button id="footer-heart" class="footer-heart" aria-label="Nach oben scrollen"></button>
+      <button id="footer-vita" class="footer-vita" aria-label="Nach oben scrollen">Nach oben</button>
+    </div>
+    <div class="footer-links">
+      <a href="imprint.html">Impressum</a>
+      <a href="dataprivacy.html">Datenschutz</a>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

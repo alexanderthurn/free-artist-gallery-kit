@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="de" style="color-scheme: light only;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Künstler Editor - Administration</title>
+  <style>
+    html { color-scheme: light; background: #fff; }
+    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; background: #fff; color: #000; max-width: 1200px; }
+    h1 { font-size: 20px; margin: 0 0 16px; color: #000; }
+    h2 { font-size: 16px; margin: 24px 0 12px; color: #000; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fff; }
+    .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+    .field label { font-size: 14px; font-weight: 500; color: #333; }
+    textarea { width: 100%; min-height: 300px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.5; resize: vertical; }
+    button.primary { background: #666; color: #fff; border: 1px solid #666; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+    button.primary:hover { background: #555; border-color: #555; }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    a.primary { background: #666; color: #fff; border: 1px solid #666; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; text-align: center; }
+    a.primary:hover { background: #555; border-color: #555; color: #fff; }
+    button.secondary { appearance: none; border: 1px solid #ccc; background: #fff; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button.secondary:hover { background: #f0f0f0; }
+    .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 8px; }
+    .toast { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; animation: toastSlideIn 0.3s ease-out; }
+    .toast.success { border-color: #28a745; background: #f6fffa; color: #1f6b3a; }
+    .toast.error { border-color: #dc3545; background: #fff5f5; color: #8a1f1f; }
+    .toast.info { border-color: #888; background: #f5f5f5; color: #333; }
+    @keyframes toastSlideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes toastSlideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    .toast.hiding { animation: toastSlideOut 0.3s ease-in forwards; }
+    .backups-section { margin-top: 32px; }
+    .backup-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .backup-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #ddd; border-radius: 6px; background: #fafafa; }
+    .backup-item:hover { background: #f0f0f0; }
+    .backup-info { flex: 1; }
+    .backup-date { font-weight: 500; color: #333; }
+    .backup-size { font-size: 12px; color: #666; margin-top: 4px; }
+    .backup-actions { display: flex; gap: 8px; }
+    .backup-actions button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .backup-actions button:hover { background: #f0f0f0; }
+    .backup-actions button.restore { background: #28a745; color: #fff; border-color: #28a745; }
+    .backup-actions button.restore:hover { background: #218838; }
+    .backup-actions button.delete { background: #dc3545; color: #fff; border-color: #dc3545; }
+    .backup-actions button.delete:hover { background: #c82333; }
+    .loading { text-align: center; padding: 20px; color: #666; }
+    .button-group { display: flex; gap: 12px; margin-top: 24px; }
+    .upload-area { border: 3px dashed #888; border-radius: 12px; padding: 32px; background: #f5f5f5; text-align: center; transition: all 0.3s ease; cursor: pointer; margin-bottom: 16px; }
+    .upload-area:hover { background: #e8e8e8; border-color: #666; }
+    .upload-area.dragover { background: #ddd; border-color: #666; border-style: solid; }
+    .upload-area-text { color: #555; font-weight: 500; margin-bottom: 8px; }
+    .upload-area-hint { color: #666; font-size: 13px; }
+    .file-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+    .file-item { border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+    .file-item img { width: 100%; height: 150px; object-fit: cover; border-radius: 4px; background: #fafafa; }
+    .file-item-pdf { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 4px; font-size: 48px; color: #dc3545; }
+    .file-name { font-size: 12px; color: #666; word-break: break-all; }
+    .file-url { font-size: 11px; color: #555; word-break: break-all; cursor: pointer; padding: 4px; border-radius: 4px; background: #f5f5f5; }
+    .file-url:hover { background: #e8e8e8; }
+    .file-url.copied { background: #d4edda; color: #155724; }
+    .file-actions { display: flex; flex-direction: column; gap: 8px; }
+    .file-actions button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; }
+    .file-actions button.copy { background: #666; color: #fff; border-color: #666; }
+    .file-actions button.copy:hover { background: #555; }
+    .file-actions button.copy-img { background: #28a745; color: #fff; border-color: #28a745; }
+    .file-actions button.copy-img:hover { background: #218838; }
+    .file-actions button.copy-link { background: #ffc107; color: #000; border-color: #ffc107; }
+    .file-actions button.copy-link:hover { background: #e0a800; }
+    .file-actions button.delete { background: #dc3545; color: #fff; border-color: #dc3545; }
+    .file-actions button.delete:hover { background: #c82333; }
+    input[type="file"] { display: none; }
+    .editor-container { position: relative; }
+    .editor-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .editor-toolbar .mode-toggle { appearance: none; border: 1px solid #888; background: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #555; }
+    .editor-toolbar .mode-toggle:hover { background: #f0f0f0; }
+    .editor-toolbar .mode-toggle.active { background: #666; color: #fff; border-color: #666; }
+    .html-editor { width: 100%; min-height: 300px; padding: 12px; border: none; border-radius: 0 0 6px 6px; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5; resize: vertical; background: #fff; outline: none; }
+    .html-editor-wrapper.active .html-editor:focus { outline: 2px solid #666; outline-offset: -2px; }
+    .html-editor[contenteditable="true"] { background: #fff; }
+    .html-editor-toolbar { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid #ddd; background: #f5f5f5; border-radius: 6px 6px 0 0; flex-wrap: wrap; }
+    .html-editor-toolbar button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    .html-editor-toolbar button:hover { background: #e8e8e8; }
+    .html-editor-wrapper { border: 1px solid #ccc; border-radius: 6px; display: none; }
+    .html-editor-wrapper.active { display: block; }
+    textarea.editor-textarea { display: block; }
+    textarea.editor-textarea.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="toastContainer" class="toast-container"></div>
+  
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+    <h1 style="margin: 0;">Künstler Editor - <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Gemälde</a>
+      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Raum-Mockups</a>
+      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Künstler</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <form id="artistForm">
+      <div class="button-group" style="margin-bottom: 24px;">
+        <button type="submit" class="primary">Speichern</button>
+        <a href="/index.html" class="primary">Hauptseite anzeigen</a>
+        <a href="/imprint.html" class="primary">Impressum anzeigen</a>
+      </div>
+      
+      <div class="field">
+        <label>Seitentitel</label>
+        <input type="text" id="pageTitle" name="pageTitle" placeholder="z.B. Herzfabrik - Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Der Titel, der im Browser-Tab angezeigt wird</small>
+      </div>
+      
+      <div class="field">
+        <label>Künstlername</label>
+        <input type="text" id="name" name="name" placeholder="z.B. Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+      </div>
+      
+      <div class="field">
+        <label>E-Mail-Adresse</label>
+        <input type="email" id="email" name="email" placeholder="z.B. anne@herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+      </div>
+      
+      <div class="field">
+        <label>Domain</label>
+        <input type="text" id="domain" name="domain" placeholder="z.B. herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Domain ohne https:// (z.B. herzfabrik.com)</small>
+      </div>
+      
+      <div class="field">
+        <label>Impressum - Adresse</label>
+        <input type="text" id="imprintAddress" name="imprintAddress" placeholder="z.B. Musterstraße 123" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+        <div class="field">
+          <label>PLZ</label>
+          <input type="text" id="imprintPostalCode" name="imprintPostalCode" placeholder="z.B. 12345" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        </div>
+        <div class="field">
+          <label>Ort</label>
+          <input type="text" id="imprintCity" name="imprintCity" placeholder="z.B. Berlin" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        </div>
+      </div>
+      
+      <div class="field">
+        <label>Telefonnummer</label>
+        <input type="text" id="imprintPhone" name="imprintPhone" placeholder="z.B. +49 123 456789" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+      </div>
+      
+      <div class="field" style="background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #ddd;">
+        <label style="font-weight: 500; margin-bottom: 12px;">Farben (CSS-Variablen)</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Primärfarbe</label>
+            <input type="color" id="colorPrimary" name="colorPrimary" value="#7A3A45" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+            <input type="text" id="colorPrimaryText" placeholder="#7A3A45" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorPrimary').value = this.value">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Primärfarbe Hover</label>
+            <input type="color" id="colorPrimaryHover" name="colorPrimaryHover" value="#8B4A55" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+            <input type="text" id="colorPrimaryHoverText" placeholder="#8B4A55" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorPrimaryHover').value = this.value">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Kontrastfarbe</label>
+            <input type="color" id="colorContrast" name="colorContrast" value="#F3D9B1" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+            <input type="text" id="colorContrastText" placeholder="#F3D9B1" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorContrast').value = this.value">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">RGB-Werte (Primärfarbe)</label>
+            <input type="text" id="colorPrimaryRgb" name="colorPrimaryRgb" placeholder="122, 58, 69" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;">
+            <small style="display: block; margin-top: 4px; color: #666; font-size: 11px;">Format: R, G, B (z.B. 122, 58, 69)</small>
+          </div>
+        </div>
+      </div>
+      
+
+      
+      <div class="field">
+        <div class="editor-toolbar">
+          <label style="margin: 0;">Kurztext (author-short)</label>
+          <button type="button" class="mode-toggle" data-field="short" data-mode="text">Plaintext</button>
+        </div>
+        <div class="editor-container">
+          <textarea id="short" name="short" class="editor-textarea" placeholder="HTML-Code hier einfügen..."></textarea>
+          <div class="html-editor-wrapper" id="short-html-wrapper">
+            <div class="html-editor-toolbar">
+              <button type="button" onclick="formatText('short', 'bold')" title="Fett">B</button>
+              <button type="button" onclick="formatText('short', 'italic')" title="Kursiv">I</button>
+              <button type="button" onclick="formatText('short', 'underline')" title="Unterstrichen">U</button>
+              <button type="button" onclick="formatText('short', 'insertUnorderedList')" title="Aufzählung">• Liste</button>
+              <button type="button" onclick="formatText('short', 'insertOrderedList')" title="Nummerierte Liste">1. Liste</button>
+              <button type="button" onclick="formatText('short', 'createLink')" title="Link einfügen">🔗 Link</button>
+            </div>
+            <div id="short-html" class="html-editor" contenteditable="true" placeholder="HTML-Inhalt hier bearbeiten..."></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="editor-toolbar">
+          <label style="margin: 0;">Langtext (author-bio)</label>
+          <button type="button" class="mode-toggle" data-field="bio" data-mode="text">Plaintext</button>
+        </div>
+        <div class="editor-container">
+          <textarea id="bio" name="bio" class="editor-textarea" placeholder="HTML-Code hier einfügen..."></textarea>
+          <div class="html-editor-wrapper" id="bio-html-wrapper">
+            <div class="html-editor-toolbar">
+              <button type="button" onclick="formatText('bio', 'bold')" title="Fett">B</button>
+              <button type="button" onclick="formatText('bio', 'italic')" title="Kursiv">I</button>
+              <button type="button" onclick="formatText('bio', 'underline')" title="Unterstrichen">U</button>
+              <button type="button" onclick="formatText('bio', 'insertUnorderedList')" title="Aufzählung">• Liste</button>
+              <button type="button" onclick="formatText('bio', 'insertOrderedList')" title="Nummerierte Liste">1. Liste</button>
+              <button type="button" onclick="formatText('bio', 'createLink')" title="Link einfügen">🔗 Link</button>
+            </div>
+            <div id="bio-html" class="html-editor" contenteditable="true" placeholder="HTML-Inhalt hier bearbeiten..."></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="button-group" style="margin-top: 24px;">
+        <button type="submit" class="primary">Speichern</button>
+        <a href="/index.html" class="primary">Hauptseite anzeigen</a>
+        <a href="/imprint.html" class="primary">Impressum anzeigen</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card backups-section">
+    <h2>Sicherheitskopien</h2>
+    <div id="backupsLoading" class="loading">Lade Sicherheitskopien...</div>
+    <div id="backupsList" class="backup-list" style="display: none;"></div>
+  </div>
+
+
+
+  <div class="card">
+    <h2>Dateien hochladen</h2>
+    <div id="uploadArea" class="upload-area">
+      <div class="upload-area-text">📎 Dateien hier ablegen oder klicken zum Auswählen</div>
+      <div class="upload-area-hint">Bilder (JPG, PNG, GIF, WEBP) und PDFs bis 10MB</div>
+      <input type="file" id="fileInput" name="file" accept="image/*,.pdf" multiple>
+    </div>
+    <div id="uploadsLoading" class="loading">Lade Dateien...</div>
+    <div id="uploadsList" class="file-list" style="display: none;"></div>
+  </div>
+
+  <div class="field" style="background: #f5f5f5; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+    <label style="font-weight: 500; margin-bottom: 8px;">Portrait und favicon.ico</label>
+    <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">
+      Laden Sie Portrait-Dateien hoch. Benennen Sie die Dateien genau wie angegeben:<br>
+      • <strong>artist.jpg</strong> (Hauptportrait)<br>
+      • <strong>artist-alternative-1.jpg</strong>, <strong>artist-alternative-2.jpg</strong>, etc. (Alternative Portraits)<br>
+      • <strong>favicon.ico</strong>
+    </p>
+    <p id="portrait-info" style="margin: 8px 0 0; font-size: 12px; color: #888; font-style: italic;"></p>
+
+
+
+  </div>
+
+
+
+  <script>
+    // Set admin flag in localStorage when admin page loads successfully
+    if (typeof Storage !== 'undefined') {
+      localStorage.setItem('admin', 'true');
+    }
+    
+    // Editor mode state - both start in HTML editor mode
+    const editorModes = {
+      short: 'html',
+      bio: 'html'
+    };
+    
+    // Switch editor mode
+    function switchEditorMode(field) {
+      const textarea = document.getElementById(field);
+      const htmlWrapper = document.getElementById(field + '-html-wrapper');
+      const htmlEditor = document.getElementById(field + '-html');
+      const toggleBtn = document.querySelector(`.mode-toggle[data-field="${field}"]`);
+      
+      if (editorModes[field] === 'text') {
+        // Switch to HTML editor mode
+        editorModes[field] = 'html';
+        textarea.classList.add('hidden');
+        htmlWrapper.classList.add('active');
+        toggleBtn.textContent = 'HTML Editor';
+        toggleBtn.classList.add('active');
+        
+        // Sync content from textarea to HTML editor (already cleaned in syncContentBeforeSwitch)
+        // But ensure it's clean
+        const content = textarea.value || '';
+        htmlEditor.innerHTML = cleanHTML(content);
+      } else {
+        // Switch to text mode
+        editorModes[field] = 'text';
+        textarea.classList.remove('hidden');
+        htmlWrapper.classList.remove('active');
+        toggleBtn.textContent = 'Plaintext';
+        toggleBtn.classList.remove('active');
+        
+        // Sync content from HTML editor to textarea (already cleaned in syncContentBeforeSwitch)
+        // But ensure it's clean
+        const content = htmlEditor.innerHTML || '';
+        textarea.value = cleanHTML(content);
+      }
+    }
+    
+    // Clean HTML: remove all style attributes and only allow specific tags
+    function cleanHTML(html) {
+      if (!html) return '';
+      
+      // Create a temporary div to parse HTML
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      
+      // Allowed tags: strong, em, u, ul, ol, li, a, p, br, span (for structure)
+      const allowedTags = ['STRONG', 'EM', 'U', 'UL', 'OL', 'LI', 'A', 'P', 'BR', 'SPAN', 'B', 'I'];
+      
+      // Remove all style, class, and id attributes from all elements
+      const allElements = temp.querySelectorAll('*');
+      allElements.forEach(el => {
+        // Remove all attributes except href for links
+        Array.from(el.attributes).forEach(attr => {
+          if (attr.name === 'href' && el.tagName === 'A') {
+            // Keep href for links
+            return;
+          }
+          el.removeAttribute(attr.name);
+        });
+        
+        // Convert deprecated tags to semantic tags
+        if (el.tagName === 'B') {
+          const strong = document.createElement('strong');
+          strong.innerHTML = el.innerHTML;
+          el.parentNode.replaceChild(strong, el);
+        } else if (el.tagName === 'I') {
+          const em = document.createElement('em');
+          em.innerHTML = el.innerHTML;
+          el.parentNode.replaceChild(em, el);
+        }
+        
+        // Remove disallowed tags but keep their content
+        if (!allowedTags.includes(el.tagName)) {
+          const parent = el.parentNode;
+          while (el.firstChild) {
+            parent.insertBefore(el.firstChild, el);
+          }
+          parent.removeChild(el);
+        }
+      });
+      
+      // Remove style attributes from the root element too
+      if (temp.hasAttribute('style')) {
+        temp.removeAttribute('style');
+      }
+      
+      // Remove empty span tags (they're only for structure)
+      const spans = temp.querySelectorAll('span');
+      spans.forEach(span => {
+        if (!span.hasAttributes() || (span.attributes.length === 0)) {
+          const parent = span.parentNode;
+          while (span.firstChild) {
+            parent.insertBefore(span.firstChild, span);
+          }
+          parent.removeChild(span);
+        }
+      });
+      
+      return temp.innerHTML;
+    }
+    
+    // Format text in HTML editor
+    function formatText(field, command, value = null) {
+      const htmlEditor = document.getElementById(field + '-html');
+      htmlEditor.focus();
+      
+      if (command === 'createLink') {
+        const url = prompt('URL eingeben:');
+        if (url) {
+          document.execCommand('createLink', false, url);
+          // Clean after creating link
+          setTimeout(() => {
+            const cleaned = cleanHTML(htmlEditor.innerHTML);
+            htmlEditor.innerHTML = cleaned;
+          }, 10);
+        }
+      } else {
+        // Use execCommand but clean afterwards
+        document.execCommand(command, false, value);
+        // Clean immediately after formatting
+        setTimeout(() => {
+          const cleaned = cleanHTML(htmlEditor.innerHTML);
+          htmlEditor.innerHTML = cleaned;
+        }, 10);
+      }
+      
+      htmlEditor.focus();
+    }
+    
+    // Get content from active editor (cleaned)
+    function getFieldContent(field) {
+      if (editorModes[field] === 'html') {
+        const htmlEditor = document.getElementById(field + '-html');
+        const content = htmlEditor.innerHTML || '';
+        // Always clean HTML content before returning
+        return cleanHTML(content);
+      } else {
+        const textarea = document.getElementById(field);
+        return textarea.value || '';
+      }
+    }
+    
+    // Set content in active editor
+    function setFieldContent(field, content) {
+      if (editorModes[field] === 'html') {
+        const htmlEditor = document.getElementById(field + '-html');
+        htmlEditor.innerHTML = content || '';
+      } else {
+        const textarea = document.getElementById(field);
+        textarea.value = content || '';
+      }
+    }
+    
+    // Sync content when switching modes (called before switch)
+    function syncContentBeforeSwitch(field) {
+      if (editorModes[field] === 'text') {
+        // Switching to HTML - sync textarea -> HTML editor
+        const textarea = document.getElementById(field);
+        const htmlEditor = document.getElementById(field + '-html');
+        const content = textarea.value || '';
+        // Clean HTML content when switching to HTML editor
+        htmlEditor.innerHTML = cleanHTML(content);
+      } else {
+        // Switching to text - sync HTML editor -> textarea
+        const htmlEditor = document.getElementById(field + '-html');
+        const textarea = document.getElementById(field);
+        // Clean HTML before syncing to textarea
+        const cleaned = cleanHTML(htmlEditor.innerHTML || '');
+        textarea.value = cleaned;
+      }
+    }
+    
+    // Initialize mode toggle buttons
+    document.addEventListener('DOMContentLoaded', function() {
+      // Sync color pickers with text inputs on page load
+      ['colorPrimary', 'colorPrimaryHover', 'colorContrast'].forEach(id => {
+        const colorPicker = document.getElementById(id);
+        const textInput = document.getElementById(id + 'Text');
+        if (colorPicker && textInput) {
+          // Sync picker to text on picker change
+          colorPicker.addEventListener('input', function() {
+            textInput.value = this.value;
+          });
+          // Sync text to picker on text change (if valid hex)
+          textInput.addEventListener('input', function() {
+            if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+              colorPicker.value = this.value;
+            }
+          });
+          // Initial sync
+          textInput.value = colorPicker.value;
+        }
+      });
+      
+      // Initialize both editors to HTML mode (default)
+      ['short', 'bio'].forEach(field => {
+        const textarea = document.getElementById(field);
+        const htmlWrapper = document.getElementById(field + '-html-wrapper');
+        const htmlEditor = document.getElementById(field + '-html');
+        const toggleBtn = document.querySelector(`.mode-toggle[data-field="${field}"]`);
+        
+        // Hide textarea and show HTML editor
+        textarea.classList.add('hidden');
+        htmlWrapper.classList.add('active');
+        toggleBtn.textContent = 'HTML Editor';
+        toggleBtn.classList.add('active');
+        
+        // Sync initial content from textarea to HTML editor
+        const content = textarea.value || '';
+        htmlEditor.innerHTML = cleanHTML(content);
+      });
+      
+      // Add click handlers to mode toggle buttons
+      document.querySelectorAll('.mode-toggle').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const field = this.getAttribute('data-field');
+          syncContentBeforeSwitch(field);
+          switchEditorMode(field);
+        });
+      });
+      
+      // Setup HTML editors with paste and input handlers
+      ['short', 'bio'].forEach(field => {
+        const htmlEditor = document.getElementById(field + '-html');
+        
+        // Clean HTML on paste
+        htmlEditor.addEventListener('paste', function(e) {
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+          const html = (e.clipboardData || window.clipboardData).getData('text/html');
+          
+          // If HTML is available, clean it; otherwise use plain text
+          if (html) {
+            const cleaned = cleanHTML(html);
+            document.execCommand('insertHTML', false, cleaned);
+          } else {
+            document.execCommand('insertText', false, text);
+          }
+        });
+        
+        // Clean HTML on input (debounced to avoid performance issues)
+        let inputTimeout;
+        htmlEditor.addEventListener('input', function() {
+          // Keep textarea in sync when in HTML mode
+          if (editorModes[field] === 'html') {
+            const textarea = document.getElementById(field);
+            textarea.value = this.innerHTML || '';
+          }
+          
+          // Debounce cleaning to avoid performance issues
+          clearTimeout(inputTimeout);
+          inputTimeout = setTimeout(() => {
+            const cleaned = cleanHTML(this.innerHTML);
+            if (cleaned !== this.innerHTML) {
+              // Save cursor position
+              const selection = window.getSelection();
+              const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+              const startOffset = range ? range.startOffset : 0;
+              const endOffset = range ? range.endOffset : 0;
+              
+              this.innerHTML = cleaned;
+              
+              // Restore cursor position if possible
+              if (range && this.firstChild) {
+                try {
+                  const newRange = document.createRange();
+                  newRange.setStart(this.firstChild, Math.min(startOffset, this.firstChild.length || 0));
+                  newRange.setEnd(this.firstChild, Math.min(endOffset, this.firstChild.length || 0));
+                  selection.removeAllRanges();
+                  selection.addRange(newRange);
+                } catch (e) {
+                  // Ignore cursor restoration errors
+                }
+              }
+            }
+          }, 300);
+        });
+        
+        // Clean HTML on blur (when leaving the editor)
+        htmlEditor.addEventListener('blur', function() {
+          const cleaned = cleanHTML(this.innerHTML);
+          if (cleaned !== this.innerHTML) {
+            this.innerHTML = cleaned;
+            // Update textarea
+            const textarea = document.getElementById(field);
+            textarea.value = cleaned;
+          }
+        });
+      });
+    });
+    
+    // Load current content from index.html
+    async function loadCurrentContent() {
+      try {
+        showToast('Lade aktuellen Inhalt...', 'info');
+        const res = await fetch('get_artist_content.php');
+        if (!res.ok) {
+          showToast('Fehler beim Laden', 'error');
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        // Set page title, artist name and email
+        if (data.pageTitle) {
+          document.getElementById('pageTitle').value = data.pageTitle;
+        }
+        if (data.name) {
+          document.getElementById('name').value = data.name;
+        }
+        if (data.email) {
+          document.getElementById('email').value = data.email;
+        }
+        if (data.domain) {
+          document.getElementById('domain').value = data.domain;
+        }
+        // Always set imprint fields, even if empty
+        document.getElementById('imprintAddress').value = data.imprintAddress || '';
+        document.getElementById('imprintPostalCode').value = data.imprintPostalCode || '';
+        document.getElementById('imprintCity').value = data.imprintCity || '';
+        document.getElementById('imprintPhone').value = data.imprintPhone || '';
+        
+        // Set color values
+        if (data.colorPrimary) {
+          document.getElementById('colorPrimary').value = data.colorPrimary;
+          document.getElementById('colorPrimaryText').value = data.colorPrimary;
+        }
+        if (data.colorPrimaryHover) {
+          document.getElementById('colorPrimaryHover').value = data.colorPrimaryHover;
+          document.getElementById('colorPrimaryHoverText').value = data.colorPrimaryHover;
+        }
+        if (data.colorContrast) {
+          document.getElementById('colorContrast').value = data.colorContrast;
+          document.getElementById('colorContrastText').value = data.colorContrast;
+        }
+        if (data.colorPrimaryRgb) {
+          document.getElementById('colorPrimaryRgb').value = data.colorPrimaryRgb;
+        }
+        
+        // Sync color pickers with text inputs
+        ['colorPrimary', 'colorPrimaryHover', 'colorContrast'].forEach(id => {
+          const colorPicker = document.getElementById(id);
+          const textInput = document.getElementById(id + 'Text');
+          if (colorPicker && textInput) {
+            colorPicker.addEventListener('input', function() {
+              textInput.value = this.value;
+            });
+            textInput.addEventListener('input', function() {
+              if (/^#[0-9A-F]{6}$/i.test(this.value)) {
+                colorPicker.value = this.value;
+              }
+            });
+          }
+        });
+        
+        // Update portrait info
+        const portraitInfo = document.getElementById('portrait-info');
+        if (portraitInfo) {
+          if (data.alternativeImageCount > 0) {
+            portraitInfo.textContent = `Aktuell erkannt: ${data.alternativeImageCount} alternative Portrait(s)`;
+          } else {
+            portraitInfo.textContent = 'Keine alternativen Portraits erkannt';
+          }
+        }
+        
+        // Set content in active editors (clean HTML content)
+        if (data.short) {
+          const cleaned = editorModes.short === 'html' ? cleanHTML(data.short) : data.short;
+          setFieldContent('short', cleaned);
+        }
+        if (data.bio) {
+          const cleaned = editorModes.bio === 'html' ? cleanHTML(data.bio) : data.bio;
+          setFieldContent('bio', cleaned);
+        }
+        
+        showToast('Inhalt erfolgreich geladen', 'success');
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      }
+    }
+
+    // Load backups
+    async function loadBackups() {
+      try {
+        const res = await fetch('list_backups.php');
+        if (!res.ok) {
+          document.getElementById('backupsLoading').textContent = 'Fehler beim Laden der Backups';
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          document.getElementById('backupsLoading').textContent = 'Fehler: ' + (data.error || 'Unknown');
+          return;
+        }
+        
+        document.getElementById('backupsLoading').style.display = 'none';
+        const backupsList = document.getElementById('backupsList');
+        backupsList.style.display = 'block';
+        
+        if (!data.backups || data.backups.length === 0) {
+          backupsList.innerHTML = '<p style="color: #666; padding: 12px;">Keine Sicherheitskopien vorhanden</p>';
+          return;
+        }
+        
+        backupsList.innerHTML = data.backups.map(backup => {
+          const date = new Date(backup.timestamp * 1000);
+          const dateStr = date.toLocaleString('de-DE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          const sizeKB = (backup.size / 1024).toFixed(1);
+          
+          return `
+            <div class="backup-item">
+              <div class="backup-info">
+                <div class="backup-date">${dateStr}</div>
+                <div class="backup-size">${sizeKB} KB</div>
+              </div>
+              <div class="backup-actions">
+                <button class="restore" onclick="restoreBackup('${backup.filename}')">Wiederherstellen</button>
+                <button class="delete" onclick="deleteBackup('${backup.filename}')">Löschen</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        document.getElementById('backupsLoading').textContent = 'Fehler: ' + error.message;
+      }
+    }
+
+    // Restore backup
+    async function restoreBackup(filename) {
+      if (!confirm('Möchten Sie diese Sicherheitskopie wiederherstellen? Der aktuelle Inhalt wird überschrieben.')) {
+        return;
+      }
+      
+      try {
+        showToast('Stelle wieder her...', 'info');
+        const formData = new FormData();
+        formData.append('filename', filename);
+        
+        const res = await fetch('restore_backup.php', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Fehler: ' + msg, 'error');
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        // Load the restored content
+        await loadCurrentContent();
+        showToast('Sicherheitskopie erfolgreich wiederhergestellt', 'success');
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      }
+    }
+
+    // Delete backup
+    async function deleteBackup(filename) {
+      if (!confirm('Möchten Sie diese Sicherheitskopie wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        return;
+      }
+      
+      try {
+        showToast('Lösche Sicherheitskopie...', 'info');
+        const formData = new FormData();
+        formData.append('filename', filename);
+        
+        const res = await fetch('delete_backup.php', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Fehler: ' + msg, 'error');
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        showToast('Sicherheitskopie erfolgreich gelöscht', 'success');
+        // Reload backups list
+        await loadBackups();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      }
+    }
+
+    // Form submission
+    document.getElementById('artistForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = this.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Speichere...';
+      
+      try {
+        // Ensure content is synced before submission
+        ['short', 'bio'].forEach(field => {
+          if (editorModes[field] === 'html') {
+            const htmlEditor = document.getElementById(field + '-html');
+            const textarea = document.getElementById(field);
+            textarea.value = htmlEditor.innerHTML || '';
+          }
+        });
+        
+        const formData = new FormData();
+        formData.append('pageTitle', document.getElementById('pageTitle').value);
+        formData.append('name', document.getElementById('name').value);
+        formData.append('email', document.getElementById('email').value);
+        formData.append('domain', document.getElementById('domain').value);
+        formData.append('imprintAddress', document.getElementById('imprintAddress').value);
+        formData.append('imprintPostalCode', document.getElementById('imprintPostalCode').value);
+        formData.append('imprintCity', document.getElementById('imprintCity').value);
+        formData.append('imprintPhone', document.getElementById('imprintPhone').value);
+        formData.append('colorPrimary', document.getElementById('colorPrimary').value);
+        formData.append('colorPrimaryHover', document.getElementById('colorPrimaryHover').value);
+        formData.append('colorContrast', document.getElementById('colorContrast').value);
+        formData.append('colorPrimaryRgb', document.getElementById('colorPrimaryRgb').value);
+        formData.append('short', getFieldContent('short'));
+        formData.append('bio', getFieldContent('bio'));
+        
+        const res = await fetch('save_artist.php', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Fehler beim Speichern: ' + msg, 'error');
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        // Check if content was unchanged
+        if (data.unchanged) {
+          showToast(data.message || 'Keine Änderungen erkannt. Inhalt ist identisch zum letzten Backup.', 'info');
+        } else {
+          showToast('Erfolgreich gespeichert', 'success');
+          // Reload backups
+          await loadBackups();
+        }
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Speichern';
+      }
+    });
+
+    // Load uploads
+    async function loadUploads() {
+      try {
+        const res = await fetch('list_uploads.php');
+        if (!res.ok) {
+          document.getElementById('uploadsLoading').textContent = 'Fehler beim Laden der Dateien';
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          document.getElementById('uploadsLoading').textContent = 'Fehler: ' + (data.error || 'Unknown');
+          return;
+        }
+        
+        document.getElementById('uploadsLoading').style.display = 'none';
+        const uploadsList = document.getElementById('uploadsList');
+        uploadsList.style.display = 'grid';
+        
+        if (!data.files || data.files.length === 0) {
+          uploadsList.innerHTML = '<p style="color: #666; padding: 12px; grid-column: 1 / -1;">Keine Dateien hochgeladen</p>';
+          return;
+        }
+        
+        uploadsList.innerHTML = data.files.map(file => {
+          const sizeKB = (file.size / 1024).toFixed(1);
+          const isImage = file.type === 'image';
+          const escapedUrl = file.url.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+          const escapedFilename = file.filename.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+          
+          // Create HTML snippets (escape for use in onclick attribute)
+          const imgSnippet = '<img src="' + file.url + '">';
+          const linkSnippet = '<a href="' + file.url + '">' + file.filename + '</a>';
+          const escapedImgSnippet = imgSnippet.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+          const escapedLinkSnippet = linkSnippet.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+          
+          return `
+            <div class="file-item">
+              ${isImage ? 
+                `<img src="${escapedUrl}" alt="${escapedFilename}" loading="lazy">` :
+                `<div class="file-item-pdf">📄</div>`
+              }
+              <div class="file-name" title="${escapedFilename}">${escapedFilename}</div>
+              <div class="file-url" onclick="copyUrl('${escapedUrl}', this)" title="Klicken zum Kopieren">${file.url}</div>
+              <div class="file-actions">
+                <button class="copy" onclick="copyUrl('${escapedUrl}', this.closest('.file-item').querySelector('.file-url'))">URL kopieren</button>
+                ${isImage ? 
+                  `<button class="copy-img" onclick="copyHtmlSnippet('${escapedImgSnippet}', 'img')">IMG kopieren</button>` :
+                  `<button class="copy-link" onclick="copyHtmlSnippet('${escapedLinkSnippet}', 'link')">Link kopieren</button>`
+                }
+                <button class="delete" onclick="deleteUpload('${escapedFilename}')">Löschen</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        document.getElementById('uploadsLoading').textContent = 'Fehler: ' + error.message;
+      }
+    }
+
+    // Copy URL to clipboard
+    async function copyUrl(url, element) {
+      try {
+        await navigator.clipboard.writeText(url);
+        if (element) {
+          const originalBg = element.style.background;
+          const originalColor = element.style.color;
+          element.style.background = '#d4edda';
+          element.style.color = '#155724';
+          const originalText = element.textContent;
+          element.textContent = '✓ Kopiert!';
+          showToast('URL in Zwischenablage kopiert', 'success');
+          setTimeout(() => {
+            element.style.background = originalBg;
+            element.style.color = originalColor;
+            element.textContent = originalText;
+          }, 2000);
+        } else {
+          showToast('URL in Zwischenablage kopiert', 'success');
+        }
+      } catch (error) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showToast('URL in Zwischenablage kopiert', 'success');
+        } catch (e) {
+          showToast('Fehler beim Kopieren', 'error');
+        }
+        document.body.removeChild(textarea);
+      }
+    }
+
+    // Copy HTML snippet to clipboard
+    async function copyHtmlSnippet(snippet, type) {
+      // Decode HTML entities for the actual snippet
+      const decodedSnippet = snippet
+        .replace(/&quot;/g, '"')
+        .replace(/\\'/g, "'");
+      
+      try {
+        await navigator.clipboard.writeText(decodedSnippet);
+        const typeLabel = type === 'img' ? 'IMG' : 'Link';
+        showToast(`${typeLabel}-Snippet in Zwischenablage kopiert`, 'success');
+      } catch (error) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = decodedSnippet;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          const typeLabel = type === 'img' ? 'IMG' : 'Link';
+          showToast(`${typeLabel}-Snippet in Zwischenablage kopiert`, 'success');
+        } catch (e) {
+          showToast('Fehler beim Kopieren', 'error');
+        }
+        document.body.removeChild(textarea);
+      }
+    }
+
+    // Delete upload
+    async function deleteUpload(filename) {
+      if (!confirm('Möchten Sie diese Datei wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+        return;
+      }
+      
+      try {
+        showToast('Lösche Datei...', 'info');
+        const formData = new FormData();
+        formData.append('filename', filename);
+        
+        const res = await fetch('delete_upload.php', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!res.ok) {
+          const msg = await res.text();
+          showToast('Fehler: ' + msg, 'error');
+          return;
+        }
+        
+        const data = await res.json();
+        if (!data.ok) {
+          showToast('Fehler: ' + (data.error || 'Unknown'), 'error');
+          return;
+        }
+        
+        showToast('Datei erfolgreich gelöscht', 'success');
+        // Reload uploads list
+        await loadUploads();
+      } catch (error) {
+        showToast('Fehler: ' + error.message, 'error');
+      }
+    }
+
+    // File upload handling
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async function(e) {
+      if (!fileInput.files || fileInput.files.length === 0) return;
+      await uploadFiles(fileInput.files);
+    });
+
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      uploadArea.classList.remove('dragover');
+      
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        await uploadFiles(files);
+      }
+    });
+
+    async function uploadFiles(files) {
+      const fileArray = Array.from(files);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const file of fileArray) {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          
+          showToast(`Lade ${file.name} hoch...`, 'info', 2000);
+          
+          const res = await fetch('upload_image.php', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!res.ok) {
+            const msg = await res.text();
+            console.error('Upload error:', msg);
+            errorCount++;
+            continue;
+          }
+          
+          const data = await res.json();
+          if (!data.ok) {
+            console.error('Upload error:', data.error);
+            errorCount++;
+            continue;
+          }
+          
+          successCount++;
+        } catch (error) {
+          console.error('Upload error:', error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        showToast(`${successCount} Datei(en) erfolgreich hochgeladen`, 'success');
+        await loadUploads();
+      }
+      if (errorCount > 0) {
+        showToast(`${errorCount} Datei(en) konnten nicht hochgeladen werden`, 'error');
+      }
+      
+      fileInput.value = '';
+    }
+
+    // Load current content and backups on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      loadCurrentContent();
+      loadBackups();
+      loadUploads();
+      updateSiteDomainLink();
+    });
+    
+    // Update site domain link in header
+    async function updateSiteDomainLink() {
+      try {
+        const res = await fetch('get_artist_content.php');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.ok && data.domain) {
+          const domainLink = document.getElementById('site-domain-link');
+          if (domainLink) {
+            // Capitalize first letter
+            const domainText = data.domain.charAt(0).toUpperCase() + data.domain.slice(1);
+            domainLink.textContent = domainText;
+          }
+        }
+      } catch (error) {
+        // Silently fail - keep default "Herzfabrik"
+      }
+    }
+
+    function showToast(message, type = 'info', duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      
+      // Limit duration to maximum 20 seconds
+      const maxDuration = 20000;
+      const actualDuration = Math.min(duration, maxDuration);
+      
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, actualDuration);
+    }
+  </script>
+</body>
+</html>
