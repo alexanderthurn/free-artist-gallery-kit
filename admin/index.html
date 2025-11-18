@@ -293,7 +293,8 @@
       // Add cache-busting timestamp to image URLs to ensure fresh load
       const cacheBuster = '?t=' + Date.now();
       const imageClickable = g.in_gallery && g.gallery_filename;
-      const imageClickHandler = imageClickable ? `onclick="window.location.href='/index.html?painting=${encodeURIComponent(g.gallery_filename)}'"` : '';
+      // Create click handler that includes variant index (1-based: final=1, first variant=2, etc.)
+      const imageClickHandler = imageClickable ? `onclick="handleImageClick('${escapeHtml(g.base)}', '${encodeURIComponent(g.gallery_filename)}')"` : '';
       const imageClass = imageClickable ? 'main-image clickable' : 'main-image';
       const badgeClickHandler = `handleBadgeClick('${escapeHtml(originalVariant.name)}', ${g.in_gallery ? 'true' : 'false'})`;
       const showSegmentedButton = finalVariant ? 'show-segmented-button' : '';
@@ -404,12 +405,90 @@
         </div>
       `;
       
+      // Store allVariants array on the row for later access (including URLs)
+      row.dataset.variants = JSON.stringify(allVariants.map(v => ({ 
+        variant: v.variant || '', 
+        name: v.name,
+        url: v.url
+      })));
+      
       // Set up auto-save for this row after it's added to DOM
       setTimeout(() => {
         setupAutoSave(g.base, originalVariant.name);
       }, 0);
       
       return row;
+    }
+
+    function getVariantIndex(imageBaseName, variantValue) {
+      const row = document.getElementById(`painting-${imageBaseName}`);
+      if (!row || !row.dataset.variants) return 1; // Default to 1 (final)
+      
+      try {
+        const variants = JSON.parse(row.dataset.variants);
+        // Find index of variant (1-based: final=1, first variant=2, etc.)
+        const index = variants.findIndex(v => v.variant === variantValue);
+        return index >= 0 ? index + 1 : 1; // Return 1-based index, default to 1 if not found
+      } catch (e) {
+        return 1;
+      }
+    }
+
+    function handleImageClick(imageBaseName, galleryFilename) {
+      const mainImg = document.getElementById(`main-img-${imageBaseName}`);
+      if (!mainImg) return;
+      
+      const currentVariant = mainImg.getAttribute('data-variant') || 'final';
+      const variantIndex = getVariantIndex(imageBaseName, currentVariant);
+      
+      // Navigate with variant parameter (1-based index)
+      const url = `/index.html?painting=${encodeURIComponent(galleryFilename)}&variant=${variantIndex}`;
+      window.location.href = url;
+    }
+
+    function selectVariant(imageBaseName, variantIndex) {
+      const row = document.getElementById(`painting-${imageBaseName}`);
+      if (!row || !row.dataset.variants) return;
+      
+      try {
+        const variants = JSON.parse(row.dataset.variants);
+        // variantIndex is 1-based, convert to 0-based
+        const index = variantIndex - 1;
+        if (index < 0 || index >= variants.length) return;
+        
+        const variant = variants[index];
+        const mainImg = document.getElementById(`main-img-${imageBaseName}`);
+        const thumbs = document.getElementById(`thumbs-${imageBaseName}`);
+        const wrapper = mainImg ? mainImg.closest('.main-image-wrapper') : null;
+        
+        if (!mainImg || !thumbs || !variant) return;
+        
+        // Update main image with the variant URL
+        const variantUrl = variant.url.split('?')[0] + '?t=' + Date.now();
+        mainImg.src = variantUrl;
+        mainImg.setAttribute('data-variant', variant.variant || '');
+        
+        // Update active state on thumbs
+        const thumbElements = thumbs.querySelectorAll('.variant-thumb');
+        thumbElements.forEach((thumb, idx) => {
+          if (idx === index) {
+            thumb.classList.add('active');
+          } else {
+            thumb.classList.remove('active');
+          }
+        });
+        
+        // Update segmented button visibility
+        if (wrapper) {
+          if (variant.variant === 'final') {
+            wrapper.classList.add('show-segmented-button');
+          } else {
+            wrapper.classList.remove('show-segmented-button');
+          }
+        }
+      } catch (e) {
+        console.error('Error selecting variant:', e);
+      }
     }
 
     function renderImages(groups) {
@@ -436,16 +515,20 @@
       // Check for painting parameter in URL and scroll to it
       const urlParams = new URLSearchParams(window.location.search);
       const paintingParam = urlParams.get('painting');
+      const variantParam = urlParams.get('variant');
       if (paintingParam) {
         // Try to find by gallery_filename first, then fallback to base
         let targetElement = null;
+        let targetBase = null;
         for (const g of groups) {
           if (g.gallery_filename && g.gallery_filename.toLowerCase() === paintingParam.toLowerCase()) {
             targetElement = document.getElementById(`painting-${g.base}`);
+            targetBase = g.base;
             break;
           }
           if (g.base.toLowerCase() === paintingParam.toLowerCase()) {
             targetElement = document.getElementById(`painting-${g.base}`);
+            targetBase = g.base;
             break;
           }
         }
@@ -458,6 +541,17 @@
             setTimeout(() => {
               targetElement.style.boxShadow = '';
             }, 2000);
+            
+            // Select variant if parameter is present
+            if (variantParam && targetBase) {
+              const variantIndex = parseInt(variantParam, 10);
+              if (!isNaN(variantIndex) && variantIndex > 0) {
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                  selectVariant(targetBase, variantIndex);
+                }, 200);
+              }
+            }
           }, 100);
         }
       }
