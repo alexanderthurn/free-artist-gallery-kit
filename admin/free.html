@@ -287,6 +287,43 @@
     
     img.src = originalImageUrl + '?t=' + Date.now();
 
+    function getOffsetCornerPosition(cornerIndex) {
+      const offset = 30;
+      const corner = corners[cornerIndex];
+      
+      // Offset each corner 30px inward
+      switch(cornerIndex) {
+        case 0: // Top-left: move right and down
+          return { x: corner.x + offset, y: corner.y + offset };
+        case 1: // Top-right: move left and down
+          return { x: corner.x - offset, y: corner.y + offset };
+        case 2: // Bottom-right: move left and up
+          return { x: corner.x - offset, y: corner.y - offset };
+        case 3: // Bottom-left: move right and up
+          return { x: corner.x + offset, y: corner.y - offset };
+        default:
+          return corner;
+      }
+    }
+
+    function getCornerFromOffsetPosition(cornerIndex, offsetX, offsetY) {
+      const offset = 30;
+      
+      // Reverse the offset to get the actual corner position from the circle position
+      switch(cornerIndex) {
+        case 0: // Top-left: circle is offset right and down, so corner is left and up
+          return { x: offsetX - offset, y: offsetY - offset };
+        case 1: // Top-right: circle is offset left and down, so corner is right and up
+          return { x: offsetX + offset, y: offsetY - offset };
+        case 2: // Bottom-right: circle is offset left and up, so corner is right and down
+          return { x: offsetX + offset, y: offsetY + offset };
+        case 3: // Bottom-left: circle is offset right and up, so corner is left and down
+          return { x: offsetX - offset, y: offsetY + offset };
+        default:
+          return { x: offsetX, y: offsetY };
+      }
+    }
+
     function drawCorners() {
       if (!sourceImage) return;
       
@@ -305,12 +342,13 @@
       sourceCtx.closePath();
       sourceCtx.stroke();
       
-      // Draw corner points
+      // Draw corner points at offset positions
       const pointRadius = 8;
       corners.forEach((corner, index) => {
+        const offsetPos = getOffsetCornerPosition(index);
         sourceCtx.fillStyle = index === currentCornerIndex ? '#ff0000' : '#00ff00';
         sourceCtx.beginPath();
-        sourceCtx.arc(corner.x, corner.y, pointRadius, 0, Math.PI * 2);
+        sourceCtx.arc(offsetPos.x, offsetPos.y, pointRadius, 0, Math.PI * 2);
         sourceCtx.fill();
         sourceCtx.strokeStyle = '#fff';
         sourceCtx.lineWidth = 2;
@@ -409,10 +447,11 @@
       // Match the visual circle radius (8px) with a small buffer
       const mouseThreshold = 12;
       
-      // Always check all 4 corners
+      // Always check all 4 corners (check against offset positions for hit detection)
       for (let i = 0; i < corners.length; i++) {
-        const dx = corners[i].x - x;
-        const dy = corners[i].y - y;
+        const offsetPos = getOffsetCornerPosition(i);
+        const dx = offsetPos.x - x;
+        const dy = offsetPos.y - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         
         if (isTouch) {
@@ -492,7 +531,9 @@
 
     function handlePointerMove(x, y, isTouch = false) {
       if (isDragging && draggedCorner !== null) {
-        corners[draggedCorner] = { x, y };
+        // Calculate actual corner position from the circle position (accounting for offset)
+        const cornerPos = getCornerFromOffsetPosition(draggedCorner, x, y);
+        corners[draggedCorner] = cornerPos;
         drawCorners();
         updatePreview();
       } else {
