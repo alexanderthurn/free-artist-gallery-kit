@@ -188,6 +188,16 @@
     let draggedCorner = null;
     let isDragging = false;
     let savedCorners = null;
+    let isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // Convert centimeters to pixels
+    // Standard CSS reference: 1 inch = 96 pixels, 1 inch = 2.54 cm
+    // So 1 cm = 96 / 2.54 ≈ 37.795 pixels
+    function cmToPixels(cm) {
+      const pixelsPerInch = 96; // CSS standard
+      const cmPerInch = 2.54;
+      return (cm * pixelsPerInch) / cmPerInch;
+    }
 
     // Load metadata to get saved corners
     async function loadMetadata() {
@@ -288,10 +298,12 @@
     img.src = originalImageUrl + '?t=' + Date.now();
 
     function getOffsetCornerPosition(cornerIndex) {
-      const offset = 30;
+      // Use larger offset on touch devices (3cm) vs desktop (1cm)
+      const offsetCm = isTouchDevice ? 3 : 1;
+      const offset = cmToPixels(offsetCm);
       const corner = corners[cornerIndex];
       
-      // Offset each corner 30px inward
+      // Offset each corner inward
       switch(cornerIndex) {
         case 0: // Top-left: move right and down
           return { x: corner.x + offset, y: corner.y + offset };
@@ -307,7 +319,9 @@
     }
 
     function getCornerFromOffsetPosition(cornerIndex, offsetX, offsetY) {
-      const offset = 30;
+      // Use larger offset on touch devices (3cm) vs desktop (1cm)
+      const offsetCm = isTouchDevice ? 3 : 1;
+      const offset = cmToPixels(offsetCm);
       
       // Reverse the offset to get the actual corner position from the circle position
       switch(cornerIndex) {
