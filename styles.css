@@ -1052,7 +1052,7 @@ h1 .modal-url {
 }
 
 .modal-image-link:hover {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .modal-image {

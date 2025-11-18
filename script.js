@@ -1080,9 +1080,11 @@ function initModal() {
     });
   }
   
-  // Admin access: 10 fast clicks on modal image
-  if (modalImage) {
-    modalImage.addEventListener('click', (e) => {
+  // Admin access: 10 fast clicks on modal image, or click to switch variants
+  const modalImageLink = document.getElementById('modal-image-link');
+  if (modalImageLink) {
+    modalImageLink.addEventListener('click', (e) => {
+      e.preventDefault(); // Prevent opening image in new tab
       e.stopPropagation(); // Prevent modal close
       
       // Clear existing timer
@@ -1105,12 +1107,21 @@ function initModal() {
         return;
       }
       
+      // If there are variants, switch to next variant on click
+      if (currentPaintingVariants.length > 1) {
+        navigateModal(1);
+        adminClickCount = 0; // Reset admin counter when switching variants
+        return;
+      }
+      
       // Reset counter after 1 second of inactivity
       adminClickTimer = setTimeout(() => {
         adminClickCount = 0;
       }, 1000);
     });
   }
+  
+  // Initialize zoom effect for modal image (will be re-initialized when modal opens)
   
   // Reset click count when modal closes - will be set up after closeModal is defined
   
