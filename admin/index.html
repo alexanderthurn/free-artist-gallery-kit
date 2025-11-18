@@ -17,11 +17,28 @@
     .upload-area-text { color: #555; font-weight: 500; margin-bottom: 8px; }
     .upload-area-hint { color: #666; font-size: 13px; }
     .list { display: flex; flex-direction: column; gap: 12px; }
-    .rowItem { display: grid; grid-template-columns: 300px 1fr 280px; gap: 24px; border: 1px solid #eee; border-radius: 8px; padding: 16px; align-items: start; position: relative; background: #fff; }
+    .rowItem { display: grid; grid-template-columns: 300px 1fr; gap: 24px; border: 1px solid #eee; border-radius: 8px; padding: 16px; align-items: start; position: relative; background: #fff; }
     .rowItem.live { border-color: #28a745; background: #f6fffa; }
-    .live-badge { position: absolute; top: 12px; left: 12px; background: #28a745; color: #fff; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .draft-badge { position: absolute; top: 12px; left: 12px; background: #ffc107; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .main-image { width: 100%; max-width: 300px; border-radius: 8px; background: #fafafa; }
+    .image-container { position: relative; width: 100%; max-width: 300px; }
+    .main-image-wrapper { position: relative; width: 100%; max-width: 300px; }
+    .live-badge { position: absolute; top: 12px; left: 12px; background: #28a745; color: #fff; padding: 8px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; z-index: 100; }
+    .live-badge.clickable { cursor: pointer; transition: all 0.2s ease; }
+    .live-badge.clickable:hover { background: #218838; transform: scale(1.05); }
+    .draft-badge { position: absolute; top: 12px; left: 12px; background: #ffc107; color: #000; padding: 8px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; z-index: 100; }
+    .draft-badge.clickable { cursor: pointer; transition: all 0.2s ease; }
+    .draft-badge.clickable:hover { background: #e0a800; transform: scale(1.05); }
+    .main-image { width: 100%; max-width: 300px; border-radius: 0; background: #fafafa; position: relative; }
+    .main-image.clickable { cursor: pointer; transition: opacity 0.2s ease; }
+    .main-image.clickable:hover { opacity: 0.9; }
+    .delete-icon { width: 32px; height: 32px; border-radius: 50%; background: #dc3545; color: #fff; border: 2px solid #dc3545; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; line-height: 1; padding: 0; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3); }
+    .delete-icon:hover { background: #c82333; border-color: #c82333; transform: scale(1.1); box-shadow: 0 4px 8px rgba(220, 53, 69, 0.5); }
+    .form-container { position: relative; padding-top: 40px; }
+    .main-image-wrapper .segmented-button { display: flex; width: calc(100% - 24px); border: 1px solid #ccc; border-radius: 6px; overflow: hidden; background: #fff; position: absolute; bottom: 12px; left: 12px; right: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); z-index: 50; }
+    .segmented-button-section { flex: 1; padding: 10px 12px; text-align: center; border-right: 1px solid #ccc; cursor: pointer; transition: all 0.2s ease; font-size: 13px; background: #fff; color: #000; }
+    .segmented-button-section:last-child { border-right: none; }
+    .segmented-button-section:hover { background: #f5f5f5; }
+    .segmented-button-section:active { background: #e8e8e8; }
+    .segmented-button-section.loading { opacity: 0.6; cursor: wait; pointer-events: none; }
     
     /* Responsive design */
     @media (max-width: 1024px) {
@@ -50,12 +67,15 @@
     .variant-thumb.active { border-color: #666; }
     .variant-thumb-delete { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: #dc3545; color: #fff; border: 1px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; padding: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .variant-thumb-delete:hover { background: #c82333; }
-    .selectable-variants { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; }
+    .selectable-variants { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; display: none; }
+    .selectable-variants.visible { display: block; }
     .selectable-variants-title { font-size: 12px; color: #666; margin-bottom: 8px; font-weight: 500; }
     .selectable-variants-grid { display: flex; flex-wrap: wrap; gap: 6px; }
     .selectable-variant-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background: #fafafa; cursor: pointer; border: 2px solid #ddd; transition: all 0.2s; }
     .selectable-variant-thumb:hover { border-color: #888; transform: scale(1.05); }
     .selectable-variant-thumb:active { transform: scale(0.95); }
+    .add-variant-btn { width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 6px; background: #fafafa; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999; transition: all 0.2s; flex-shrink: 0; }
+    .add-variant-btn:hover { border-color: #888; color: #666; background: #f0f0f0; }
     .thumb { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 6px; background: #fafafa; }
     .row { display: flex; align-items: center; gap: 8px; }
     button { appearance: none; border: 1px solid #ccc; background: #fff; padding: 8px 12px; border-radius: 6px; cursor: pointer; }
@@ -131,12 +151,23 @@
       
       // Add cache-busting timestamp to image URLs to ensure fresh load
       const cacheBuster = '?t=' + Date.now();
+      const imageClickable = g.in_gallery && g.gallery_filename;
+      const imageClickHandler = imageClickable ? `onclick="window.location.href='/index.html?painting=${encodeURIComponent(g.gallery_filename)}'"` : '';
+      const imageClass = imageClickable ? 'main-image clickable' : 'main-image';
+      const badgeClickHandler = `handleBadgeClick('${escapeHtml(originalVariant.name)}', ${g.in_gallery ? 'true' : 'false'})`;
       row.innerHTML = `
-        ${g.in_gallery ? '<div class="live-badge">Live</div>' : '<div class="draft-badge">Entwurf</div>'}
-        <div>
-          ${finalVariant ? `
-            <img class="main-image" id="main-img-${g.base}" loading="lazy" src="${finalVariant.url}${cacheBuster}" alt="${finalVariant.name}">
-          ` : '<div class="main-image" style="aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; color: #999;">Kein Final-Bild</div>'}
+        <div class="image-container">
+          <div class="main-image-wrapper">
+            ${g.in_gallery ? `<div class="live-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Zurück auf Entwurf">Live</div>` : `<div class="draft-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Live schalten">Entwurf</div>`}
+            ${finalVariant ? `
+              <img class="${imageClass}" id="main-img-${g.base}" loading="lazy" src="${finalVariant.url}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler}>
+            ` : '<div class="main-image" style="aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; color: #999;">Kein Final-Bild</div>'}
+            <div class="segmented-button">
+              <div class="segmented-button-section" onclick='doAction("${escapeHtml(originalVariant.name)}", "restore", this)'>Originalbild verwenden</div>
+              <div class="segmented-button-section" onclick='doCorners("${escapeHtml(originalVariant.name)}", this)'>KI Bild freistellen lassen</div>
+              <div class="segmented-button-section" onclick='doManualFree("${escapeHtml(originalVariant.name)}", this)'>Bild von Hand freistellen</div>
+            </div>
+          </div>
           ${allVariants.length > 0 ? `
             <div class="variant-thumbs" id="thumbs-${g.base}">
               ${allVariants.map((v) => `
@@ -154,10 +185,28 @@
                   ` : ''}
                 </div>
               `).join('')}
+              <div class="add-variant-btn" onclick="toggleVariants('${escapeHtml(g.base)}')" title="KI Variante erstellen">+</div>
             </div>
-          ` : ''}
+          ` : `
+            <div class="variant-thumbs" id="thumbs-${g.base}">
+              <div class="add-variant-btn" onclick="toggleVariants('${escapeHtml(g.base)}')" title="KI Variante erstellen">+</div>
+            </div>
+          `}
+          <div class="selectable-variants" id="selectable-variants-${g.base}">
+            <div class="selectable-variants-title">KI Variante erstellen:</div>
+            <div class="selectable-variants-grid" id="variants-${g.base}">
+              ${availableVariants.length > 0 ? availableVariants.map(v => `
+                <img class="selectable-variant-thumb" 
+                     src="${escapeHtml(v.url)}" 
+                     alt="${escapeHtml(v.name)}"
+                     title="${escapeHtml(v.name)}"
+                     onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
+              `).join('') : '<span class="muted" style="font-size: 11px;">Keine Varianten verfügbar</span>'}
+            </div>
+          </div>
         </div>
-        <div style="padding-right: 8px;">
+        <div class="form-container" style="padding-right: 8px; position: relative;">
+          <button class="delete-icon" style="position: absolute; top: 0; right: 0;" onclick="event.stopPropagation(); deleteCompletely('${escapeHtml(originalVariant.name)}', this)" title="Vollständig löschen">×</button>
           <div class="field">
             <label>Titel</label>
             <input type="text" name="title" value="${escapeHtml(meta.title || '')}">
@@ -201,38 +250,9 @@
             </div>
           </div>
           ` : ''}
-          <div class="row" style="justify-content:flex-end;">
-            <button type="button" onclick='saveMeta(${JSON.stringify(originalVariant.name)}, this)'>Speichern</button>
-          </div>
-        </div>
-        <div>
-          <div class="btns" style="display: flex; flex-direction: column; gap: 8px;">
-            ${g.in_gallery && g.gallery_filename ? `
-              <a href="/index.html?painting=${encodeURIComponent(g.gallery_filename)}" style="display: block; text-align: center; padding: 12px 24px; border: none; border-radius: 8px; background: #7A3A45; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); transition: all 0.3s ease;" onmouseover="this.style.background='#8B4A55'; this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0, 0, 0, 0.2)';" onmouseout="this.style.background='#7A3A45'; this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)';">Auf Webseite anzeigen</a>
-            ` : ''}
-            <button type="button" onclick='doAction(${JSON.stringify(originalVariant.name)}, "room", this)'>Varianten generieren</button>
-            <button type="button" onclick='doAction(${JSON.stringify(originalVariant.name)}, "restore", this)'>Originalbild verwenden</button>
-            <button type="button" onclick='doCorners(${JSON.stringify(originalVariant.name)}, this)'>KI Bild freistellen lassen</button>
-            <button type="button" onclick='doManualFree(${JSON.stringify(originalVariant.name)}, this)'>Bild von Hand freistellen</button>
-            ${finalVariant ? `<button type="button" onclick='addWatermark(${JSON.stringify(finalVariant.name)}, ${JSON.stringify(g.base)}, this)'>Wasserzeichen einfügen</button>` : ''}
-            <button type="button" onclick='fillFormWithAI(${JSON.stringify(originalVariant.name)}, this)'>KI Formular ausfüllen lassen</button>
-            ${g.in_gallery ? 
-              `<button type="button" onclick='removeFromGallery(${JSON.stringify(originalVariant.name)}, this)' style="background: #ffc107; color: #000; border-color: #ffc107;">Zurück auf Entwurf</button>` :
-              `<button type="button" onclick='copyToGallery(${JSON.stringify(originalVariant.name)}, this)' style="background: #28a745; color: #fff; border-color: #28a745;">Live schalten</button>`
-            }
-            <button type="button" onclick='deleteCompletely(${JSON.stringify(originalVariant.name)}, this)' style="background: #dc3545; color: #fff; border-color: #dc3545; margin-top: 8px;">Vollständig löschen</button>
-            <div class="selectable-variants">
-              <div class="selectable-variants-title">KI Variante erstellen:</div>
-              <div class="selectable-variants-grid" id="variants-${g.base}">
-                ${availableVariants.length > 0 ? availableVariants.map(v => `
-                  <img class="selectable-variant-thumb" 
-                       src="${escapeHtml(v.url)}" 
-                       alt="${escapeHtml(v.name)}"
-                       title="${escapeHtml(v.name)}"
-                       onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
-                `).join('') : '<span class="muted" style="font-size: 11px;">Keine Varianten verfügbar</span>'}
-              </div>
-            </div>
+          <div class="row" style="justify-content:flex-end; gap: 8px;">
+            <button type="button" onclick='fillFormWithAI("${escapeHtml(originalVariant.name)}", this)'>KI Formular ausfüllen lassen</button>
+            <button type="button" onclick='saveMeta("${escapeHtml(originalVariant.name)}", this)'>Speichern</button>
           </div>
         </div>
       `;
@@ -426,6 +446,21 @@
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;', "'":'&#39;'}[c]));
     }
 
+    function toggleVariants(imageBaseName) {
+      const variantsSection = document.getElementById(`selectable-variants-${imageBaseName}`);
+      if (variantsSection) {
+        variantsSection.classList.toggle('visible');
+      }
+    }
+
+    async function handleBadgeClick(imageOriginalName, isLive) {
+      if (isLive) {
+        await removeFromGallery(imageOriginalName, {});
+      } else {
+        await copyToGallery(imageOriginalName, {});
+      }
+    }
+
     function showToast(message, type = 'info', duration = 3000) {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
@@ -547,7 +582,6 @@
   <div class="card">
     <div class="toolbar">
       <h2>Gemälde</h2>
-      <button type="button" onclick="refresh()">Aktualisieren</button>
     </div>
     <div id="images" class="list"></div>
   </div>
@@ -615,9 +649,13 @@
     }
 
     async function doAction(image, action, btn) {
-      btn.disabled = true;
+      if (btn.disabled !== undefined) {
+        btn.disabled = true;
+      } else {
+        btn.classList.add('loading');
+      }
       const prevText = btn.textContent;
-      if (action === 'restore') {
+      if (action === 'restore' && btn.textContent !== undefined) {
         btn.textContent = 'Wird kopiert…';
       }
       
@@ -714,15 +752,23 @@
           await refresh();
         }
       } finally {
-        btn.disabled = false;
-        btn.textContent = prevText;
+        if (btn.disabled !== undefined) {
+          btn.disabled = false;
+        } else {
+          btn.classList.remove('loading');
+        }
+        if (btn.textContent !== undefined) btn.textContent = prevText;
       }
     }
 
     async function doCorners(imageOriginalName, btn) {
       const prev = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'KI…';
+      if (btn.disabled !== undefined) {
+        btn.disabled = true;
+      } else {
+        btn.classList.add('loading');
+      }
+      if (btn.textContent !== undefined) btn.textContent = 'KI…';
       try {
         const body = new FormData();
         body.set('image_path', 'admin/images/' + imageOriginalName);
@@ -753,8 +799,12 @@
           }
         }, 100);
       } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
+        if (btn.disabled !== undefined) {
+          btn.disabled = false;
+        } else {
+          btn.classList.remove('loading');
+        }
+        if (btn.textContent !== undefined) btn.textContent = prev;
       }
     }
 
@@ -762,51 +812,6 @@
       // Extract base name: remove _original, _color, _final, or _variant_* suffix and extension
       const base = imageOriginalName.replace(/_variant_[^_]+\.(jpg|jpeg|png)$/i, '').replace(/_(original|color|final)\.(jpg|jpeg|png)$/i, '').replace(/\.(jpg|jpeg|png)$/i, '');
       window.location.href = `free.html?painting=${encodeURIComponent(base)}`;
-    }
-
-    async function addWatermark(finalImageName, imageBaseName, btn) {
-      const prev = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Wasserzeichen…';
-      try {
-        // Construct URL with proper encoding
-        const fileParam = 'images/' + finalImageName;
-        const textParam = 'herzfabrik.com';
-        const url = `watermark.php?file=${encodeURIComponent(fileParam)}&text=${encodeURIComponent(textParam)}`;
-        
-        console.log('Calling watermark.php with URL:', url);
-        
-        const res = await fetch(url);
-        if (!res.ok) {
-          const msg = await res.text();
-          console.error('Watermark request failed:', msg);
-          showToast('Wasserzeichen fehlgeschlagen: ' + msg, 'error');
-          return;
-        }
-        
-        const data = await res.json().catch(() => ({}));
-        console.log('Watermark response:', data);
-        if (!data.success) {
-          showToast('Wasserzeichen fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
-          return;
-        }
-        
-        showToast('Wasserzeichen erfolgreich eingefügt', 'success');
-        // Refresh the image display
-        await refresh();
-        // Force reload the main image after refresh
-        setTimeout(() => {
-          const mainImg = document.getElementById(`main-img-${imageBaseName}`);
-          if (mainImg) {
-            const currentSrc = mainImg.src;
-            const separator = currentSrc.includes('?') ? '&' : '?';
-            mainImg.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
-          }
-        }, 100);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
-      }
     }
 
     async function fillFormWithAI(imageOriginalName, btn) {
@@ -886,8 +891,8 @@
 
     async function copyToGallery(imageOriginalName, btn) {
       const prev = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Schalte live…';
+      if (btn.disabled !== undefined) btn.disabled = true;
+      if (btn.textContent !== undefined) btn.textContent = 'Schalte live…';
       try {
         const body = new FormData();
         body.set('image', imageOriginalName);
@@ -905,15 +910,15 @@
         showToast('Erfolgreich live geschaltet', 'success');
         refresh();
       } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
+        if (btn.disabled !== undefined) btn.disabled = false;
+        if (btn.textContent !== undefined) btn.textContent = prev;
       }
     }
 
     async function removeFromGallery(imageOriginalName, btn) {
       const prev = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'Entferne live…';
+      if (btn.disabled !== undefined) btn.disabled = true;
+      if (btn.textContent !== undefined) btn.textContent = 'Entferne live…';
       try {
         const body = new FormData();
         body.set('image', imageOriginalName);
@@ -931,8 +936,8 @@
         showToast('Erfolgreich live entfernt', 'success');
         refresh();
       } finally {
-        btn.disabled = false;
-        btn.textContent = prev;
+        if (btn.disabled !== undefined) btn.disabled = false;
+        if (btn.textContent !== undefined) btn.textContent = prev;
       }
     }
 
