@@ -436,8 +436,7 @@ function handleCopyToImage() {
 You are an image editor.
 
 Task:
-- Place the painting into the free space on the wall in the room image.
-- Make the scene natural.
+- Place the painting into the free space on the wall.
 PROMPT;
   
   $payload = [
@@ -448,6 +447,7 @@ PROMPT;
         "data:$variantMime;base64,$variantB64",
         "data:$finalMime;base64,$finalB64"
       ],
+      'aspect_ratio' => '1:1',
       'output_format' => 'jpg'
     ]
   ];
@@ -475,8 +475,8 @@ PROMPT;
     exit;
   }
   
-  file_put_contents($tempPng, $targetPath);
-  
+  file_put_contents($targetPath, $imgBytes);
+
   // Check if this image is already in gallery and update it
   $galleryDir = dirname(__DIR__) . '/img/gallery/';
   $galleryFilename = find_gallery_entry($imageBaseName, $galleryDir);
