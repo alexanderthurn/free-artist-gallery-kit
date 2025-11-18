@@ -496,11 +496,16 @@ h1 {
   width: 100%;
   max-width: 202px;
   aspect-ratio: 3 / 4;
-  overflow: hidden;
+  overflow: visible;
   align-self: start;
   justify-self: start;
   border-radius: 8px;
   cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.author-image-wrapper:hover {
+  transform: scale(1.08);
 }
 
 .author-photo {
@@ -520,10 +525,6 @@ h1 {
   display: block;
   position: relative;
   z-index: 1;
-}
-
-.author-image-wrapper:hover .author-photo {
-  transform: scale(1.02);
 }
 
 /* Author Variant Reveal Effect */
@@ -694,21 +695,25 @@ main {
   max-width: 1400px;
   margin: 0 auto;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
+  overflow: visible;
 }
 
 .painting-wrapper {
   position: relative;
   cursor: pointer;
   transition: transform 0.3s ease;
+  z-index: 1;
 }
 
 .painting-wrapper:hover {
-  transform: translateY(-5px);
+  transform: translateY(-5px) scale(1.05);
+  z-index: 2;
 }
 
-/* Disable move-up effect when variant reveal is active */
+/* Scale effect when variant reveal is active (without translateY) */
 .painting-wrapper:has(.painting-variant-reveal):hover {
-  transform: none;
+  transform: scale(1.05);
+  z-index: 2;
 }
 
 .painting-frame {
