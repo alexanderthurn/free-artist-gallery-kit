@@ -506,10 +506,17 @@
       showToast('KI generiert Variante...', 'info', 300000); // 5 minutes max
 
       try {
+        // Get width and height from the form fields
+        const row = document.getElementById(`painting-${imageBaseName}`);
+        const width = row ? (row.querySelector('input[name="width"]')?.value || '').trim() : '';
+        const height = row ? (row.querySelector('input[name="height"]')?.value || '').trim() : '';
+        
         const body = new FormData();
         body.set('action', 'copy_to_image');
         body.set('variant_filename', variantFilename);
         body.set('image_base_name', imageBaseName);
+        if (width) body.set('width', width);
+        if (height) body.set('height', height);
 
         const res = await fetch('variants.php', { method: 'POST', body });
         if (!res.ok) {

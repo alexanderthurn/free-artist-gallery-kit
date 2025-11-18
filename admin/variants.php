@@ -361,6 +361,8 @@ function handleCopyToImage() {
   
   $variantFilename = trim($_POST['variant_filename'] ?? '');
   $imageBaseName = trim($_POST['image_base_name'] ?? '');
+  $width = trim($_POST['width'] ?? '');
+  $height = trim($_POST['height'] ?? '');
   
   if ($variantFilename === '' || $imageBaseName === '') {
     http_response_code(400);
@@ -432,11 +434,24 @@ function handleCopyToImage() {
   
   // Use nano banana to place the painting into the variant
   $VERSION = '2784c5d54c07d79b0a2a5385477038719ad37cb0745e61bbddf2fc236d196a6b';
+  
+  // Build prompt with dimensions if available
+  $dimensionsInfo = '';
+  if ($width !== '' && $height !== '') {
+    $dimensionsInfo = "\n\nPainting dimensions: {$width}cm (width) × {$height}cm (height).";
+    $dimensionsInfo .= "\nRoom height: 250cm (ceiling height).";
+    $dimensionsInfo .= "\nPlace the painting at an appropriate scale relative to the room dimensions. The painting should be positioned realistically on the wall, considering its actual size.";
+  }
+  
   $prompt = <<<PROMPT
 You are an image editor.
 
 Task:
 - Place the painting into the free space on the wall.
+- Ensure the painting is properly scaled and positioned realistically.
+- The painting should be centered or positioned appropriately on the wall.
+- Maintain natural lighting and shadows.
+{$dimensionsInfo}
 PROMPT;
   
   $payload = [
