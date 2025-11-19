@@ -51,6 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   
+  // Update author photo to use thumbnail
+  const authorPhoto = document.getElementById('author-photo');
+  if (authorPhoto && authorPhoto.src) {
+    authorPhoto.src = getThumbnailUrl(authorPhoto.src);
+  }
+  
   // Update imprint information from meta tags
   const imprintAddress = document.querySelector('meta[name="imprint-address"]')?.content || '';
   const imprintPostalCode = document.querySelector('meta[name="imprint-postal-code"]')?.content || '';
@@ -277,7 +283,8 @@ function initAuthorVariantReveal() {
         const img = new Image();
         img.onload = () => resolve(true);
         img.onerror = () => resolve(false);
-        img.src = `img/upload/artist-alternative-${index}.jpg`;
+        // Use thumbnail for checking (faster)
+        img.src = getThumbnailUrl(`img/upload/artist-alternative-${index}.jpg`);
         // Timeout after 1 second
         setTimeout(() => resolve(false), 1000);
       });
@@ -317,8 +324,10 @@ function initAuthorVariantReveal() {
   function loadAlternativeImage(index) {
     // index is 1-based (1, 2, 3, ...)
     const imageUrl = `img/upload/artist-alternative-${index}.jpg`;
-    variantImgSharp.src = imageUrl;
-    variantImgBlurred.src = imageUrl;
+    // Use thumbnails for variant reveal effect (list view)
+    const thumbUrl = getThumbnailUrl(imageUrl);
+    variantImgSharp.src = thumbUrl;
+    variantImgBlurred.src = thumbUrl;
   }
   
   // Rotate to next image

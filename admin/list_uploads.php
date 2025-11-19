@@ -19,6 +19,11 @@ foreach ($dirFiles as $file) {
     
     if (!is_file($filePath)) continue;
     
+    // Skip thumbnail files (files with _thumb in the name)
+    if (strpos($file, '_thumb.') !== false) {
+        continue;
+    }
+    
     $stat = stat($filePath);
     if ($stat === false) continue;
     
