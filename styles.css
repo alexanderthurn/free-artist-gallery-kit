@@ -511,12 +511,16 @@ h1 {
   width: 100%;
   height: 100%;
   position: relative;
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
 .author-image-wrapper:hover .author-portrait-frame {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.18),
-    0 4px 8px rgba(0, 0, 0, 0.12),
+    0 12px 36px rgba(0, 0, 0, 0.22),
+    0 6px 16px rgba(0, 0, 0, 0.16),
     inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
@@ -729,8 +733,8 @@ main {
   padding: 12px;
   border-radius: 2px;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.2),
     0 4px 12px rgba(0, 0, 0, 0.15),
-    0 2px 4px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
   position: relative;
   border: none;
@@ -739,8 +743,8 @@ main {
 
 .painting-wrapper:hover .painting-frame {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.2),
-    0 4px 8px rgba(0, 0, 0, 0.15),
+    0 12px 36px rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
@@ -749,15 +753,15 @@ main {
   background: #f8f8f8;
   border: none;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.18),
     0 4px 12px rgba(0, 0, 0, 0.12),
-    0 2px 4px rgba(0, 0, 0, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
 .painting-wrapper:hover .painting-frame.frame-white {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.18),
-    0 4px 8px rgba(0, 0, 0, 0.12),
+    0 12px 36px rgba(0, 0, 0, 0.22),
+    0 6px 16px rgba(0, 0, 0, 0.16),
     inset 0 0 0 1px rgba(255, 255, 255, 0.8);
 }
 
@@ -765,16 +769,16 @@ main {
   background: #1a1a1a;
   border: none;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.5),
     0 4px 12px rgba(0, 0, 0, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.3),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .painting-wrapper:hover .painting-frame.frame-black {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.5),
-    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 12px 36px rgba(0, 0, 0, 0.6),
+    0 6px 16px rgba(0, 0, 0, 0.5),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
@@ -783,8 +787,8 @@ main {
   background: #c19a6b;
   border: none;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.3),
     0 4px 12px rgba(0, 0, 0, 0.25),
-    0 2px 4px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(0, 0, 0, 0.25),
     inset 0 0 0 1px rgba(139, 111, 71, 0.3);
@@ -807,8 +811,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-wood {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.3),
-    0 4px 8px rgba(0, 0, 0, 0.25),
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     inset 0 -1px 0 rgba(0, 0, 0, 0.25),
     inset 0 0 0 1px rgba(139, 111, 71, 0.3);
@@ -820,8 +824,8 @@ main {
     linear-gradient(135deg, #f5d76e 0%, #d4af37 30%, #b8941f 60%, #d4af37 100%);
   border: none;
   box-shadow: 
-    0 4px 12px rgba(184, 148, 31, 0.35),
-    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 8px 24px rgba(184, 148, 31, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     inset 0 -1px 0 rgba(0, 0, 0, 0.25),
     inset 0 0 15px rgba(212, 175, 55, 0.2);
@@ -829,8 +833,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-gold {
   box-shadow: 
-    0 8px 24px rgba(184, 148, 31, 0.45),
-    0 4px 8px rgba(0, 0, 0, 0.25),
+    0 12px 36px rgba(184, 148, 31, 0.5),
+    0 6px 16px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.4),
     inset 0 -1px 0 rgba(0, 0, 0, 0.25),
     inset 0 0 15px rgba(212, 175, 55, 0.3);
@@ -842,8 +846,8 @@ main {
     linear-gradient(45deg, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
   border: none;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.25),
-    0 2px 4px rgba(0, 0, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     inset 0 0 10px rgba(112, 112, 112, 0.1);
@@ -851,8 +855,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-silver {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.3),
-    0 4px 8px rgba(0, 0, 0, 0.22),
+    0 12px 36px rgba(0, 0, 0, 0.35),
+    0 6px 16px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     inset 0 0 10px rgba(112, 112, 112, 0.15);
@@ -862,8 +866,8 @@ main {
   background: #5c4033;
   border: none;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.35),
     0 4px 12px rgba(0, 0, 0, 0.3),
-    0 2px 4px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 -1px 0 rgba(0, 0, 0, 0.35),
     inset 0 0 0 1px rgba(61, 42, 34, 0.4);
@@ -886,8 +890,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-walnut {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.35),
-    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 12px 36px rgba(0, 0, 0, 0.4),
+    0 6px 16px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     inset 0 -1px 0 rgba(0, 0, 0, 0.35),
     inset 0 0 0 1px rgba(61, 42, 34, 0.4);
@@ -897,8 +901,8 @@ main {
   background: #d4a574;
   border: none;
   box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.28),
     0 4px 12px rgba(0, 0, 0, 0.22),
-    0 2px 4px rgba(0, 0, 0, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(184, 150, 106, 0.25);
@@ -921,8 +925,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-oak {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.28),
-    0 4px 8px rgba(0, 0, 0, 0.22),
+    0 12px 36px rgba(0, 0, 0, 0.33),
+    0 6px 16px rgba(0, 0, 0, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(184, 150, 106, 0.25);
@@ -935,8 +939,8 @@ main {
     linear-gradient(135deg, #ffd700 0%, #ffed4e 20%, #d4af37 40%, #b8941f 60%, #d4af37 80%, #ffd700 100%);
   border: none;
   box-shadow: 
-    0 4px 12px rgba(184, 148, 31, 0.4),
-    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(184, 148, 31, 0.45),
+    0 4px 12px rgba(0, 0, 0, 0.3),
     inset 0 2px 0 rgba(255, 255, 255, 0.5),
     inset 0 -2px 0 rgba(0, 0, 0, 0.3),
     inset 0 0 20px rgba(212, 175, 55, 0.25),
@@ -945,8 +949,8 @@ main {
 
 .painting-wrapper:hover .painting-frame.frame-ornate-gold {
   box-shadow: 
-    0 8px 24px rgba(184, 148, 31, 0.5),
-    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 12px 36px rgba(184, 148, 31, 0.55),
+    0 6px 16px rgba(0, 0, 0, 0.35),
     inset 0 2px 0 rgba(255, 255, 255, 0.5),
     inset 0 -2px 0 rgba(0, 0, 0, 0.3),
     inset 0 0 20px rgba(212, 175, 55, 0.35),
@@ -957,16 +961,16 @@ main {
   background: #f5f0e8;
   border: none;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.1),
-    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 8px 24px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.9),
     inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .painting-wrapper:hover .painting-frame.frame-natural {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.15),
-    0 4px 8px rgba(0, 0, 0, 0.1),
+    0 12px 36px rgba(0, 0, 0, 0.18),
+    0 6px 16px rgba(0, 0, 0, 0.14),
     inset 0 0 0 1px rgba(255, 255, 255, 0.9),
     inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -976,14 +980,14 @@ main {
   padding: 0;
   border: none;
   box-shadow: 
-    0 4px 12px rgba(0, 0, 0, 0.15),
-    0 2px 4px rgba(0, 0, 0, 0.1);
+    0 8px 24px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .painting-wrapper:hover .painting-frame.frame-none {
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.2),
-    0 4px 8px rgba(0, 0, 0, 0.15);
+    0 12px 36px rgba(0, 0, 0, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .painting-image {
@@ -1081,8 +1085,8 @@ main {
 /* Sold Indicator - Red Dot */
 .painting-sold-indicator {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  bottom: 20px;
+  right: 20px;
   width: 16px;
   height: 16px;
   background-color: var(--color-primary);
