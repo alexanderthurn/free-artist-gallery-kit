@@ -705,15 +705,18 @@ main {
   z-index: 1;
 }
 
-.painting-wrapper:hover {
-  transform: translateY(-5px) scale(1.05);
-  z-index: 2;
-}
+/* Hover effect only on devices that support hover (desktop) */
+@media (hover: hover) {
+  .painting-wrapper:hover {
+    transform: translateY(-5px) scale(1.05);
+    z-index: 2;
+  }
 
-/* Scale effect when variant reveal is active (without translateY) */
-.painting-wrapper:has(.painting-variant-reveal):hover {
-  transform: scale(1.05);
-  z-index: 2;
+  /* Scale effect when variant reveal is active (without translateY) */
+  .painting-wrapper:has(.painting-variant-reveal):hover {
+    transform: scale(1.05);
+    z-index: 2;
+  }
 }
 
 .painting-frame {
