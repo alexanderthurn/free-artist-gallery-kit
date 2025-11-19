@@ -11,7 +11,7 @@ $GALLERY_MAX_WIDTH = 1536;
 $GALLERY_MAX_HEIGHT = 1536;
 $UPLOAD_MAX_WIDTH = 1536;
 $UPLOAD_MAX_HEIGHT = 1536;
-$THUMBNAIL_MAX_WIDTH = 286;
+$THUMBNAIL_MAX_WIDTH = 512;
 $THUMBNAIL_MAX_HEIGHT = 1024;
 
 // Clear any output buffer
@@ -751,7 +751,7 @@ function generate_thumbnail(string $sourcePath, string $thumbPath, int $maxWidth
     
     // Save thumbnail with higher quality (95 for JPEG, 90 for WebP)
     $ext = strtolower(pathinfo($thumbPath, PATHINFO_EXTENSION));
-    $quality = ($ext === 'webp') ? 90 : 95;
+    $quality = ($ext === 'webp') ? 90 : 100;
     image_save_as($thumbPath, $dst, $quality);
     
     imagedestroy($src);
