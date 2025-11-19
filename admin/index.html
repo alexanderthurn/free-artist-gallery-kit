@@ -87,6 +87,8 @@
       .upload-area { padding: 24px 16px; }
       .toolbar { flex-direction: column; align-items: stretch; }
       .toolbar button { width: 100%; }
+      /* Make upload sections stack vertically on smaller screens */
+      .upload-sections { grid-template-columns: 1fr !important; }
     }
     
     @media (max-width: 768px) {
@@ -895,6 +897,63 @@
       }, actualDuration);
     }
 
+    // Image resizing function
+    async function resizeImage(file, maxWidth = 2048) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            // Check if resizing is needed
+            if (img.width <= maxWidth) {
+              resolve(file);
+              return;
+            }
+            
+            // Calculate new dimensions
+            const ratio = maxWidth / img.width;
+            const newWidth = maxWidth;
+            const newHeight = Math.round(img.height * ratio);
+            
+            // Create canvas and resize
+            const canvas = document.createElement('canvas');
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            
+            // Convert to blob
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Failed to resize image'));
+                return;
+              }
+              // Create a new File object with the same name
+              const resizedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now()
+              });
+              resolve(resizedFile);
+            }, file.type, 0.92); // Use 0.92 quality for JPEG
+          };
+          img.onerror = () => reject(new Error('Failed to load image'));
+          img.src = e.target.result;
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Format time duration
+    function formatDuration(seconds) {
+      if (seconds < 60) {
+        return `${Math.round(seconds)}s`;
+      }
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return `${mins}m ${secs}s`;
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       showFlashFromQuery();
       refresh();
@@ -903,18 +962,33 @@
       const uploadArea = document.getElementById('uploadArea');
       const uploadForm = document.getElementById('uploadForm');
       
-      // Click on upload area to trigger file input
+      const aiFileInput = document.getElementById('aiFileInput');
+      const aiUploadArea = document.getElementById('aiUploadArea');
+      const aiUploadForm = document.getElementById('aiUploadForm');
+      
+      // Regular upload area click handler
       uploadArea.addEventListener('click', () => {
         fileInput.click();
       });
       
-      // File input change handler
+      // AI upload area click handler
+      aiUploadArea.addEventListener('click', () => {
+        aiFileInput.click();
+      });
+      
+      // Regular file input change handler
       fileInput.addEventListener('change', async (e) => {
         if (!fileInput.files || fileInput.files.length === 0) return;
-        await uploadFiles(fileInput.files);
+        await uploadFiles(fileInput.files, false);
       }, { passive: true });
       
-      // Drag and drop handlers
+      // AI file input change handler
+      aiFileInput.addEventListener('change', async (e) => {
+        if (!aiFileInput.files || aiFileInput.files.length === 0) return;
+        await uploadFiles(aiFileInput.files, true);
+      }, { passive: true });
+      
+      // Regular drag and drop handlers
       uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -934,29 +1008,332 @@
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-          await uploadFiles(files);
+          await uploadFiles(files, false);
         }
       });
       
-      async function uploadFiles(files) {
-        const fd = new FormData(uploadForm);
-        // Clear existing files and add dropped files
-        for (let i = 0; i < files.length; i++) {
-          fd.append('images[]', files[i]);
+      // AI drag and drop handlers
+      aiUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        aiUploadArea.classList.add('dragover');
+      });
+      
+      aiUploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        aiUploadArea.classList.remove('dragover');
+      });
+      
+      aiUploadArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        aiUploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          await uploadFiles(files, true);
         }
+      });
+      
+      async function uploadFiles(files, isAIUpload) {
+        const startTime = Date.now();
+        const progressContainer = isAIUpload ? document.getElementById('aiUploadProgress') : document.getElementById('regularUploadProgress');
+        const progressBar = isAIUpload ? document.getElementById('aiUploadProgressBar') : document.getElementById('regularUploadProgressBar');
+        const statusText = isAIUpload ? document.getElementById('aiUploadStatus') : document.getElementById('regularUploadStatus');
+        const timeText = isAIUpload ? document.getElementById('aiUploadTime') : document.getElementById('regularUploadTime');
+        const fileInputElement = isAIUpload ? aiFileInput : fileInput;
+        
+        // Show progress container
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        statusText.textContent = isAIUpload ? 'Bilder werden vorbereitet...' : 'Bilder werden vorbereitet...';
         
         try {
-          const res = await fetch('upload.php', { method: 'POST', body: fd });
-          if (res.ok) {
-            showToast(`${files.length} Bild(er) erfolgreich hochgeladen`, 'success');
+          // Resize images if needed
+          const resizedFiles = [];
+          for (let i = 0; i < files.length; i++) {
+            statusText.textContent = isAIUpload 
+              ? `Bild ${i + 1}/${files.length} wird vorbereitet...`
+              : `Bild ${i + 1}/${files.length} wird vorbereitet...`;
+            try {
+              const resized = await resizeImage(files[i]);
+              resizedFiles.push(resized);
+            } catch (error) {
+              console.error('Error resizing image:', error);
+              // Use original file if resize fails
+              resizedFiles.push(files[i]);
+            }
+          }
+          
+          // Create FormData
+          const fd = new FormData();
+          for (let i = 0; i < resizedFiles.length; i++) {
+            fd.append('images[]', resizedFiles[i]);
+          }
+          
+          // Add AI upload flag
+          if (isAIUpload) {
+            fd.append('ai_upload', '1');
+          }
+          
+          // Upload with progress tracking
+          statusText.textContent = isAIUpload ? 'Bilder werden hochgeladen...' : 'Bilder werden hochgeladen...';
+          progressBar.style.width = '30%';
+          
+          const xhr = new XMLHttpRequest();
+          
+          // Track upload progress
+          xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+              const percentComplete = 30 + (e.loaded / e.total) * 70; // 30% for prep, 70% for upload
+              progressBar.style.width = percentComplete + '%';
+            }
+          });
+          
+          // Update time display
+          const timeInterval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            timeText.textContent = `Dauer: ${formatDuration(elapsed)}`;
+          }, 100);
+          
+          const uploadPromise = new Promise((resolve, reject) => {
+            xhr.onload = () => {
+              clearInterval(timeInterval);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                progressBar.style.width = '100%';
+                // Check if response is JSON (AI upload) or redirect (regular upload)
+                const contentType = xhr.getResponseHeader('Content-Type') || '';
+                if (contentType.includes('application/json')) {
+                  try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data);
+                  } catch (e) {
+                    resolve({ ok: true, responseText: xhr.responseText });
+                  }
+                } else {
+                  // Regular upload - redirect response
+                  resolve({ ok: true, redirect: true });
+                }
+              } else {
+                reject(new Error(`Upload failed: ${xhr.status}`));
+              }
+            };
+            xhr.onerror = () => {
+              clearInterval(timeInterval);
+              reject(new Error('Upload failed'));
+            };
+            xhr.open('POST', 'upload.php');
+            xhr.send(fd);
+          });
+          
+          const response = await uploadPromise;
+          const elapsed = (Date.now() - startTime) / 1000;
+          timeText.textContent = `Abgeschlossen in ${formatDuration(elapsed)}`;
+          
+          if (isAIUpload) {
+            // Parse response to get uploaded image names
+            if (response.ok && response.uploaded_images && response.uploaded_images.length > 0) {
+              // Process each uploaded image with AI
+              await processAIImageWorkflow(response.uploaded_images, startTime);
+            } else {
+              showToast('Upload erfolgreich, aber AI-Verarbeitung konnte nicht gestartet werden', 'error');
+              refresh();
+            }
           } else {
-            showToast('Fehler beim Hochladen', 'error');
+            showToast(`${files.length} Bild(er) erfolgreich hochgeladen`, 'success');
+            fileInputElement.value = '';
+            setTimeout(() => {
+              progressContainer.style.display = 'none';
+            }, 2000);
+            refresh();
           }
         } catch (error) {
           showToast('Fehler beim Hochladen: ' + error.message, 'error');
+          progressContainer.style.display = 'none';
+        }
+      }
+      
+      async function processAIImageWorkflow(uploadedImages, startTime) {
+        const step1 = document.getElementById('aiStep1');
+        const step2 = document.getElementById('aiStep2');
+        const step3 = document.getElementById('aiStep3');
+        const step4 = document.getElementById('aiStep4');
+        const progressBar = document.getElementById('aiUploadProgressBar');
+        const statusText = document.getElementById('aiUploadStatus');
+        const timeText = document.getElementById('aiUploadTime');
+        
+        // Update time display continuously
+        const timeInterval = setInterval(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          timeText.textContent = `Dauer: ${formatDuration(elapsed)}`;
+        }, 100);
+        
+        // Process each image sequentially
+        for (let i = 0; i < uploadedImages.length; i++) {
+          const imageName = uploadedImages[i];
+          const imageBase = imageName.replace(/_original\.(jpg|jpeg|png)$/i, '');
+          
+          // Calculate progress: upload is 25%, each image processing is 75% / (images * steps)
+          const baseProgress = 25;
+          const progressPerImage = 75 / uploadedImages.length;
+          const progressPerStep = progressPerImage / 4; // 4 steps per image
+          
+          try {
+            // Step 1: Upload complete
+            step1.textContent = `✅ Upload abgeschlossen (${i + 1}/${uploadedImages.length})`;
+            step1.style.opacity = '1';
+            step2.style.opacity = '0.5';
+            step3.style.opacity = '0.5';
+            step4.style.opacity = '0.5';
+            const imageProgress = baseProgress + (i * progressPerImage);
+            progressBar.style.width = imageProgress + '%';
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: KI Bild freistellen lassen...`;
+            
+            // Step 2: KI Bild freistellen lassen
+            step2.textContent = `🔄 KI Bild freistellen lassen (${i + 1}/${uploadedImages.length})...`;
+            step2.style.opacity = '1';
+            progressBar.style.width = (imageProgress + progressPerStep) + '%';
+            
+            const cornersRes = await fetch('corners.php', {
+              method: 'POST',
+              body: (() => {
+                const fd = new FormData();
+                fd.append('image_path', 'admin/images/' + imageName);
+                fd.append('color', '#ffffff');
+                return fd;
+              })()
+            });
+            
+            if (!cornersRes.ok) {
+              throw new Error('KI Bild freistellen fehlgeschlagen');
+            }
+            
+            const cornersData = await cornersRes.json();
+            if (!cornersData.ok) {
+              throw new Error('KI Bild freistellen fehlgeschlagen: ' + (cornersData.error || 'Unknown'));
+            }
+            
+            step2.textContent = `✅ KI Bild freistellen abgeschlossen (${i + 1}/${uploadedImages.length})`;
+            progressBar.style.width = (imageProgress + progressPerStep * 2) + '%';
+            
+            // Step 3: KI Formular ausfüllen lassen
+            step3.textContent = `🔄 KI Formular ausfüllen lassen (${i + 1}/${uploadedImages.length})...`;
+            step3.style.opacity = '1';
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: KI Formular ausfüllen lassen...`;
+            progressBar.style.width = (imageProgress + progressPerStep * 2.5) + '%';
+            
+            const fillFormRes = await fetch('ai_fill_form.php', {
+              method: 'POST',
+              body: (() => {
+                const fd = new FormData();
+                fd.append('image', imageName);
+                return fd;
+              })()
+            });
+            
+            if (!fillFormRes.ok) {
+              throw new Error('KI Formular ausfüllen fehlgeschlagen');
+            }
+            
+            const fillFormData = await fillFormRes.json();
+            if (!fillFormData.ok) {
+              throw new Error('KI Formular ausfüllen fehlgeschlagen: ' + (fillFormData.error || 'Unknown'));
+            }
+            
+            // Save the form data
+            const saveMetaRes = await fetch('save_meta.php', {
+              method: 'POST',
+              body: (() => {
+                const fd = new FormData();
+                fd.append('image', imageName);
+                if (fillFormData.title) fd.append('title', fillFormData.title);
+                if (fillFormData.description) fd.append('description', fillFormData.description);
+                if (fillFormData.width) fd.append('width', fillFormData.width);
+                if (fillFormData.height) fd.append('height', fillFormData.height);
+                if (fillFormData.tags) fd.append('tags', fillFormData.tags);
+                if (fillFormData.date) fd.append('date', fillFormData.date);
+                fd.append('sold', '0');
+                fd.append('frame_type', 'white');
+                return fd;
+              })()
+            });
+            
+            if (saveMetaRes.ok) {
+              const saveMetaData = await saveMetaRes.json().catch(() => ({}));
+              // Form data saved (or will be saved)
+            }
+            
+            step3.textContent = `✅ KI Formular ausfüllen abgeschlossen (${i + 1}/${uploadedImages.length})`;
+            progressBar.style.width = (imageProgress + progressPerStep * 3) + '%';
+            
+            // Step 4: Generate random variant
+            step4.textContent = `🔄 KI Variante generieren (${i + 1}/${uploadedImages.length})...`;
+            step4.style.opacity = '1';
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: KI Variante generieren...`;
+            progressBar.style.width = (imageProgress + progressPerStep * 3.5) + '%';
+            
+            // Get available variants
+            const variantsRes = await fetch('variants.php?action=list');
+            if (!variantsRes.ok) {
+              throw new Error('Varianten konnten nicht geladen werden');
+            }
+            
+            const variantsData = await variantsRes.json();
+            if (!variantsData.ok || !variantsData.variants || variantsData.variants.length === 0) {
+              step4.textContent = `⏭ KI Variante übersprungen (keine Varianten verfügbar)`;
+              step4.style.opacity = '0.7';
+            } else {
+              // Pick a random variant
+              const randomVariant = variantsData.variants[Math.floor(Math.random() * variantsData.variants.length)];
+              
+              const variantRes = await fetch('variants.php', {
+                method: 'POST',
+                body: (() => {
+                  const fd = new FormData();
+                  fd.append('action', 'copy_to_image');
+                  fd.append('variant_filename', randomVariant.name);
+                  fd.append('image_base_name', imageBase);
+                  if (fillFormData.width) fd.append('width', fillFormData.width);
+                  if (fillFormData.height) fd.append('height', fillFormData.height);
+                  return fd;
+                })()
+              });
+              
+              if (!variantRes.ok) {
+                throw new Error('KI Variante generieren fehlgeschlagen');
+              }
+              
+              const variantData = await variantRes.json();
+              if (!variantData.ok) {
+                throw new Error('KI Variante generieren fehlgeschlagen: ' + (variantData.error || 'Unknown'));
+              }
+              
+              step4.textContent = `✅ KI Variante generiert (${i + 1}/${uploadedImages.length})`;
+            }
+            
+            progressBar.style.width = (imageProgress + progressPerImage) + '%';
+            
+          } catch (error) {
+            console.error('Error processing image:', error);
+            showToast(`Fehler bei Bild ${i + 1}: ${error.message}`, 'error');
+            // Continue with next image
+          }
         }
         
-        fileInput.value = '';
+        clearInterval(timeInterval);
+        
+        // All done
+        progressBar.style.width = '100%';
+        const elapsed = (Date.now() - startTime) / 1000;
+        timeText.textContent = `Abgeschlossen in ${formatDuration(elapsed)}`;
+        statusText.textContent = `Alle ${uploadedImages.length} Bild(er) erfolgreich verarbeitet`;
+        showToast(`${uploadedImages.length} Bild(er) erfolgreich hochgeladen und verarbeitet`, 'success');
+        
+        aiFileInput.value = '';
+        setTimeout(() => {
+          document.getElementById('aiUploadProgress').style.display = 'none';
+        }, 5000);
         refresh();
       }
     });
@@ -983,13 +1360,57 @@
 
   <div class="">
     <h2>Gemälde hochladen</h2>
-    <form id="uploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
-      <div id="uploadArea" class="upload-area">
-        <div class="upload-area-text">📷 Bilder hier ablegen oder klicken zum Auswählen</div>
-        <div class="upload-area-hint">Sie können mehrere Bilder gleichzeitig hochladen</div>
-        <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="fileInput">
+    <div class="upload-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+      <!-- Regular Upload Section -->
+      <div>
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: #555;">Standard Upload</h3>
+        <form id="uploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
+          <div id="uploadArea" class="upload-area">
+            <div class="upload-area-text">📷 Bilder hier ablegen oder klicken zum Auswählen</div>
+            <div class="upload-area-hint">Sie können mehrere Bilder gleichzeitig hochladen</div>
+            <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="fileInput">
+          </div>
+        </form>
+        <div id="regularUploadProgress" style="display: none; margin-top: 12px;">
+          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+            <span id="regularUploadStatus">Wird hochgeladen...</span>
+            <span id="regularUploadTime" style="margin-left: 8px;"></span>
+          </div>
+          <div style="width: 100%; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden;">
+            <div id="regularUploadProgressBar" style="height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease;"></div>
+          </div>
+        </div>
       </div>
-    </form>
+      
+      <!-- AI Upload Section -->
+      <div>
+        <h3 style="font-size: 14px; margin-bottom: 12px; color: #555;">
+          <span class="star-icon">⭐</span> KI Upload (Automatische Verarbeitung)
+        </h3>
+        <form id="aiUploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
+          <div id="aiUploadArea" class="upload-area" style="background: linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%); border-color: #667eea;">
+            <div class="upload-area-text">⭐ KI Bilder hier ablegen oder klicken</div>
+            <div class="upload-area-hint">Automatische Verarbeitung: Freistellen → Formular → Variante</div>
+            <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="aiFileInput">
+          </div>
+        </form>
+        <div id="aiUploadProgress" style="display: none; margin-top: 12px;">
+          <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+            <div id="aiUploadStatus">Wird hochgeladen...</div>
+            <div id="aiUploadTime" style="margin-top: 4px;"></div>
+          </div>
+          <div style="width: 100%; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
+            <div id="aiUploadProgressBar" style="height: 100%; background: #667eea; width: 0%; transition: width 0.3s ease;"></div>
+          </div>
+          <div id="aiStepsProgress" style="font-size: 11px; color: #888;">
+            <div id="aiStep1" style="margin-bottom: 4px;">⏳ Warte auf Upload...</div>
+            <div id="aiStep2" style="margin-bottom: 4px; opacity: 0.5;">⏸ KI Bild freistellen lassen</div>
+            <div id="aiStep3" style="margin-bottom: 4px; opacity: 0.5;">⏸ KI Formular ausfüllen lassen</div>
+            <div id="aiStep4" style="opacity: 0.5;">⏸ KI Variante generieren</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="">

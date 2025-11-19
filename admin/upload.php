@@ -12,6 +12,47 @@ function ensure_dir(string $path): void {
     }
 }
 
+function count_existing_paintings(string $imagesDir): int {
+    $count = 0;
+    if (!is_dir($imagesDir)) {
+        return 0;
+    }
+    
+    $files = scandir($imagesDir) ?: [];
+    $bases = [];
+    
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        
+        // Count unique paintings by looking for _original images or JSON files
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            $stem = pathinfo($file, PATHINFO_FILENAME);
+            // Check if it's an _original image
+            if (preg_match('/^(.+)_original$/i', $stem, $matches)) {
+                $base = $matches[1];
+                if (!isset($bases[$base])) {
+                    $bases[$base] = true;
+                    $count++;
+                }
+            }
+        } elseif ($ext === 'json') {
+            // Count JSON files (each represents a painting)
+            $stem = pathinfo($file, PATHINFO_FILENAME);
+            // Remove .json extension and check if it corresponds to an _original image
+            if (preg_match('/^(.+)_original$/', $stem, $matches)) {
+                $base = $matches[1];
+                if (!isset($bases[$base])) {
+                    $bases[$base] = true;
+                    $count++;
+                }
+            }
+        }
+    }
+    
+    return $count;
+}
+
 function sanitize_filename(string $name): string {
     $name = preg_replace('/[^A-Za-z0-9._-]/', '_', $name);
     return trim($name ?? '', '_');
@@ -54,10 +95,19 @@ if (!isset($_FILES['images'])) {
 $dirImages = __DIR__.'/images';
 ensure_dir($dirImages);
 
+$isAIUpload = isset($_POST['ai_upload']) && $_POST['ai_upload'] === '1';
+
+// Count existing paintings for non-AI uploads to assign title numbers
+$existingPaintingCount = 0;
+if (!$isAIUpload) {
+    $existingPaintingCount = count_existing_paintings($dirImages);
+}
+
 $files = $_FILES['images'];
 $count = is_array($files['name']) ? count($files['name']) : 0;
 $uploaded = 0;
 $errors = [];
+$uploadedImages = [];
 
 for ($i = 0; $i < $count; $i++) {
     if ($files['error'][$i] !== UPLOAD_ERR_OK) {
@@ -90,6 +140,9 @@ for ($i = 0; $i < $count; $i++) {
         continue;
     }
 
+    // Store uploaded image name for AI processing
+    $uploadedImages[] = basename($target);
+
     // Also create _final.jpg copy (overwrite if exists)
     $finalStem = preg_replace('/_original$/i', '', $stem);
     $finalName = $finalStem.'_final.jpg';
@@ -103,9 +156,56 @@ for ($i = 0; $i < $count; $i++) {
     // Copy the JPG to _final
     copy($target, $finalTarget);
 
+    // For non-AI uploads, create JSON metadata file with title "#n" and frame "white"
+    if (!$isAIUpload) {
+        $baseName = extract_base_name(basename($target));
+        $jsonPath = $target . '.json';
+        
+        // Only create JSON if it doesn't exist
+        if (!is_file($jsonPath)) {
+            $paintingNumber = $existingPaintingCount + $uploaded + 1;
+            $metaData = [
+                'title' => '#' . $paintingNumber,
+                'description' => '',
+                'width' => '',
+                'height' => '',
+                'tags' => '',
+                'date' => '',
+                'sold' => false,
+                'frame_type' => 'white',
+                'original_filename' => $baseName
+            ];
+            
+            file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        }
+    }
+
     $uploaded++;
 }
 
+// Return JSON response for AI uploads
+if ($isAIUpload) {
+    header('Content-Type: application/json; charset=utf-8');
+    if ($errors) {
+        http_response_code(400);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Upload errors occurred',
+            'errors' => $errors,
+            'uploaded' => $uploaded,
+            'uploaded_images' => $uploadedImages
+        ]);
+    } else {
+        echo json_encode([
+            'ok' => true,
+            'uploaded' => $uploaded,
+            'uploaded_images' => $uploadedImages
+        ]);
+    }
+    exit;
+}
+
+// Regular redirect response for non-AI uploads
 $query = http_build_query([
     'uploaded' => $uploaded,
     'errors' => $errors ? count($errors) : 0,

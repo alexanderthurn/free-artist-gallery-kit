@@ -692,7 +692,7 @@
         
         finalCtx.putImageData(outputData, 0, 0);
         
-        // Convert to blob
+        // Convert to blob and send as base64 (avoids upload_max_filesize issues)
         finalCanvas.toBlob(async (blob) => {
           if (!blob) {
             throw new Error('Fehler beim Erstellen des Bildes');
@@ -701,29 +701,43 @@
           // Prepare corner positions (in original image coordinates)
           const cornerPositions = srcCorners.map(c => [Math.round(c.x), Math.round(c.y)]);
           
-          // Send to server
-          const formData = new FormData();
-          formData.append('image', blob, `${paintingBase}_final.jpg`);
-          formData.append('base', paintingBase);
-          formData.append('corners', JSON.stringify(cornerPositions));
-          
-          const response = await fetch('save_free.php', {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Fehler beim Speichern');
-          }
-          
-          const result = await response.json();
-          if (!result.ok) {
-            throw new Error(result.error || 'Fehler beim Speichern');
-          }
-          
-          alert('Bild erfolgreich gespeichert!');
-          window.location.href = 'index.html';
+          // Convert blob to base64 and send directly (avoids PHP upload_max_filesize limit)
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64data = reader.result;
+            const formData = new FormData();
+            formData.append('image_data', base64data);
+            formData.append('base', paintingBase);
+            formData.append('corners', JSON.stringify(cornerPositions));
+            
+            const response = await fetch('save_free.php', {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              let errorData;
+              try {
+                errorData = JSON.parse(errorText);
+              } catch (e) {
+                throw new Error(errorText || 'Fehler beim Speichern');
+              }
+              throw new Error(errorData.error || errorData.detail || 'Fehler beim Speichern');
+            }
+            
+            const result = await response.json();
+            if (!result.ok) {
+              throw new Error(result.error || 'Fehler beim Speichern');
+            }
+            
+            alert('Bild erfolgreich gespeichert!');
+            window.location.href = 'index.html';
+          };
+          reader.onerror = () => {
+            throw new Error('Fehler beim Konvertieren des Bildes');
+          };
+          reader.readAsDataURL(blob);
         }, 'image/jpeg', 0.95);
       } catch (error) {
         alert('Fehler: ' + error.message);
