@@ -1901,6 +1901,23 @@
       showToast('Bild wird gedreht...', 'info');
 
       try {
+        // Get the row to check if image is live and get original image name
+        const row = document.getElementById(`painting-${imageBaseName}`);
+        const isLive = row && row.dataset.paintingInGallery === 'true';
+        let originalImageName = null;
+        
+        if (row && row.dataset.variants) {
+          try {
+            const variants = JSON.parse(row.dataset.variants);
+            const originalVariant = variants.find(v => v.variant === 'original');
+            if (originalVariant) {
+              originalImageName = originalVariant.name;
+            }
+          } catch (e) {
+            console.error('Error parsing variants:', e);
+          }
+        }
+
         const body = new FormData();
         body.set('image', finalImageName);
 
@@ -1917,7 +1934,37 @@
           return;
         }
 
-        showToast('Bild erfolgreich gedreht und Thumbnails aktualisiert', 'success');
+        // If image is live, update the gallery
+        if (isLive && originalImageName) {
+          showToast('Bild gedreht. Aktualisiere Live-Version...', 'info');
+          try {
+            const copyBody = new FormData();
+            copyBody.set('image', originalImageName);
+            const copyRes = await fetch('copy_to_gallery.php', { method: 'POST', body: copyBody });
+            if (!copyRes.ok) {
+              const copyMsg = await copyRes.text();
+              showToast('Bild gedreht, aber Live-Aktualisierung fehlgeschlagen: ' + copyMsg, 'error');
+              // Still update the UI even if copy failed
+              await updateImageRow(imageBaseName);
+              return;
+            }
+            const copyData = await copyRes.json().catch(() => ({}));
+            if (!copyData.ok) {
+              showToast('Bild gedreht, aber Live-Aktualisierung fehlgeschlagen: ' + (copyData.error || 'Unknown'), 'error');
+              // Still update the UI even if copy failed
+              await updateImageRow(imageBaseName);
+              return;
+            }
+            showToast('Bild erfolgreich gedreht und Live-Version aktualisiert', 'success');
+          } catch (copyError) {
+            showToast('Bild gedreht, aber Live-Aktualisierung fehlgeschlagen: ' + copyError.message, 'error');
+            // Still update the UI even if copy failed
+            await updateImageRow(imageBaseName);
+            return;
+          }
+        } else {
+          showToast('Bild erfolgreich gedreht und Thumbnails aktualisiert', 'success');
+        }
         
         // Update only the affected image row instead of full page reload
         await updateImageRow(imageBaseName);
