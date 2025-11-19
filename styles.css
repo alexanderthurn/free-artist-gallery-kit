@@ -682,7 +682,7 @@ main {
 /* Gallery */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 40px;
   padding: 80px 20px 40px;
   max-width: 1400px;
@@ -1464,6 +1464,13 @@ footer {
 }
 
 /* Responsive Design */
+/* 3 columns above 768px, below 968px */
+@media (max-width: 968px) {
+  .gallery {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   /* Remove orange gradient background on mobile */
   body::after {
@@ -1590,7 +1597,7 @@ h1 {
   }
 
   .gallery {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 30px;
     padding: 30px 15px;
   }
