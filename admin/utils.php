@@ -575,6 +575,7 @@ function resize_image_max(string $path, int $maxWidth, int $maxHeight, bool $for
 
 /**
  * Generate thumbnail from source image
+ * If the thumbnail file size is larger than the original, just copy the original instead
  */
 function generate_thumbnail(string $sourcePath, string $thumbPath, int $maxWidth, int $maxHeight): void {
     $src = image_create_from_any($sourcePath);
@@ -582,6 +583,12 @@ function generate_thumbnail(string $sourcePath, string $thumbPath, int $maxWidth
     
     $srcW = imagesx($src);
     $srcH = imagesy($src);
+    
+    // Get original file size
+    $originalSize = @filesize($sourcePath);
+    if ($originalSize === false) {
+        $originalSize = 0;
+    }
     
     // Calculate thumbnail dimensions maintaining aspect ratio
     $scale = min($maxWidth / $srcW, $maxHeight / $srcH);
@@ -609,6 +616,14 @@ function generate_thumbnail(string $sourcePath, string $thumbPath, int $maxWidth
     
     imagedestroy($src);
     imagedestroy($dst);
+    
+    // Check if thumbnail file size is larger than original
+    $thumbSize = @filesize($thumbPath);
+    if ($thumbSize !== false && $originalSize > 0 && $thumbSize >= $originalSize) {
+        // Thumbnail is larger or same size, use original instead
+        @unlink($thumbPath);
+        copy($sourcePath, $thumbPath);
+    }
 }
 
 /**
