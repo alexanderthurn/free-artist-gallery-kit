@@ -72,8 +72,18 @@ foreach ($files as $file) {
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     if (!in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) continue;
     
+    // Skip thumbnail files (files with _thumb in the name)
+    if (strpos($file, '_thumb.') !== false) {
+        continue;
+    }
+    
     // Check if this is a variant file (has _variant_ in the name)
     if (strpos($file, '_variant_') !== false) {
+        // Skip variant thumbnails (variant files with _thumb)
+        if (strpos($file, '_thumb.') !== false) {
+            continue;
+        }
+        
         // Extract base name: filename_variant_name.jpg -> filename
         $fileStem = pathinfo($file, PATHINFO_FILENAME);
         $baseEnd = strpos($fileStem, '_variant_');

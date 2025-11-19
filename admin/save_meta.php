@@ -76,6 +76,9 @@ $inGallery = $galleryFilename !== null;
 if ($inGallery) {
     $imagesDir = __DIR__.'/images/';
     update_gallery_entry($originalFilename, $data, $imagesDir, $galleryDir);
+    
+    // Trigger async image optimization
+    async_http_post('admin/optimize_images.php', ['action' => 'both']);
 }
 
 echo json_encode(['ok' => true, 'in_gallery' => $inGallery]);

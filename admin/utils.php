@@ -503,4 +503,48 @@ function replicate_call_model(string $token, string $model, array $payload): arr
     return $resp;
 }
 
+/**
+ * Make an asynchronous (fire-and-forget) HTTP POST request
+ * Returns immediately without waiting for response
+ */
+function async_http_post(string $url, array $data = []): void {
+    // Build query string
+    $postData = http_build_query($data);
+    
+    // Get the base URL for the current request
+    $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $baseUrl = $scheme . '://' . $host;
+    
+    // If URL is relative, make it absolute
+    if (strpos($url, 'http') !== 0) {
+        // Ensure URL starts with / for proper path resolution
+        $url = $baseUrl . '/' . ltrim($url, '/');
+    }
+    
+    // Use exec to spawn background curl process (non-blocking)
+    $cmd = sprintf(
+        'curl -X POST -d %s %s > /dev/null 2>&1 &',
+        escapeshellarg($postData),
+        escapeshellarg($url)
+    );
+    
+    // Execute in background (works on Unix-like systems)
+    if (function_exists('exec')) {
+        @exec($cmd);
+    } else {
+        // Fallback: use file_get_contents with very short timeout
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => 'Content-Type: application/x-www-form-urlencoded',
+                'content' => $postData,
+                'timeout' => 0.1, // Very short timeout
+                'ignore_errors' => true
+            ]
+        ]);
+        @file_get_contents($url, false, $context);
+    }
+}
+
 

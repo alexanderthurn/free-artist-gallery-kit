@@ -52,6 +52,9 @@ if (!$result['ok']) {
     exit;
 }
 
+// Trigger async image optimization
+async_http_post('admin/optimize_images.php', ['action' => 'both']);
+
 echo json_encode($result);
 exit;
 

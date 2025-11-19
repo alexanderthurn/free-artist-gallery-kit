@@ -11,6 +11,16 @@ let maxImageHeight = 0;
 let adminClickCount = 0;
 let adminClickTimer = null;
 
+/**
+ * Convert image URL to thumbnail URL by inserting _thumb before extension
+ * Example: img/gallery/painting.jpg -> img/gallery/painting_thumb.jpg
+ */
+function getThumbnailUrl(imageUrl) {
+  if (!imageUrl) return imageUrl;
+  // Match the last dot before the extension
+  return imageUrl.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.$1');
+}
+
 // Artist configuration (read from HTML meta tags)
 const ARTIST_CONFIG = {
   email: document.querySelector('meta[name="artist-email"]')?.content || 'anne@herzfabrik.com',
@@ -604,7 +614,8 @@ function renderPaintings(paintings) {
     imageContainer.className = 'painting-image-container';
     
     const img = document.createElement('img');
-    img.src = painting.imageUrl;
+    // Use thumbnail for list view (automatically convert imageUrl to thumbnail)
+    img.src = getThumbnailUrl(painting.imageUrl);
     img.alt = painting.title || 'Painting';
     img.className = 'painting-image';
     img.loading = 'lazy';
@@ -614,16 +625,19 @@ function renderPaintings(paintings) {
       const variantLayer = document.createElement('div');
       variantLayer.className = 'painting-variant-reveal';
       
+      // Use thumbnail for variant in list view (automatically convert)
+      const variantThumbUrl = getThumbnailUrl(painting.variants[0]);
+      
       // Create sharp variant image (center, no blur)
       const variantImgSharp = document.createElement('img');
-      variantImgSharp.src = painting.variants[0]; // Start with first variant
+      variantImgSharp.src = variantThumbUrl; // Use thumbnail for list view
       variantImgSharp.alt = 'Variant';
       variantImgSharp.className = 'painting-variant-image-sharp';
       variantImgSharp.loading = 'lazy';
       
       // Create blurred variant image (edges, with blur)
       const variantImgBlurred = document.createElement('img');
-      variantImgBlurred.src = painting.variants[0];
+      variantImgBlurred.src = variantThumbUrl; // Use thumbnail for list view
       variantImgBlurred.alt = 'Variant';
       variantImgBlurred.className = 'painting-variant-image-blurred';
       variantImgBlurred.loading = 'lazy';
@@ -734,9 +748,8 @@ function initVariantReveal(container, variants, paintingIndex) {
   
   if (!variantLayer || !variantImgSharp || !variantImgBlurred || !revealMask) return;
   
-  // Always use the first variant only
-  variantImgSharp.src = variants[0];
-  variantImgBlurred.src = variants[0];
+  // Use thumbnail URLs (already set in renderPaintings, but ensure they're set)
+  // The src is already set to thumbnail in renderPaintings, so we don't need to change it here
   
   // Detect touch device
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -1066,14 +1079,15 @@ function openModal(index, variantIndex = null) {
       const grid = document.createElement('div');
       grid.className = 'variants-grid';
       
-      // Add main image as first thumbnail
+      // Add main image as first thumbnail (use thumbnail for thumbnail display)
       const mainThumbnail = document.createElement('div');
       mainThumbnail.className = 'variant-thumbnail';
       if (currentVariantIndex === 0) {
         mainThumbnail.classList.add('active');
       }
       const mainImg = document.createElement('img');
-      mainImg.src = painting.imageUrl;
+      // Use thumbnail for thumbnail display in modal (automatically convert)
+      mainImg.src = getThumbnailUrl(painting.imageUrl);
       mainImg.alt = 'Hauptansicht';
       mainThumbnail.appendChild(mainImg);
       mainThumbnail.addEventListener('click', () => {
@@ -1099,7 +1113,8 @@ function openModal(index, variantIndex = null) {
         }
         
         const img = document.createElement('img');
-        img.src = variantUrl;
+        // Use thumbnail for variant thumbnail display in modal (automatically convert)
+        img.src = getThumbnailUrl(variantUrl);
         img.alt = 'Variant view';
         
         thumbnail.appendChild(img);

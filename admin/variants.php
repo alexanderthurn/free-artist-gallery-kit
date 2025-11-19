@@ -507,6 +507,9 @@ PROMPT;
       $meta = json_decode($metaContent, true);
       if (is_array($meta)) {
         update_gallery_entry($imageBaseName, $meta, $imagesDir, $galleryDir);
+        
+        // Trigger async image optimization
+        async_http_post('admin/optimize_images.php', ['action' => 'both']);
       }
     }
   }
