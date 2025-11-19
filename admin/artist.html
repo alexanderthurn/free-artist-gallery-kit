@@ -93,6 +93,10 @@
     .html-editor-wrapper.active { display: block; }
     textarea.editor-textarea { display: block; }
     textarea.editor-textarea.hidden { display: none; }
+    .advanced-mode-hidden { display: none !important; }
+    .advanced-toggle { appearance: none; border: 1px solid #888; background: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #555; }
+    .advanced-toggle:hover { background: #f0f0f0; }
+    .advanced-toggle.active { background: #666; color: #fff; border-color: #666; }
   </style>
 </head>
 <body>
@@ -104,6 +108,7 @@
       <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Gemälde</a>
       <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Raum-Mockups</a>
       <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Künstler</a>
+      <button type="button" id="advancedToggle" class="advanced-toggle" onclick="toggleAdvancedMode()">Erweitert</button>
     </div>
   </div>
 
@@ -113,39 +118,39 @@
         <button type="submit" class="primary">Speichern</button>
         <a href="/index.html" class="primary">Hauptseite anzeigen</a>
         <a href="/imprint.html" class="primary">Impressum anzeigen</a>
-        <button type="button" id="optimize-btn" class="primary" onclick="optimizeImages()">Bilder optimieren</button>
-        <button type="button" id="force-optimize-btn" class="primary" onclick="optimizeImages(true)" style="background: #d97706; border-color: #d97706;">Bilder neu generieren</button>
+        <button type="button" id="optimize-btn" class="primary advanced-mode-hidden" onclick="optimizeImages()">Bilder optimieren</button>
+        <button type="button" id="force-optimize-btn" class="primary advanced-mode-hidden" onclick="optimizeImages(true)" style="background: #d97706; border-color: #d97706;">Bilder neu generieren</button>
       </div>
-      <div id="optimize-log" style="display: none; margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;"></div>
+      <div id="optimize-log" class="advanced-mode-hidden" style="display: none; margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;"></div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>Seitentitel</label>
         <input type="text" id="pageTitle" name="pageTitle" placeholder="z.B. Herzfabrik - Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
         <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Der Titel, der im Browser-Tab angezeigt wird</small>
       </div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>Künstlername</label>
         <input type="text" id="name" name="name" placeholder="z.B. Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
       </div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>E-Mail-Adresse</label>
         <input type="email" id="email" name="email" placeholder="z.B. anne@herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
       </div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>Domain</label>
         <input type="text" id="domain" name="domain" placeholder="z.B. herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
         <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Domain ohne https:// (z.B. herzfabrik.com)</small>
       </div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>Impressum - Adresse</label>
         <input type="text" id="imprintAddress" name="imprintAddress" placeholder="z.B. Musterstraße 123" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
       </div>
       
-      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+      <div class="advanced-mode-hidden" style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
         <div class="field">
           <label>PLZ</label>
           <input type="text" id="imprintPostalCode" name="imprintPostalCode" placeholder="z.B. 12345" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
@@ -156,12 +161,12 @@
         </div>
       </div>
       
-      <div class="field">
+      <div class="field advanced-mode-hidden">
         <label>Telefonnummer</label>
         <input type="text" id="imprintPhone" name="imprintPhone" placeholder="z.B. +49 123 456789" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
       </div>
       
-      <div class="field" style="background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #ddd;">
+      <div class="field advanced-mode-hidden" style="background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #ddd;">
         <label style="font-weight: 500; margin-bottom: 12px;">Farben (CSS-Variablen)</label>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
@@ -247,7 +252,7 @@
 
 
 
-  <div class="card">
+  <div class="card advanced-mode-hidden">
     <h2>Dateien hochladen</h2>
     <div id="uploadArea" class="upload-area">
       <div class="upload-area-text">📎 Dateien hier ablegen oder klicken zum Auswählen</div>
@@ -258,7 +263,7 @@
     <div id="uploadsList" class="file-list" style="display: none;"></div>
   </div>
 
-  <div class="field" style="background: #f5f5f5; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+  <div class="field advanced-mode-hidden" style="background: #f5f5f5; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
     <label style="font-weight: 500; margin-bottom: 8px;">Portrait und favicon.ico</label>
     <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">
       Laden Sie Portrait-Dateien hoch. Benennen Sie die Dateien genau wie angegeben:<br>
@@ -278,6 +283,36 @@
     // Set admin flag in localStorage when admin page loads successfully
     if (typeof Storage !== 'undefined') {
       localStorage.setItem('admin', 'true');
+    }
+    
+    // Advanced mode toggle
+    let advancedMode = false;
+    let advancedModeElements = null;
+    
+    function toggleAdvancedMode() {
+      advancedMode = !advancedMode;
+      const toggleBtn = document.getElementById('advancedToggle');
+      
+      // Cache elements on first call
+      if (!advancedModeElements) {
+        advancedModeElements = Array.from(document.querySelectorAll('.advanced-mode-hidden'));
+      }
+      
+      if (advancedMode) {
+        toggleBtn.classList.add('active');
+        toggleBtn.textContent = 'Erweitert ✓';
+        // Show all hidden elements
+        advancedModeElements.forEach(el => {
+          el.classList.remove('advanced-mode-hidden');
+        });
+      } else {
+        toggleBtn.classList.remove('active');
+        toggleBtn.textContent = 'Erweitert';
+        // Hide all elements that should be hidden
+        advancedModeElements.forEach(el => {
+          el.classList.add('advanced-mode-hidden');
+        });
+      }
     }
     
     // Editor mode state - both start in HTML editor mode
