@@ -611,7 +611,7 @@ function generate_thumbnail(string $sourcePath, string $thumbPath, int $maxWidth
     
     // Save thumbnail with higher quality (95 for JPEG, 90 for WebP)
     $ext = strtolower(pathinfo($thumbPath, PATHINFO_EXTENSION));
-    $quality = ($ext === 'webp') ? 90 : 100;
+    $quality = ($ext === 'webp') ? 80 : 90;
     image_save_as($thumbPath, $dst, $quality);
     
     imagedestroy($src);
