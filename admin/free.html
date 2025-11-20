@@ -356,6 +356,17 @@
       sourceCtx.closePath();
       sourceCtx.stroke();
       
+      // Draw lines from circles to corner points
+      corners.forEach((corner, index) => {
+        const offsetPos = getOffsetCornerPosition(index);
+        sourceCtx.strokeStyle = '#00ff00';
+        sourceCtx.lineWidth = 1;
+        sourceCtx.beginPath();
+        sourceCtx.moveTo(offsetPos.x, offsetPos.y);
+        sourceCtx.lineTo(corner.x, corner.y);
+        sourceCtx.stroke();
+      });
+      
       // Draw corner points at offset positions
       const pointRadius = 8;
       corners.forEach((corner, index) => {

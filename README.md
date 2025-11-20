@@ -7,7 +7,7 @@ A modern, feature-rich website template designed specifically for artists to sho
 ### Frontend Features
 
 - **Dynamic Gallery**: Displays paintings/artworks with pagination and infinite scroll
-- **Interactive Portrait**: Animated artist portrait that follows mouse/touch movement with alternative portrait variants
+- **Interactive Portrait**: Artist portrait with hover reveal effect (desktop) and clickable alternative portrait variants
 - **Variant Reveal Effect**: Hover effect on paintings that reveals variant images (e.g., paintings in different room settings)
 - **Fullscreen Modal**: Detailed view of artworks with navigation, metadata, and variant switching
 - **Artist Biography**: Expandable biography section with short and full content
@@ -89,40 +89,14 @@ You **must** add the following files to the `img/upload/` directory:
    - This is the primary artist photo displayed on the homepage
    - Should be a high-quality portrait image
 
-2. **`artist-anim-face.jpg`** - Animated portrait sprite sheet
-   - A sprite sheet containing multiple frames of the artist's face at different angles
-   - Used for the interactive portrait animation that follows mouse/touch
-
-3. **`artist-anim-face.json`** - Animation manifest file
-   - JSON configuration file describing the sprite sheet layout
-   - Contains frame dimensions, step width, columns, and frame count
-   - Example structure:
-     ```json
-     {
-       "image": "artist-anim-face.jpg",
-       "frameWidth": 1000,
-       "frameHeight": 1000,
-       "columns": 8,
-       "step": 45,
-       "frameCount": 8,
-       "sections": [
-         {
-           "name": "default",
-           "displayName": "default",
-           "startIndex": 0,
-           "frameCount": 8
-         }
-       ]
-     }
-     ```
-
-4. **`artist-alternative-1.jpg`**, **`artist-alternative-2.jpg`**, etc. - Alternative portrait variants
+2. **`artist-alternative-1.jpg`**, **`artist-alternative-2.jpg`**, etc. - Alternative portrait variants
    - Optional alternative portrait images
-   - Users can cycle through these by clicking/tapping the portrait
+   - On desktop: hover over the portrait to reveal alternative images with a spotlight effect
+   - On mobile/touch devices: tap the portrait to cycle through alternatives
    - Numbered sequentially: `artist-alternative-1.jpg`, `artist-alternative-2.jpg`, etc.
    - Up to 10 alternative images are supported
 
-5. **`favicon.ico`** - Site favicon
+3. **`favicon.ico`** - Site favicon
    - Browser tab icon
    - Standard favicon format
 
@@ -131,8 +105,6 @@ You **must** add the following files to the `img/upload/` directory:
 ```
 img/upload/
 ├── artist.jpg                    (required)
-├── artist-anim-face.jpg          (required)
-├── artist-anim-face.json         (required)
 ├── artist-alternative-1.jpg      (optional)
 ├── artist-alternative-2.jpg      (optional)
 ├── artist-alternative-3.jpg      (optional)
@@ -261,7 +233,7 @@ Each painting can have a JSON metadata file (`paintingname.json`) with:
 For development, you can use PHP's built-in server:
 
 ```bash
-php -S localhost:8000 router.php
+php -c php-dev.ini -S localhost:8000
 ```
 
 Then access the site at `http://localhost:8000`
