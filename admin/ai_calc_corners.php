@@ -27,6 +27,10 @@ if ($rel === '') {
     exit;
 }
 
+// Get offset from POST (default: 1.0 percent)
+$offsetPercent = isset($_POST['offset']) ? (float)$_POST['offset'] : 1.0;
+$offsetPercent = max(0, min(10, $offsetPercent)); // Clamp between 0 and 10 percent
+
 $abs = $rel;
 if ($rel[0] !== '/' && !preg_match('#^[a-z]+://#i', $rel)) {
     $abs = dirname(__DIR__) . '/' . ltrim($rel, '/');
@@ -46,36 +50,26 @@ if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
 }
 $imgB64 = base64_encode(file_get_contents($abs));
 
-// ---- Check for cached corner detection result ----
+// ---- Check for cached Replicate response ----
 $jsonPath = $abs . '.json';
-$cachedCorners = null;
-$cachedCornersWithPercentages = null;
+$cachedResponse = null;
 if (is_file($jsonPath)) {
     $existingJson = json_decode(file_get_contents($jsonPath), true);
     if (is_array($existingJson) && isset($existingJson['corner_detection']) && 
-        isset($existingJson['corner_detection']['corners']) && 
-        is_array($existingJson['corner_detection']['corners']) && 
-        count($existingJson['corner_detection']['corners']) === 4) {
-        // Use cached result
-        $cachedCorners = $existingJson['corner_detection']['corners'];
-        $cachedCornersWithPercentages = $existingJson['corner_detection']['corners_with_percentages'] ?? null;
+        isset($existingJson['corner_detection']['replicate_response']) && 
+        is_array($existingJson['corner_detection']['replicate_response'])) {
+        // Use cached Replicate response
+        $cachedResponse = $existingJson['corner_detection']['replicate_response'];
     }
 }
 
-// If we have cached corners, use them and skip API call
-if ($cachedCorners !== null) {
-    // Return cached corners
-    echo json_encode([
-        'ok' => true,
-        'corners' => $cachedCorners,
-        'original_corners' => $cachedCorners, // Alias for compatibility with free.html
-        'corners_with_percentages' => $cachedCornersWithPercentages ?? $cachedCorners,
-        'image_width' => $imgW,
-        'image_height' => $imgH,
-        'source' => $rel,
-        'cached' => true
-    ]);
-    exit;
+// If we have cached response, use it and skip API call
+// But always recalculate corners (don't cache computed values)
+if ($cachedResponse !== null && isset($cachedResponse['status']) && $cachedResponse['status'] === 'succeeded') {
+    // Use cached response and skip to processing (will recalculate corners)
+    $resp = $cachedResponse;
+    $status = $resp['status'];
+    goto process_cached_response;
 }
 
 // ---- Prompt for corner detection ----
@@ -183,31 +177,36 @@ try {
         
         $status = $resp['status'] ?? 'unknown';
         
-        // If completed or failed, break the loop
+        // If completed or failed, save response IMMEDIATELY and break the loop
         if ($status === 'succeeded' || $status === 'failed' || $status === 'canceled') {
+            // Save the response IMMEDIATELY after receiving it (before any further processing)
+            $existingJson = [];
+            if (is_file($jsonPath)) {
+                $existingJson = json_decode(file_get_contents($jsonPath), true);
+                if (!is_array($existingJson)) {
+                    $existingJson = [];
+                }
+            }
+            
+            // Store ONLY the complete Replicate response (no computed values)
+            $existingJson['corner_detection'] = [
+                'replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'replicate_response' => $resp, // Also store as array for easier access
+                'timestamp' => date('c'),
+                'status' => $status,
+                'attempts' => $attempt
+            ];
+            
+            // Save immediately - RIGHT AFTER receiving response, before any processing
+            // Use LOCK_EX to ensure atomic write
+            file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+            
             break;
         }
     }
     
-    // Step 3: Save the complete Replicate response FIRST (before any processing)
-    $existingJson = [];
-    if (is_file($jsonPath)) {
-        $existingJson = json_decode(file_get_contents($jsonPath), true);
-        if (!is_array($existingJson)) {
-            $existingJson = [];
-        }
-    }
-    
-    // Store the complete Replicate response as string (even if invalid/failed)
-    $existingJson['corner_detection'] = [
-        'replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-        'replicate_response' => $resp, // Also store as array for easier access
-        'timestamp' => date('c'),
-        'status' => $status
-    ];
-    
-    // Save immediately
-    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    // Label for processing cached response
+    process_cached_response:
     
     // Step 4: Check final status and extract output
     if ($status !== 'succeeded') {
@@ -233,19 +232,10 @@ try {
     }
     
     if (empty($outputText)) {
-        // Update JSON with empty output status
-        $existingJson['corner_detection']['output_text'] = '';
-        $existingJson['corner_detection']['output_empty'] = true;
-        file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-        
         http_response_code(502);
         echo json_encode(['ok' => false, 'error' => 'empty_output', 'response' => $resp]);
         exit;
     }
-    
-    // Update JSON with output text
-    $existingJson['corner_detection']['output_text'] = $outputText;
-    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     
     // Try to extract JSON from the response
     $cornersData = null;
@@ -403,7 +393,13 @@ try {
     }
     
     // Convert percentages to pixel coordinates
-    $pixelCorners = [];
+    // Offset to move corners inward (to account for painting border/inset)
+    // Offset is set from POST parameter above (default: 1.0 percent)
+    // The offset percentage is based on the painting dimensions, not the image dimensions
+    
+    // First, convert all corners from percentages to pixels (without offset)
+    $rawPixelCorners = [];
+    $cornerIndex = 0;
     foreach ($cornersData['corners'] as $corner) {
         // Normalize keys by trimming whitespace (handles cases like " y" instead of "y")
         $normalizedCorner = [];
@@ -440,16 +436,84 @@ try {
             exit;
         }
         
-        // Convert percentage to pixels
+        // Convert percentage to pixels (without offset yet)
         $xPixel = round(($xPercent / 100) * $imgW);
         $yPixel = round(($yPercent / 100) * $imgH);
+        
+        $rawPixelCorners[] = [
+            'x' => $xPixel,
+            'y' => $yPixel,
+            'x_percent' => $xPercent,
+            'y_percent' => $yPercent,
+            'label' => trim(strtolower($normalizedCorner['label'] ?? $corner['label'] ?? ''))
+        ];
+        $cornerIndex++;
+    }
+    
+    // Calculate painting dimensions based on corner positions
+    // top-left (0), top-right (1), bottom-right (2), bottom-left (3)
+    $topLeft = $rawPixelCorners[0];
+    $topRight = $rawPixelCorners[1];
+    $bottomRight = $rawPixelCorners[2];
+    $bottomLeft = $rawPixelCorners[3];
+    
+    // Calculate average width (top and bottom edges)
+    $topWidth = sqrt(pow($topRight['x'] - $topLeft['x'], 2) + pow($topRight['y'] - $topLeft['y'], 2));
+    $bottomWidth = sqrt(pow($bottomRight['x'] - $bottomLeft['x'], 2) + pow($bottomRight['y'] - $bottomLeft['y'], 2));
+    $paintingWidth = ($topWidth + $bottomWidth) / 2;
+    
+    // Calculate average height (left and right edges)
+    $leftHeight = sqrt(pow($bottomLeft['x'] - $topLeft['x'], 2) + pow($bottomLeft['y'] - $topLeft['y'], 2));
+    $rightHeight = sqrt(pow($bottomRight['x'] - $topRight['x'], 2) + pow($bottomRight['y'] - $topRight['y'], 2));
+    $paintingHeight = ($leftHeight + $rightHeight) / 2;
+    
+    // Calculate offset in pixels based on painting dimensions
+    $offsetX = ($offsetPercent / 100) * $paintingWidth;
+    $offsetY = ($offsetPercent / 100) * $paintingHeight;
+    
+    // Apply offset to move corners inward based on corner position
+    // 0: top-left -> move right and down
+    // 1: top-right -> move left and down
+    // 2: bottom-right -> move left and up
+    // 3: bottom-left -> move right and up
+    $pixelCorners = [];
+    foreach ($rawPixelCorners as $idx => $corner) {
+        $xPixel = $corner['x'];
+        $yPixel = $corner['y'];
+        
+        switch ($idx) {
+            case 0: // top-left
+                $xPixel += $offsetX; // Move right
+                $yPixel += $offsetY; // Move down
+                break;
+            case 1: // top-right
+                $xPixel -= $offsetX; // Move left
+                $yPixel += $offsetY; // Move down
+                break;
+            case 2: // bottom-right
+                $xPixel -= $offsetX; // Move left
+                $yPixel -= $offsetY; // Move up
+                break;
+            case 3: // bottom-left
+                $xPixel += $offsetX; // Move right
+                $yPixel -= $offsetY; // Move up
+                break;
+        }
+        
+        // Ensure pixels stay within image bounds
+        $xPixel = max(0, min($imgW - 1, round($xPixel)));
+        $yPixel = max(0, min($imgH - 1, round($yPixel)));
+        
+        // Convert back to percentages for storage
+        $xPercent = ($xPixel / $imgW) * 100;
+        $yPercent = ($yPixel / $imgH) * 100;
         
         $pixelCorners[] = [
             'x' => $xPixel,
             'y' => $yPixel,
             'x_percent' => $xPercent,
             'y_percent' => $yPercent,
-            'label' => trim($normalizedCorner['label'] ?? $corner['label'] ?? '') // Trim whitespace from labels
+            'label' => $corner['label']
         ];
     }
     
@@ -474,15 +538,20 @@ try {
         [$pixelCorners[3]['x'], $pixelCorners[3]['y']]  // bottom-left
     ];
     
-    // Update JSON file with extracted corner detection results (for convenience)
-    // But the raw response is already saved above
-    $existingJson['corner_detection']['corners'] = $resultCorners;
-    $existingJson['corner_detection']['corners_with_percentages'] = $pixelCorners;
-    $existingJson['corner_detection']['image_width'] = $imgW;
-    $existingJson['corner_detection']['image_height'] = $imgH;
+    // Save offset to JSON file (for tracking which offset was used)
+    $existingJson = [];
+    if (is_file($jsonPath)) {
+        $existingJson = json_decode(file_get_contents($jsonPath), true);
+        if (!is_array($existingJson)) {
+            $existingJson = [];
+        }
+    }
     
-    // Save updated JSON file
-    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    // Update corner_detection with offset used
+    if (isset($existingJson['corner_detection'])) {
+        $existingJson['corner_detection']['offset_percent'] = $offsetPercent;
+        file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    }
     
     echo json_encode([
         'ok' => true,
@@ -492,6 +561,7 @@ try {
         'image_width' => $imgW,
         'image_height' => $imgH,
         'source' => $rel,
+        'offset_percent' => $offsetPercent,
         'cached' => false
     ]);
     

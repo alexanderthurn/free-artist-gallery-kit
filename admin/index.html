@@ -988,7 +988,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      showFlashFromQuery();
+      // showFlashFromQuery(); // Function not defined, commented out
       refresh();
       
       const fileInput = document.getElementById('fileInput');
@@ -1727,6 +1727,11 @@
       const prev = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'KI…';
+      
+      // Disable button and show loading state
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="star-icon">✨</span><span class="short-text">KI arbeitet...</span><span class="full-text">KI analysiert Bild (kann einige Minuten dauern)...</span>';
+      
       try {
         const item = btn.closest('.rowItem');
         const imageBaseName = item ? item.dataset.paintingBase : null;
@@ -1741,7 +1746,19 @@
         
         const body = new FormData();
         body.set('image', imageOriginalName);
-        const res = await fetch('ai_fill_form.php', { method: 'POST', body });
+        
+        // Increase timeout for long-running requests (10 minutes)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+        
+        const res = await fetch('ai_fill_form.php', { 
+          method: 'POST', 
+          body,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (!res.ok) {
           const msg = await res.text();
           showToast('KI-Formularausfüllung fehlgeschlagen: ' + msg, 'error');
@@ -1752,7 +1769,7 @@
           showToast('KI-Formularausfüllung fehlgeschlagen: ' + (data.error || 'Unknown'), 'error');
           return;
         }
-        
+      
         // Check for warning
         if (data.warning) {
           showToast(data.warning, 'error');
@@ -1804,9 +1821,16 @@
         } else {
           showToast('Keine Daten von KI erhalten', 'error');
         }
+      } catch (error) {
+        console.error('Error in fillFormWithAI:', error);
+        if (error.name === 'AbortError') {
+          showToast('Anfrage wurde abgebrochen oder dauerte zu lange. Der Prozess läuft möglicherweise im Hintergrund weiter.', 'error');
+        } else {
+          showToast('Fehler bei KI-Formularausfüllung: ' + (error.message || 'Unknown error'), 'error');
+        }
       } finally {
         btn.disabled = false;
-        btn.textContent = prev;
+        btn.innerHTML = originalText;
       }
     }
 
