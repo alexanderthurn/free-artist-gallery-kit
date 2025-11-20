@@ -14,17 +14,19 @@ header('Cache-Control: no-store');
 
 // If async mode is requested, trigger async processing and return immediately
 if (isset($_POST['async']) && $_POST['async'] === '1') {
+    // Get count BEFORE starting processing
+    $imagesDir = __DIR__ . '/images';
+    $counts = get_pending_tasks_count($imagesDir);
+    
     // Trigger async processing using async_http_post
     $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $url = $scheme . '://' . $host . '/admin/process_background_tasks.php';
     
-    // Start async processing
+    // Start async processing (fire-and-forget)
     async_http_post($url, ['async' => '0']); // async=0 means actual processing
     
-    // Return immediately with current queue status
-    $imagesDir = __DIR__ . '/images';
-    $counts = get_pending_tasks_count($imagesDir);
+    // Return immediately with queue status (counted before processing started)
     echo json_encode([
         'ok' => true,
         'async' => true,
@@ -54,6 +56,10 @@ if (isset($_GET['preview']) && $_GET['preview'] === '1') {
     ]);
     exit;
 }
+
+// Check if this is the actual processing run (async=0 or no async parameter)
+// If async=1 was sent, we already handled it above and exited
+$isAsyncProcessing = isset($_POST['async']) && $_POST['async'] === '0';
 
 $results = [
     'ok' => true,
@@ -682,7 +688,7 @@ foreach ($files as $file) {
             } else {
                 $results['errors'][] = ['base' => $baseName, 'task' => 'variant_generation', 'error' => $result['error'] ?? 'Unknown error'];
             }
-            continue; // Process one task per painting per run
+            // Don't continue here - allow AI tasks to be processed in same run if limit allows
         } elseif (!empty($missingVariants)) {
             // Missing variants but processedCount limit reached
             $results['skipped'][] = ['base' => $baseName, 'task' => 'variant_generation', 'reason' => 'limit_reached', 'missing' => $missingVariants];
@@ -693,17 +699,19 @@ foreach ($files as $file) {
     if (check_variant_regeneration_needed($baseName, $jsonPath, $imagesDir)) {
         if (is_task_in_progress($meta, 'variant_regeneration')) {
             $results['skipped'][] = ['base' => $baseName, 'task' => 'variant_regeneration', 'reason' => 'in_progress'];
-            continue;
-        }
-        
-        $result = process_variant_regeneration($baseName, $jsonPath);
-        if ($result['ok']) {
-            $results['processed'][] = ['base' => $baseName, 'task' => 'variant_regeneration', 'status' => 'success'];
-            $processedCount++;
+            // Don't continue - allow AI tasks to be processed
         } else {
-            $results['errors'][] = ['base' => $baseName, 'task' => 'variant_regeneration', 'error' => $result['error']];
+            if ($processedCount < $maxProcessPerRun) {
+                $result = process_variant_regeneration($baseName, $jsonPath);
+                if ($result['ok']) {
+                    $results['processed'][] = ['base' => $baseName, 'task' => 'variant_regeneration', 'status' => 'success'];
+                    $processedCount++;
+                } else {
+                    $results['errors'][] = ['base' => $baseName, 'task' => 'variant_regeneration', 'error' => $result['error']];
+                }
+                // Don't continue - allow AI tasks to be processed in same run if limit allows
+            }
         }
-        continue; // Process one task per painting per run
     }
     
     // Check AI generation
@@ -736,7 +744,7 @@ foreach ($files as $file) {
         }
         
         // Process corners if needed and not skipped
-        if ($aiNeeds['corners'] && !$skipCorners) {
+        if ($aiNeeds['corners'] && !$skipCorners && $processedCount < $maxProcessPerRun) {
             $result = process_ai_corners($baseName, $jsonPath);
             if ($result['ok']) {
                 $results['processed'][] = ['base' => $baseName, 'task' => 'ai_corners', 'status' => 'success'];
@@ -757,7 +765,10 @@ foreach ($files as $file) {
             }
         }
         
-        continue; // Process one painting per run
+        // Only continue if we processed at least one task for this painting
+        if (($aiNeeds['corners'] && !$skipCorners) || ($aiNeeds['form'] && !$skipForm)) {
+            continue; // Process one painting per run (but can process both corners and form for same painting)
+        }
     }
     
     // Clean up orphaned variants (files that exist but aren't in active_variants)

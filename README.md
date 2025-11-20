@@ -234,6 +234,9 @@ For development, you can use PHP's built-in server:
 
 ```bash
 php -S localhost:8000 router.php
+
+lsof -t -iTCP:8000 -sTCP:LISTEN | xargs kill -9
+
 ```
 
 Then access the site at `http://localhost:8000`

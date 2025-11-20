@@ -946,8 +946,10 @@ function get_pending_tasks_count(string $imagesDir): array {
         if (pathinfo($file, PATHINFO_EXTENSION) !== 'json') continue;
         
         // Check if it's an _original.json file
+        // File format: {baseName}_original.jpg.json
+        // After pathinfo filename: {baseName}_original.jpg
         $stem = pathinfo($file, PATHINFO_FILENAME);
-        if (!preg_match('/_original$/', $stem)) {
+        if (!preg_match('/_original\.jpg$/', $stem)) {
             continue;
         }
         
@@ -1060,22 +1062,24 @@ function async_http_post(string $url, array $data = []): void {
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 1, // Very short timeout for async behavior
+            CURLOPT_RETURNTRANSFER => false, // Don't return response
+            CURLOPT_TIMEOUT => 2, // Very short timeout for async behavior
             CURLOPT_CONNECTTIMEOUT => 1,
             CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
             CURLOPT_NOSIGNAL => 1, // Allow timeout to work properly
         ]);
         // Execute without waiting for response (fire and forget)
-        curl_exec($ch);
+        // Don't wait for response - just trigger the request
+        @curl_exec($ch);
         curl_close($ch);
         return;
     }
     
     // Fallback: Use exec to spawn background curl process (non-blocking)
+    // This is more reliable for true fire-and-forget
     if (function_exists('exec')) {
         $cmd = sprintf(
-            'curl -X POST -d %s %s > /dev/null 2>&1 &',
+            'curl -X POST -d %s %s --max-time 600 > /dev/null 2>&1 &',
             escapeshellarg($postData),
             escapeshellarg($url)
         );

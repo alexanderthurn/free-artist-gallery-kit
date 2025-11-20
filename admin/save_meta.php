@@ -58,6 +58,24 @@ if (isset($_POST['sold'])) {
 if (isset($_POST['frame_type'])) {
     $updates['frame_type'] = trim((string)$_POST['frame_type']);
 }
+if (isset($_POST['ai_corners_status'])) {
+    $status = trim((string)$_POST['ai_corners_status']);
+    $updates['ai_corners_status'] = $status === '' ? null : $status;
+    // Clear timestamps if status is cleared
+    if ($status === '') {
+        $updates['ai_corners_started_at'] = null;
+        $updates['ai_corners_completed_at'] = null;
+    }
+}
+if (isset($_POST['ai_form_status'])) {
+    $status = trim((string)$_POST['ai_form_status']);
+    $updates['ai_form_status'] = $status === '' ? null : $status;
+    // Clear timestamps if status is cleared
+    if ($status === '') {
+        $updates['ai_form_started_at'] = null;
+        $updates['ai_form_completed_at'] = null;
+    }
+}
 
 // Set original_filename if not already present
 // Load just to check, but update_json_file will handle it thread-safely

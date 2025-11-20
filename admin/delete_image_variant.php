@@ -16,27 +16,7 @@ if ($filename === '') {
 $imagesDir = __DIR__ . '/images';
 $filepath = $imagesDir . '/' . basename($filename);
 
-// Security: only allow deleting files in images directory
-if (strpos(realpath($filepath), realpath($imagesDir)) !== 0) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'invalid path']);
-    exit;
-}
-
-if (!is_file($filepath)) {
-    http_response_code(404);
-    echo json_encode(['ok' => false, 'error' => 'file not found']);
-    exit;
-}
-
-// Only allow deleting variant files (those with _variant_ in the name)
-if (strpos($filename, '_variant_') === false) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'can only delete variant files']);
-    exit;
-}
-
-// Extract base name and variant name before deleting
+// Extract base name and variant name before checking/deleting
 $base = extract_base_name($filename);
 $variantName = null;
 // Remove _variant_ part if present and extract variant name
@@ -46,11 +26,51 @@ if ($variantPos !== false) {
     $base = substr($base, 0, $variantPos);
 }
 
-// Delete the variant file
-if (!unlink($filepath)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'failed to delete']);
+// Only allow deleting variant files (those with _variant_ in the name)
+if (strpos($filename, '_variant_') === false) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'can only delete variant files']);
     exit;
+}
+
+// Security: only allow deleting files in images directory
+// Check if file exists first, then validate path
+$fileExists = is_file($filepath);
+if ($fileExists) {
+    $realFilePath = realpath($filepath);
+    $realImagesDir = realpath($imagesDir);
+    if ($realFilePath === false || $realImagesDir === false || strpos($realFilePath, $realImagesDir) !== 0) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'invalid path']);
+        exit;
+    }
+} else {
+    // File doesn't exist - still allow removing from JSON if it's a valid variant name
+    // Validate that the filename would be in the images directory
+    $realImagesDir = realpath($imagesDir);
+    if ($realImagesDir === false) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'images directory not found']);
+        exit;
+    }
+    // Check if the constructed path would be in the images directory
+    $normalizedPath = realpath(dirname($filepath));
+    if ($normalizedPath === false || strpos($normalizedPath, $realImagesDir) !== 0) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'invalid path']);
+        exit;
+    }
+}
+
+// Delete the variant file if it exists
+$fileDeleted = false;
+if ($fileExists) {
+    if (!unlink($filepath)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'failed to delete']);
+        exit;
+    }
+    $fileDeleted = true;
 }
 
 // Also delete thumbnail if it exists
@@ -61,11 +81,12 @@ if (is_file($thumbPath)) {
 }
 
 // Update JSON metadata to remove this variant from active variants list
-if ($variantName !== null) {
+// Always do this, even if file was already deleted (to clean up JSON)
+if ($variantName !== null && $base !== '') {
     $jsonFile = find_json_file($base, $imagesDir);
     if ($jsonFile) {
         $metaPath = $imagesDir . '/' . $jsonFile;
-        // Load existing metadata
+        // Load existing metadata thread-safely
         $meta = [];
         if (is_file($metaPath)) {
             $metaContent = @file_get_contents($metaPath);
@@ -79,11 +100,16 @@ if ($variantName !== null) {
         
         // Remove variant from active variants list
         if (isset($meta['active_variants']) && is_array($meta['active_variants'])) {
+            $originalCount = count($meta['active_variants']);
             $meta['active_variants'] = array_values(array_filter($meta['active_variants'], function($v) use ($variantName) {
                 return $v !== $variantName;
             }));
-            // Update JSON thread-safely
-            update_json_file($metaPath, ['active_variants' => $meta['active_variants']], false);
+            
+            // Only update if something changed
+            if (count($meta['active_variants']) !== $originalCount) {
+                // Update JSON thread-safely
+                update_json_file($metaPath, ['active_variants' => $meta['active_variants']], false);
+            }
         }
     }
 }
@@ -111,5 +137,11 @@ if ($inGallery) {
     // Optimization triggers removed - handled by background task processor
 }
 
-echo json_encode(['ok' => true, 'filename' => $filename, 'gallery_updated' => $inGallery]);
+echo json_encode([
+    'ok' => true, 
+    'filename' => $filename, 
+    'file_deleted' => $fileDeleted,
+    'variant_removed_from_json' => $variantName !== null,
+    'gallery_updated' => $inGallery
+]);
 
