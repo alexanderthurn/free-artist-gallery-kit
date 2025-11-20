@@ -225,7 +225,8 @@ try {
     $outputText = '';
     if (isset($resp['output'])) {
         if (is_array($resp['output'])) {
-            $outputText = implode(' ', $resp['output']);
+            // Join without spaces to avoid breaking JSON (numbers can be split across array elements)
+            $outputText = implode('', $resp['output']);
         } else {
             $outputText = (string)$resp['output'];
         }
@@ -284,9 +285,27 @@ try {
         
         if ($braceCount === 0 && $jsonEnd > 0) {
             $jsonStr = substr($jsonStr, 0, $jsonEnd);
-            // Clean up the JSON string - remove spaces in numeric values (e.g., "87. 5" -> "87.5")
-            $jsonStr = preg_replace('/(\d+)\s+\.\s*(\d+)/', '$1.$2', $jsonStr); // Fix "87. 5" -> "87.5"
-            $jsonStr = preg_replace('/(\d+)\s*\.\s+(\d+)/', '$1.$2', $jsonStr); // Fix "87 .5" -> "87.5"
+            // Clean up the JSON string - handle various split cases from array joining
+            
+            // Fix split quotes in keys: "y" "\": 87.6 -> "y": 87.6
+            $jsonStr = preg_replace('/"(\w+)"\s*"\s*\\\?":/', '"$1":', $jsonStr);
+            
+            // Fix split quotes in values: "label\":" "top-left" -> "label":"top-left"
+            $jsonStr = preg_replace('/:\s*"\s*"([^"]+)"/', ': "$1"', $jsonStr);
+            
+            // Fix split numbers: "y\": 8" "7.6 -> "y": 87.6
+            $jsonStr = preg_replace('/:\s*(\d+)"\s*"(\d+\.\d+)/', ': $1$2', $jsonStr);
+            $jsonStr = preg_replace('/:\s*(\d+\.\d+)"\s*"(\d+)/', ': $1$2', $jsonStr);
+            
+            // Remove spaces in numeric values (e.g., "87. 5" -> "87.5")
+            $jsonStr = preg_replace('/(\d+)\s+\.\s*(\d+)/', '$1.$2', $jsonStr);
+            $jsonStr = preg_replace('/(\d+)\s*\.\s+(\d+)/', '$1.$2', $jsonStr);
+            $jsonStr = preg_replace('/(\d+)\s+(\d+\.\d+)/', '$1$2', $jsonStr);
+            $jsonStr = preg_replace('/(\d+\.\d+)\s+(\d+)/', '$1$2', $jsonStr);
+            
+            // Fix any remaining quote splits
+            $jsonStr = preg_replace('/"\s*"([^"]+)"/', '"$1"', $jsonStr);
+            
             $cornersData = json_decode($jsonStr, true);
         }
     }
@@ -294,9 +313,12 @@ try {
     // Step 2: If that fails, try parsing the whole output as JSON
     if ($cornersData === null || !is_array($cornersData)) {
         $cleanedOutput = $outputText;
-        // Clean up spaces in numeric values
+        // Clean up spaces in numeric values and split numbers
         $cleanedOutput = preg_replace('/(\d+)\s+\.\s*(\d+)/', '$1.$2', $cleanedOutput);
         $cleanedOutput = preg_replace('/(\d+)\s*\.\s+(\d+)/', '$1.$2', $cleanedOutput);
+        $cleanedOutput = preg_replace('/(\d+)\s+(\d+\.\d+)/', '$1$2', $cleanedOutput);
+        $cleanedOutput = preg_replace('/(\d+\.\d+)\s+(\d+)/', '$1$2', $cleanedOutput);
+        $cleanedOutput = preg_replace('/"\s+"([^"]+)"/', '"$1"', $cleanedOutput);
         $cornersData = json_decode($cleanedOutput, true);
     }
     
@@ -343,9 +365,12 @@ try {
             
             if ($braceCount === 0 && $jsonEnd > $jsonStart) {
                 $jsonStr = substr($outputText, $jsonStart, $jsonEnd - $jsonStart);
-                // Clean up spaces in numeric values
+                // Clean up spaces in numeric values and split numbers
                 $jsonStr = preg_replace('/(\d+)\s+\.\s*(\d+)/', '$1.$2', $jsonStr);
                 $jsonStr = preg_replace('/(\d+)\s*\.\s+(\d+)/', '$1.$2', $jsonStr);
+                $jsonStr = preg_replace('/(\d+)\s+(\d+\.\d+)/', '$1$2', $jsonStr);
+                $jsonStr = preg_replace('/(\d+\.\d+)\s+(\d+)/', '$1$2', $jsonStr);
+                $jsonStr = preg_replace('/"\s+"([^"]+)"/', '"$1"', $jsonStr);
                 $cornersData = json_decode($jsonStr, true);
             }
         }
@@ -355,9 +380,12 @@ try {
     if ($cornersData === null || !is_array($cornersData)) {
         if (preg_match('/(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/s', $outputText, $matches)) {
             foreach ($matches as $match) {
-                // Clean up spaces in numeric values
+                // Clean up spaces in numeric values and split numbers
                 $cleanedMatch = preg_replace('/(\d+)\s+\.\s*(\d+)/', '$1.$2', $match);
                 $cleanedMatch = preg_replace('/(\d+)\s*\.\s+(\d+)/', '$1.$2', $cleanedMatch);
+                $cleanedMatch = preg_replace('/(\d+)\s+(\d+\.\d+)/', '$1$2', $cleanedMatch);
+                $cleanedMatch = preg_replace('/(\d+\.\d+)\s+(\d+)/', '$1$2', $cleanedMatch);
+                $cleanedMatch = preg_replace('/"\s+"([^"]+)"/', '"$1"', $cleanedMatch);
                 $decoded = json_decode($cleanedMatch, true);
                 if (is_array($decoded) && isset($decoded['corners'])) {
                     $cornersData = $decoded;
