@@ -796,7 +796,7 @@
       updatePreview();
     }
 
-    // AI Corner Detection using Replicate API
+    // AI Corner Detection using Replicate API (Google Gemini 3 Pro)
     async function detectCornersWithAI() {
       const btn = document.getElementById('aiCornersBtn');
       const prevText = btn.textContent;
@@ -806,9 +806,8 @@
       try {
         const formData = new FormData();
         formData.append('image_path', `admin/images/${paintingBase}_original.jpg`);
-        formData.append('action', 'detect_corners'); // Use new corner detection method
         
-        const response = await fetch('corners.php', {
+        const response = await fetch('corners_json.php', {
           method: 'POST',
           body: formData
         });
