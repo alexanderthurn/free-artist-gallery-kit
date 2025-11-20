@@ -133,10 +133,10 @@ foreach ($groups as $key => &$g) {
         // Backward compatibility: if in gallery but not marked live in JSON, mark as live
         $g['in_gallery'] = true;
         $g['gallery_filename'] = $galleryEntries[$key];
-        // Update JSON to reflect live status
+        // Update JSON to reflect live status (thread-safe)
         if (isset($g['meta']) && is_file($metaFile)) {
+            update_json_file($metaFile, ['live' => true], false);
             $g['meta']['live'] = true;
-            file_put_contents($metaFile, json_encode($g['meta'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
     }
 }

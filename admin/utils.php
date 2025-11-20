@@ -792,6 +792,66 @@ function generate_thumbnail_path(string $sourcePath): string {
 }
 
 /**
+ * Thread-safe JSON update function
+ * Loads JSON file just before saving, updates only specified keys, preserves all other data
+ * 
+ * @param string $jsonPath Full path to JSON file
+ * @param array $updates Associative array of keys to update (supports nested keys like 'ai_fill_form.extracted_data')
+ * @param bool $mergeNested If true, nested arrays are merged instead of replaced
+ * @return bool True on success, false on failure
+ */
+function update_json_file(string $jsonPath, array $updates, bool $mergeNested = true): bool {
+    // Load JSON file just before saving (thread-safe)
+    $existingData = [];
+    if (is_file($jsonPath)) {
+        $existingContent = @file_get_contents($jsonPath);
+        if ($existingContent !== false) {
+            $decoded = json_decode($existingContent, true);
+            if (is_array($decoded)) {
+                $existingData = $decoded;
+            }
+        }
+    }
+    
+    // Apply updates to existing data
+    foreach ($updates as $key => $value) {
+        // Handle nested keys (e.g., 'ai_fill_form.extracted_data')
+        if (strpos($key, '.') !== false) {
+            $keys = explode('.', $key);
+            $current = &$existingData;
+            
+            // Navigate/create nested structure
+            for ($i = 0; $i < count($keys) - 1; $i++) {
+                $k = $keys[$i];
+                if (!isset($current[$k]) || !is_array($current[$k])) {
+                    $current[$k] = [];
+                }
+                $current = &$current[$k];
+            }
+            
+            // Set the final value
+            $finalKey = $keys[count($keys) - 1];
+            if ($mergeNested && isset($current[$finalKey]) && is_array($current[$finalKey]) && is_array($value)) {
+                $current[$finalKey] = array_merge($current[$finalKey], $value);
+            } else {
+                $current[$finalKey] = $value;
+            }
+        } else {
+            // Simple key update
+            if ($mergeNested && isset($existingData[$key]) && is_array($existingData[$key]) && is_array($value)) {
+                $existingData[$key] = array_merge($existingData[$key], $value);
+            } else {
+                $existingData[$key] = $value;
+            }
+        }
+    }
+    
+    // Save with file lock
+    $jsonContent = json_encode($existingData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return file_put_contents($jsonPath, $jsonContent, LOCK_EX) !== false;
+}
+
+/**
  * Make an asynchronous (fire-and-forget) HTTP POST request
  * Returns immediately without waiting for response
  */

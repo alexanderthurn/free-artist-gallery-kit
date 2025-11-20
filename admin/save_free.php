@@ -139,18 +139,34 @@ if (is_file($metaPath)) {
     $meta = json_decode($existingContent, true) ?? [];
 }
 
+// Use thread-safe update function to preserve all existing data
+$updates = [];
+
 // Add corner positions to metadata
 if (!empty($corners)) {
-    $meta['manual_corners'] = $corners;
+    $updates['manual_corners'] = $corners;
 }
 
-// Preserve original_filename if it exists
-if (!isset($meta['original_filename'])) {
-    $meta['original_filename'] = $base;
+// Set original_filename if not already present
+$existingMeta = [];
+if (is_file($metaPath)) {
+    $existingContent = @file_get_contents($metaPath);
+    if ($existingContent !== false) {
+        $decoded = json_decode($existingContent, true);
+        if (is_array($decoded)) {
+            $existingMeta = $decoded;
+        }
+    }
 }
 
-// Save updated metadata
-file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+if (!isset($existingMeta['original_filename'])) {
+    $updates['original_filename'] = $base;
+}
+
+// Save updated metadata thread-safely
+if (!empty($updates)) {
+    update_json_file($metaPath, $updates, false);
+}
 
 // Generate thumbnail for _final image
 $thumbPath = generate_thumbnail_path($finalPath);

@@ -27,15 +27,11 @@ if (!is_file($imagePath)) {
     exit;
 }
 
-// Load existing metadata to preserve original_filename if it exists
+// Use thread-safe JSON update function to preserve all existing data
 $metaPath = $imagePath.'.json';
-$existingMeta = [];
-if (is_file($metaPath)) {
-    $existingContent = file_get_contents($metaPath);
-    $existingMeta = json_decode($existingContent, true) ?? [];
-}
 
-$data = [
+// Prepare updates - only update form fields, preserve everything else
+$updates = [
     'title' => trim((string)($_POST['title'] ?? '')),
     'description' => trim((string)($_POST['description'] ?? '')),
     'width' => trim((string)($_POST['width'] ?? '')),
@@ -46,30 +42,45 @@ $data = [
     'frame_type' => trim((string)($_POST['frame_type'] ?? 'white')),
 ];
 
-// Preserve original_filename if it exists in existing metadata, otherwise set it
-if (isset($existingMeta['original_filename'])) {
-    $data['original_filename'] = $existingMeta['original_filename'];
-} else {
-    // Set original_filename based on image base name
-    $data['original_filename'] = extract_base_name($image);
+// Set original_filename if not already present
+// Load just to check, but update_json_file will handle it thread-safely
+$existingMeta = [];
+if (is_file($metaPath)) {
+    $existingContent = @file_get_contents($metaPath);
+    if ($existingContent !== false) {
+        $decoded = json_decode($existingContent, true);
+        if (is_array($decoded)) {
+            $existingMeta = $decoded;
+        }
+    }
 }
 
-// Preserve manual_corners if they exist
-if (isset($existingMeta['manual_corners'])) {
-    $data['manual_corners'] = $existingMeta['manual_corners'];
+if (!isset($existingMeta['original_filename'])) {
+    $updates['original_filename'] = extract_base_name($image);
 }
 
-// Preserve live status if it exists
-if (isset($existingMeta['live'])) {
-    $data['live'] = $existingMeta['live'];
-}
-
-$ok = (bool)file_put_contents($metaPath, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+// Update JSON file thread-safely (loads just before saving)
+$ok = update_json_file($metaPath, $updates, false);
 if (!$ok) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Failed to write metadata']);
     exit;
 }
+
+// Reload to get updated data for gallery operations
+$existingMeta = [];
+if (is_file($metaPath)) {
+    $existingContent = @file_get_contents($metaPath);
+    if ($existingContent !== false) {
+        $decoded = json_decode($existingContent, true);
+        if (is_array($decoded)) {
+            $existingMeta = $decoded;
+        }
+    }
+}
+
+// Use existingMeta for gallery operations
+$data = $existingMeta;
 
 // Check if this entry should be in gallery (live status from JSON or existing gallery entry)
 $galleryDir = dirname(__DIR__).'/img/gallery/';

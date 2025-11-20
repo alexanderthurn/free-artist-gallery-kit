@@ -168,16 +168,8 @@ PROMPT;
                 // If completed or failed, save response IMMEDIATELY and break the loop
                 if ($status === 'succeeded' || $status === 'failed' || $status === 'canceled') {
                     // Save the response IMMEDIATELY after receiving it (before any further processing)
-                    $existingJson = [];
-                    if (is_file($jsonPath)) {
-                        $existingJson = json_decode(file_get_contents($jsonPath), true);
-                        if (!is_array($existingJson)) {
-                            $existingJson = [];
-                        }
-                    }
-                    
-                    // Store ONLY the complete Replicate response (no computed values)
-                    $existingJson['corner_detection'] = [
+                    // Use thread-safe update function to preserve all existing data
+                    $cornerDetectionData = [
                         'replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                         'replicate_response' => $resp, // Also store as array for easier access
                         'timestamp' => date('c'),
@@ -185,9 +177,8 @@ PROMPT;
                         'attempts' => $attempt
                     ];
                     
-                    // Save immediately - RIGHT AFTER receiving response, before any processing
-                    // Use LOCK_EX to ensure atomic write
-                    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+                    // Update only corner_detection section, preserve everything else
+                    update_json_file($jsonPath, ['corner_detection' => $cornerDetectionData], false);
                     
                     break;
                 }
@@ -544,19 +535,8 @@ PROMPT;
     ];
     
     // Save offset to JSON file (for tracking which offset was used)
-    $existingJson = [];
-    if (is_file($jsonPath)) {
-        $existingJson = json_decode(file_get_contents($jsonPath), true);
-        if (!is_array($existingJson)) {
-            $existingJson = [];
-        }
-    }
-    
-    // Update corner_detection with offset used
-    if (isset($existingJson['corner_detection'])) {
-        $existingJson['corner_detection']['offset_percent'] = $offsetPercent;
-        file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
-    }
+    // Use thread-safe update function to preserve all existing data
+    update_json_file($jsonPath, ['corner_detection.offset_percent' => $offsetPercent], false);
     
     return [
         'ok' => true,

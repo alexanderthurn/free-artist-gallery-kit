@@ -247,16 +247,15 @@ for ($i = 0; $i < $count; $i++) {
             $metaData['image_dimensions'] = $imageDimensions;
         }
         
-        file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        // Use thread-safe update function to preserve all existing data
+        update_json_file($jsonPath, $metaData, false);
     } else {
         // For AI uploads, also save dimensions if JSON exists
         $baseName = extract_base_name(basename($target));
         $jsonPath = $target . '.json';
         if (is_file($jsonPath) && $imageDimensions) {
-            $existingContent = file_get_contents($jsonPath);
-            $metaData = json_decode($existingContent, true) ?? [];
-            $metaData['image_dimensions'] = $imageDimensions;
-            file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+            // Use thread-safe update function to preserve all existing data
+            update_json_file($jsonPath, ['image_dimensions' => $imageDimensions], false);
         }
     }
 

@@ -71,11 +71,9 @@ if (empty($deleted)) {
     exit;
 }
 
-// Update JSON file to set live status to false
-if ($jsonFile && is_file($imagesDir.$jsonFile) && !empty($meta)) {
-    $meta['live'] = false;
-    $updatedJsonContent = json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    file_put_contents($imagesDir.$jsonFile, $updatedJsonContent);
+// Update JSON file to set live status to false (thread-safe)
+if ($jsonFile && is_file($imagesDir.$jsonFile)) {
+    update_json_file($imagesDir.$jsonFile, ['live' => false], false);
 }
 
 echo json_encode([

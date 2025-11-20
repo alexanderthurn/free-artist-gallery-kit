@@ -257,30 +257,15 @@ PROMPT;
     
     // Step 3: Save the complete Replicate response FIRST (before any processing)
     // This happens regardless of success/failure status
-    // IMPORTANT: Preserve ALL existing JSON data
-    $existingJson = [];
-    if (is_file($jsonPath)) {
-        $existingContent = file_get_contents($jsonPath);
-        $existingJson = json_decode($existingContent, true);
-        if (!is_array($existingJson)) {
-            $existingJson = [];
-        }
-    }
-    
-    // Store the complete Replicate response as string (even if invalid/failed)
-    // Only update the ai_fill_form section, preserve everything else
-    if (!isset($existingJson['ai_fill_form']) || !is_array($existingJson['ai_fill_form'])) {
-        $existingJson['ai_fill_form'] = [];
-    }
-    $existingJson['ai_fill_form']['replicate_response_raw'] = json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    $existingJson['ai_fill_form']['replicate_response'] = $resp; // Also store as array for easier access
-    $existingJson['ai_fill_form']['timestamp'] = date('c');
-    $existingJson['ai_fill_form']['status'] = $status;
-    $existingJson['ai_fill_form']['attempts'] = $attempt;
-    
-    // Save immediately - BEFORE any processing or validation
-    // Use LOCK_EX to prevent race conditions
-    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    // Use thread-safe update function to preserve ALL existing JSON data
+    // Update individual fields to preserve existing ai_fill_form data like extracted_data
+    update_json_file($jsonPath, [
+        'ai_fill_form.replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        'ai_fill_form.replicate_response' => $resp, // Also store as array for easier access
+        'ai_fill_form.timestamp' => date('c'),
+        'ai_fill_form.status' => $status,
+        'ai_fill_form.attempts' => $attempt
+    ], false);
     
     // Step 4: Check final status
     if ($status !== 'succeeded') {
@@ -307,21 +292,11 @@ PROMPT;
     }
     
     // Update JSON with output text (even if empty)
-    // Reload to ensure we have latest data (in case it was updated elsewhere)
-    $existingJson = [];
-    if (is_file($jsonPath)) {
-        $existingContent = file_get_contents($jsonPath);
-        $existingJson = json_decode($existingContent, true) ?? [];
-    }
-    
-    // Ensure ai_fill_form section exists
-    if (!isset($existingJson['ai_fill_form']) || !is_array($existingJson['ai_fill_form'])) {
-        $existingJson['ai_fill_form'] = [];
-    }
-    $existingJson['ai_fill_form']['output_text'] = $output;
-    $existingJson['ai_fill_form']['output_empty'] = empty($output);
-    
-    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    // Use thread-safe update function (loads just before saving)
+    update_json_file($jsonPath, [
+        'ai_fill_form.output_text' => $output,
+        'ai_fill_form.output_empty' => empty($output)
+    ], false);
     
     if (empty($output)) {
         http_response_code(502);
@@ -523,39 +498,31 @@ PROMPT;
         }
         
         // Update JSON with extracted form data
-        // Preserve ALL existing data - only update/add form fields and ai_fill_form section
-        // Reload existing JSON to ensure we have the latest data
-        $existingJson = [];
-        if (is_file($jsonPath)) {
-            $existingContent = file_get_contents($jsonPath);
-            $existingJson = json_decode($existingContent, true) ?? [];
-        }
+        // Use thread-safe update function to preserve ALL existing data
+        $updates = [];
         
-        // Update only the form fields (merge, don't replace)
+        // Update form fields only if they have values
         if (!empty(trim($jsonMatch['title'] ?? ''))) {
-            $existingJson['title'] = trim($jsonMatch['title']);
+            $updates['title'] = trim($jsonMatch['title']);
         }
         if (!empty(trim($jsonMatch['description'] ?? ''))) {
-            $existingJson['description'] = trim($jsonMatch['description']);
+            $updates['description'] = trim($jsonMatch['description']);
         }
         if (!empty(trim($jsonMatch['tags'] ?? ''))) {
-            $existingJson['tags'] = trim($jsonMatch['tags']);
+            $updates['tags'] = trim($jsonMatch['tags']);
         }
         if (!empty($date)) {
-            $existingJson['date'] = $date;
+            $updates['date'] = $date;
         }
         if (!empty($width)) {
-            $existingJson['width'] = $width;
+            $updates['width'] = $width;
         }
         if (!empty($height)) {
-            $existingJson['height'] = $height;
+            $updates['height'] = $height;
         }
         
-        // Update ai_fill_form section (preserve existing ai_fill_form data if any)
-        if (!isset($existingJson['ai_fill_form']) || !is_array($existingJson['ai_fill_form'])) {
-            $existingJson['ai_fill_form'] = [];
-        }
-        $existingJson['ai_fill_form']['extracted_data'] = [
+        // Update ai_fill_form.extracted_data (preserves other ai_fill_form data)
+        $updates['ai_fill_form.extracted_data'] = [
             'title' => trim($jsonMatch['title'] ?? ''),
             'description' => trim($jsonMatch['description'] ?? ''),
             'tags' => trim($jsonMatch['tags'] ?? ''),
@@ -564,7 +531,7 @@ PROMPT;
             'height' => $height
         ];
         
-        file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        update_json_file($jsonPath, $updates, false);
         
         echo json_encode([
             'ok' => true,
@@ -641,39 +608,31 @@ PROMPT;
         }
         
         // Update JSON with extracted form data (fallback parsing)
-        // Preserve ALL existing data - only update/add form fields and ai_fill_form section
-        // Reload existing JSON to ensure we have the latest data
-        $existingJson = [];
-        if (is_file($jsonPath)) {
-            $existingContent = file_get_contents($jsonPath);
-            $existingJson = json_decode($existingContent, true) ?? [];
-        }
+        // Use thread-safe update function to preserve ALL existing data
+        $updates = [];
         
-        // Update only the form fields (merge, don't replace)
+        // Update form fields only if they have values
         if (!empty($title)) {
-            $existingJson['title'] = $title;
+            $updates['title'] = $title;
         }
         if (!empty($description)) {
-            $existingJson['description'] = $description;
+            $updates['description'] = $description;
         }
         if (!empty($tags)) {
-            $existingJson['tags'] = $tags;
+            $updates['tags'] = $tags;
         }
         if (!empty($date)) {
-            $existingJson['date'] = $date;
+            $updates['date'] = $date;
         }
         if (!empty($width)) {
-            $existingJson['width'] = $width;
+            $updates['width'] = $width;
         }
         if (!empty($height)) {
-            $existingJson['height'] = $height;
+            $updates['height'] = $height;
         }
         
-        // Update ai_fill_form section (preserve existing ai_fill_form data if any)
-        if (!isset($existingJson['ai_fill_form']) || !is_array($existingJson['ai_fill_form'])) {
-            $existingJson['ai_fill_form'] = [];
-        }
-        $existingJson['ai_fill_form']['extracted_data'] = [
+        // Update ai_fill_form.extracted_data (preserves other ai_fill_form data)
+        $updates['ai_fill_form.extracted_data'] = [
             'title' => $title,
             'description' => $description,
             'tags' => $tags,
@@ -683,7 +642,7 @@ PROMPT;
             'parsing_method' => 'fallback'
         ];
         
-        file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        update_json_file($jsonPath, $updates, false);
         
         echo json_encode([
             'ok' => true,

@@ -43,12 +43,18 @@ if (!is_array($meta)) {
     exit;
 }
 
-// Set live status to true
-$meta['live'] = true;
+// Set live status to true (thread-safe)
+update_json_file($imagesDir.$jsonFile, ['live' => true], false);
 
-// Save updated metadata back to JSON file
-$updatedJsonContent = json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-file_put_contents($imagesDir.$jsonFile, $updatedJsonContent);
+// Reload meta for gallery operations
+$metaContent = @file_get_contents($imagesDir.$jsonFile);
+if ($metaContent !== false) {
+    $decoded = json_decode($metaContent, true);
+    if (is_array($decoded)) {
+        $meta = $decoded;
+    }
+}
+$meta['live'] = true;
 
 // Use unified function to update gallery entry
 $result = update_gallery_entry($base, $meta, $imagesDir, $galleryDir);

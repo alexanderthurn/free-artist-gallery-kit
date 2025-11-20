@@ -233,7 +233,7 @@ Each painting can have a JSON metadata file (`paintingname.json`) with:
 For development, you can use PHP's built-in server:
 
 ```bash
-php -c php-dev.ini -S localhost:8000
+php -S localhost:8000 router.php
 ```
 
 Then access the site at `http://localhost:8000`
@@ -246,6 +246,28 @@ For macOS (using Homebrew):
 brew install imagemagick
 /usr/local/bin/pecl install imagick
 ```
+
+In your php.ini there should be something like this
+```extension="imagick.so"```
+
+
+### Big file uploads
+
+If you want to upload big files, you have to change your php.ini. Add the following lines to the very bottom. The ini should be somewhere like
+
+```/usr/local/etc/php/8.4/php.ini```
+
+```
+max_execution_time = 300
+max_input_time     = 300
+post_max_size      = 512M
+upload_max_filesize = 512M
+memory_limit       = 1024M
+max_file_uploads   = 100
+max_input_vars     = 5000
+```
+
+
 
 ## Browser Support
 

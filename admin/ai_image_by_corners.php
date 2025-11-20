@@ -197,35 +197,48 @@ try {
     $thumbPath = generate_thumbnail_path($finalPath);
     generate_thumbnail($finalPath, $thumbPath, 512, 1024);
     
-    // Step 5: Update metadata with corner positions
+    // Step 5: Update metadata with corner positions (thread-safe)
     $metaPath = $imagesDir . '/' . $baseName . '_original.jpg.json';
-    $meta = [];
-    if (is_file($metaPath)) {
-        $existingContent = file_get_contents($metaPath);
-        $meta = json_decode($existingContent, true) ?? [];
+    
+    // Prepare updates
+    $updates = [
+        'manual_corners' => $corners,
+        'corner_detection.corners_used' => $corners
+    ];
+    
+    // Add image dimensions if not already present
+    $imageInfo = @getimagesize($absPath);
+    if ($imageInfo !== false) {
+        $updates['image_dimensions'] = [
+            'width' => $imageInfo[0],
+            'height' => $imageInfo[1]
+        ];
     }
     
-    // Add corner positions to metadata
-    $meta['manual_corners'] = $corners;
-    
-    // Save image dimensions if not already present
-    if (!isset($meta['image_dimensions'])) {
-        $imageInfo = @getimagesize($absPath);
-        if ($imageInfo !== false) {
-            $meta['image_dimensions'] = [
-                'width' => $imageInfo[0],
-                'height' => $imageInfo[1]
-            ];
+    // Set original_filename if not already present
+    // Check if it exists first
+    $existingMeta = [];
+    if (is_file($metaPath)) {
+        $existingContent = @file_get_contents($metaPath);
+        if ($existingContent !== false) {
+            $decoded = json_decode($existingContent, true);
+            if (is_array($decoded)) {
+                $existingMeta = $decoded;
+            }
         }
     }
     
-    // Preserve original_filename if it exists
-    if (!isset($meta['original_filename'])) {
-        $meta['original_filename'] = $baseName;
+    if (!isset($existingMeta['original_filename'])) {
+        $updates['original_filename'] = $baseName;
     }
     
-    // Save updated metadata
-    file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    // Only update image_dimensions if not already present
+    if (isset($existingMeta['image_dimensions'])) {
+        unset($updates['image_dimensions']);
+    }
+    
+    // Save updated metadata thread-safely
+    update_json_file($metaPath, $updates, false);
     
     // Step 6: Check if this entry is in gallery and update it automatically
     $galleryDir = dirname(__DIR__) . '/img/gallery/';
