@@ -12,6 +12,32 @@ require_once __DIR__ . '/utils.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
+// If async mode is requested, trigger async processing and return immediately
+if (isset($_POST['async']) && $_POST['async'] === '1') {
+    // Trigger async processing using async_http_post
+    $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $url = $scheme . '://' . $host . '/admin/process_background_tasks.php';
+    
+    // Start async processing
+    async_http_post($url, ['async' => '0']); // async=0 means actual processing
+    
+    // Return immediately with current queue status
+    $imagesDir = __DIR__ . '/images';
+    $counts = get_pending_tasks_count($imagesDir);
+    echo json_encode([
+        'ok' => true,
+        'async' => true,
+        'message' => 'Background processing started',
+        'summary' => [
+            'variants' => $counts['variants'],
+            'ai' => $counts['ai'],
+            'gallery' => $counts['gallery']
+        ]
+    ]);
+    exit;
+}
+
 $imagesDir = __DIR__ . '/images';
 
 // Preview mode - just return counts

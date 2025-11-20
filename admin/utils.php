@@ -1008,13 +1008,27 @@ function update_task_status(string $jsonPath, string $taskType, string $status, 
             // Clear started_at when completed
             $updates['variant_regeneration_started_at'] = null;
         }
-    } elseif ($taskType === 'ai_generation') {
-        $updates['ai_generation_status'] = $status;
-        if (in_array($status, ['corners_in_progress', 'form_in_progress'], true)) {
-            $updates['ai_generation_started_at'] = $startedAt ?? date('c');
+    } elseif ($taskType === 'ai_corners') {
+        $updates['ai_corners_status'] = $status;
+        if ($status === 'in_progress') {
+            $updates['ai_corners_started_at'] = $startedAt ?? date('c');
         } elseif ($status === 'completed') {
-            // Clear started_at when completed
-            $updates['ai_generation_started_at'] = null;
+            $updates['ai_corners_completed_at'] = date('c');
+            // Keep started_at for history
+        } elseif ($status === 'wanted') {
+            // Clear started_at when resetting to wanted
+            $updates['ai_corners_started_at'] = null;
+        }
+    } elseif ($taskType === 'ai_form') {
+        $updates['ai_form_status'] = $status;
+        if ($status === 'in_progress') {
+            $updates['ai_form_started_at'] = $startedAt ?? date('c');
+        } elseif ($status === 'completed') {
+            $updates['ai_form_completed_at'] = date('c');
+            // Keep started_at for history
+        } elseif ($status === 'wanted') {
+            // Clear started_at when resetting to wanted
+            $updates['ai_form_started_at'] = null;
         }
     }
     

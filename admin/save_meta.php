@@ -30,17 +30,34 @@ if (!is_file($imagePath)) {
 // Use thread-safe JSON update function to preserve all existing data
 $metaPath = $imagePath.'.json';
 
-// Prepare updates - only update form fields, preserve everything else
-$updates = [
-    'title' => trim((string)($_POST['title'] ?? '')),
-    'description' => trim((string)($_POST['description'] ?? '')),
-    'width' => trim((string)($_POST['width'] ?? '')),
-    'height' => trim((string)($_POST['height'] ?? '')),
-    'tags' => trim((string)($_POST['tags'] ?? '')),
-    'date' => trim((string)($_POST['date'] ?? '')),
-    'sold' => isset($_POST['sold']) && $_POST['sold'] === '1',
-    'frame_type' => trim((string)($_POST['frame_type'] ?? 'white')),
-];
+// Prepare updates - only update fields that are present in POST
+// This allows partial updates (e.g., only frame_type when user changes it)
+$updates = [];
+
+if (isset($_POST['title'])) {
+    $updates['title'] = trim((string)$_POST['title']);
+}
+if (isset($_POST['description'])) {
+    $updates['description'] = trim((string)$_POST['description']);
+}
+if (isset($_POST['width'])) {
+    $updates['width'] = trim((string)$_POST['width']);
+}
+if (isset($_POST['height'])) {
+    $updates['height'] = trim((string)$_POST['height']);
+}
+if (isset($_POST['tags'])) {
+    $updates['tags'] = trim((string)$_POST['tags']);
+}
+if (isset($_POST['date'])) {
+    $updates['date'] = trim((string)$_POST['date']);
+}
+if (isset($_POST['sold'])) {
+    $updates['sold'] = $_POST['sold'] === '1';
+}
+if (isset($_POST['frame_type'])) {
+    $updates['frame_type'] = trim((string)$_POST['frame_type']);
+}
 
 // Set original_filename if not already present
 // Load just to check, but update_json_file will handle it thread-safely
