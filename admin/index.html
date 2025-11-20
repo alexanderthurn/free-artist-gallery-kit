@@ -332,12 +332,111 @@
       return imageUrl.replace(/\.(jpg|jpeg|png|gif|webp)$/i, '_thumb.$1');
     }
 
+    // Helper function to extract AI-generated corners from corner_detection data
+    function extractAICorners(meta) {
+      if (!meta.corner_detection || !meta.corner_detection.replicate_response) {
+        return null;
+      }
+      
+      const replicateResponse = meta.corner_detection.replicate_response;
+      if (!replicateResponse.output || !Array.isArray(replicateResponse.output)) {
+        return null;
+      }
+      
+      // Join output array (may be split across multiple elements)
+      const outputText = replicateResponse.output.join('');
+      
+      // Try to extract JSON from code blocks (```json ... ```)
+      let jsonStr = null;
+      if (outputText.includes('```json') || outputText.includes('```')) {
+        const match = outputText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (match) {
+          jsonStr = match[1];
+        }
+      }
+      
+      // If no code block, try to find JSON object
+      if (!jsonStr) {
+        const jsonStart = outputText.indexOf('{');
+        if (jsonStart !== -1) {
+          // Find matching closing brace
+          let braceCount = 0;
+          let jsonEnd = jsonStart;
+          let inString = false;
+          let escapeNext = false;
+          
+          for (let i = jsonStart; i < outputText.length; i++) {
+            const char = outputText[i];
+            
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            
+            if (char === '"' && !escapeNext) {
+              inString = !inString;
+              continue;
+            }
+            
+            if (!inString) {
+              if (char === '{') {
+                braceCount++;
+              } else if (char === '}') {
+                braceCount--;
+                if (braceCount === 0) {
+                  jsonEnd = i + 1;
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (braceCount === 0) {
+            jsonStr = outputText.substring(jsonStart, jsonEnd);
+          }
+        }
+      }
+      
+      if (!jsonStr) {
+        return null;
+      }
+      
+      // Clean up JSON string
+      jsonStr = jsonStr.replace(/(\d+)\s+\.\s*(\d+)/g, '$1.$2');
+      jsonStr = jsonStr.replace(/(\d+)\s*\.\s+(\d+)/g, '$1.$2');
+      jsonStr = jsonStr.replace(/"\s+"([^"]+)"/g, '"$1"');
+      
+      try {
+        const cornersData = JSON.parse(jsonStr);
+        if (cornersData && cornersData.corners && Array.isArray(cornersData.corners) && cornersData.corners.length === 4) {
+          return {
+            corners: cornersData.corners,
+            offset_percent: meta.corner_detection.offset_percent || 1.0,
+            timestamp: meta.corner_detection.timestamp,
+            status: meta.corner_detection.status
+          };
+        }
+      } catch (e) {
+        console.error('Failed to parse AI corners JSON:', e);
+      }
+      
+      return null;
+    }
+
     function renderImageRow(g) {
       const row = document.createElement('div');
       row.className = g.in_gallery ? 'rowItem live' : 'rowItem';
       row.id = `painting-${g.base}`;
       const meta = g.meta || {};
       const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+      
+      // Extract AI-generated corners
+      const aiCornersData = extractAICorners(meta);
       
       // Find final image
       const finalVariant = g.variants.find(v => v.variant === 'final');
@@ -490,14 +589,69 @@
               <option value="none" ${frameType === 'none' ? 'selected' : ''}>Kein Rahmen</option>
             </select>
           </div>
-          ${meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4 ? `
+          ${(meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4) || aiCornersData ? `
           <div class="field" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-            <label style="font-size: 11px; color: #666; margin-bottom: 4px;">Manuelle Ecken-Positionen:</label>
-            <div style="font-size: 11px; color: #888; font-family: monospace;">
-              Oben links: (${meta.manual_corners[0][0]}, ${meta.manual_corners[0][1]})<br>
-              Oben rechts: (${meta.manual_corners[1][0]}, ${meta.manual_corners[1][1]})<br>
-              Unten rechts: (${meta.manual_corners[2][0]}, ${meta.manual_corners[2][1]})<br>
-              Unten links: (${meta.manual_corners[3][0]}, ${meta.manual_corners[3][1]})
+            <button type="button" id="toggle-details-${g.base}" onclick="const content = document.getElementById('details-content-${g.base}'); const btn = this; content.style.display = content.style.display === 'none' ? 'block' : 'none'; btn.textContent = content.style.display === 'none' ? '▶ Weitere Informationen' : '▼ Weitere Informationen';" 
+                    style="background: none; border: none; padding: 0; margin: 0 0 8px 0; font-size: 11px; color: #666; cursor: pointer; text-align: left; font-weight: 600;">
+              ▶ Weitere Informationen
+            </button>
+            <div id="details-content-${g.base}" style="display: none;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                ${meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4 ? `
+                <div>
+                  <label style="font-size: 11px; color: #666; margin-bottom: 4px; display: block;">Manuelle Ecken-Positionen:</label>
+                  <div style="font-size: 11px; color: #888; font-family: monospace;">
+                    ${meta.image_dimensions ? `
+                      Oben links: (${meta.manual_corners[0][0]}, ${meta.manual_corners[0][1]}) px = (${(meta.manual_corners[0][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[0][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                      Oben rechts: (${meta.manual_corners[1][0]}, ${meta.manual_corners[1][1]}) px = (${(meta.manual_corners[1][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[1][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                      Unten rechts: (${meta.manual_corners[2][0]}, ${meta.manual_corners[2][1]}) px = (${(meta.manual_corners[2][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[2][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                      Unten links: (${meta.manual_corners[3][0]}, ${meta.manual_corners[3][1]}) px = (${(meta.manual_corners[3][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[3][1] / meta.image_dimensions.height * 100).toFixed(2)}%)
+                    ` : `
+                      Oben links: (${meta.manual_corners[0][0]}, ${meta.manual_corners[0][1]})<br>
+                      Oben rechts: (${meta.manual_corners[1][0]}, ${meta.manual_corners[1][1]})<br>
+                      Unten rechts: (${meta.manual_corners[2][0]}, ${meta.manual_corners[2][1]})<br>
+                      Unten links: (${meta.manual_corners[3][0]}, ${meta.manual_corners[3][1]})
+                    `}
+                  </div>
+                </div>
+                ` : ''}
+                ${aiCornersData ? `
+                <div>
+                  <label style="font-size: 11px; color: #666; margin-bottom: 4px; display: block;">
+                    <span class="star-icon" style="font-size: 12px;">⭐</span> KI-generierte Ecken:
+                  </label>
+                  <div style="font-size: 11px; color: #888; font-family: monospace;">
+                    ${meta.image_dimensions ? `
+                      <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #ddd;">
+                        <strong style="color: #666;">Raw (vor Offset):</strong><br>
+                        Oben links: ${aiCornersData.corners[0].x.toFixed(2)}%, ${aiCornersData.corners[0].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[0].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[0].y / 100 * meta.image_dimensions.height)}) px<br>
+                        Oben rechts: ${aiCornersData.corners[1].x.toFixed(2)}%, ${aiCornersData.corners[1].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[1].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[1].y / 100 * meta.image_dimensions.height)}) px<br>
+                        Unten rechts: ${aiCornersData.corners[2].x.toFixed(2)}%, ${aiCornersData.corners[2].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[2].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[2].y / 100 * meta.image_dimensions.height)}) px<br>
+                        Unten links: ${aiCornersData.corners[3].x.toFixed(2)}%, ${aiCornersData.corners[3].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[3].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[3].y / 100 * meta.image_dimensions.height)}) px
+                      </div>
+                      ${meta.corner_detection && meta.corner_detection.corners_used && Array.isArray(meta.corner_detection.corners_used) && meta.corner_detection.corners_used.length === 4 ? `
+                      <div>
+                        <strong style="color: #666;">Verwendet (nach Offset ${aiCornersData.offset_percent}%):</strong><br>
+                        Oben links: (${meta.corner_detection.corners_used[0][0]}, ${meta.corner_detection.corners_used[0][1]}) px = (${(meta.corner_detection.corners_used[0][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.corner_detection.corners_used[0][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                        Oben rechts: (${meta.corner_detection.corners_used[1][0]}, ${meta.corner_detection.corners_used[1][1]}) px = (${(meta.corner_detection.corners_used[1][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.corner_detection.corners_used[1][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                        Unten rechts: (${meta.corner_detection.corners_used[2][0]}, ${meta.corner_detection.corners_used[2][1]}) px = (${(meta.corner_detection.corners_used[2][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.corner_detection.corners_used[2][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
+                        Unten links: (${meta.corner_detection.corners_used[3][0]}, ${meta.corner_detection.corners_used[3][1]}) px = (${(meta.corner_detection.corners_used[3][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.corner_detection.corners_used[3][1] / meta.image_dimensions.height * 100).toFixed(2)}%)
+                      </div>
+                      ` : ''}
+                    ` : `
+                      Oben links: x=${aiCornersData.corners[0].x.toFixed(2)}%, y=${aiCornersData.corners[0].y.toFixed(2)}%<br>
+                      Oben rechts: x=${aiCornersData.corners[1].x.toFixed(2)}%, y=${aiCornersData.corners[1].y.toFixed(2)}%<br>
+                      Unten rechts: x=${aiCornersData.corners[2].x.toFixed(2)}%, y=${aiCornersData.corners[2].y.toFixed(2)}%<br>
+                      Unten links: x=${aiCornersData.corners[3].x.toFixed(2)}%, y=${aiCornersData.corners[3].y.toFixed(2)}%
+                    `}
+                    <span style="color: #999; font-size: 10px; margin-top: 4px; display: block;">
+                      Offset: ${aiCornersData.offset_percent}% | Status: ${aiCornersData.status || 'unknown'}
+                      ${aiCornersData.timestamp ? ' | ' + new Date(aiCornersData.timestamp).toLocaleString('de-DE') : ''}
+                    </span>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
             </div>
           </div>
           ` : ''}
@@ -1681,8 +1835,26 @@
       try {
         const body = new FormData();
         body.set('image_path', 'admin/images/' + imageOriginalName);
-        body.set('color', '#ffffff');
-        const res = await fetch('corners.php', { method: 'POST', body });
+        // Optional: allow offset to be passed (defaults to 1.0 in the PHP script)
+        if (row) {
+          const offsetInput = row.querySelector('#offsetInput');
+          if (offsetInput && offsetInput.value) {
+            body.set('offset', offsetInput.value);
+          }
+        }
+        
+        // Increase timeout for long-running requests (10 minutes)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+        
+        const res = await fetch('ai_image_by_corners.php', { 
+          method: 'POST', 
+          body,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
         if (!res.ok) {
           const msg = await res.text();
           showToast('KI-Verarbeitung fehlgeschlagen: ' + msg, 'error');
@@ -1707,6 +1879,12 @@
             mainImg.src = currentSrc.split('?')[0] + separator + 't=' + Date.now();
           }
         }, 100);
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          showToast('Anfrage wurde abgebrochen oder dauerte zu lange. Der Prozess läuft möglicherweise im Hintergrund weiter.', 'error');
+        } else {
+          showToast('Fehler bei KI-Verarbeitung: ' + (error.message || 'Unknown error'), 'error');
+        }
       } finally {
         if (btn.disabled !== undefined) {
           btn.disabled = false;

@@ -1,0 +1,281 @@
+<?php
+declare(strict_types=1);
+
+// Continue execution even if user closes browser/connection
+ignore_user_abort(true);
+
+// Increase execution time limit for long-running operations (10 minutes)
+set_time_limit(600);
+
+require_once __DIR__ . '/utils.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+try {
+    // Get image_path from POST
+    $imagePath = $_POST['image_path'] ?? '';
+    if ($imagePath === '') {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'image_path required']);
+        exit;
+    }
+
+    // Resolve absolute path
+    $absPath = $imagePath;
+    if ($imagePath[0] !== '/' && !preg_match('#^[a-z]+://#i', $imagePath)) {
+        $absPath = dirname(__DIR__) . '/' . ltrim($imagePath, '/');
+    }
+    
+    if (!is_file($absPath)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'image not found', 'path' => $absPath]);
+        exit;
+    }
+
+    // Verify it's an _original image
+    if (!preg_match('/_original\.(jpg|jpeg|png)$/i', $absPath)) {
+        http_response_code(400);
+        echo json_encode(['ok' => false, 'error' => 'image_path must be an _original image']);
+        exit;
+    }
+
+    // Extract base name (remove _original.jpg extension)
+    $baseName = preg_replace('/_original\.(jpg|jpeg|png)$/i', '', basename($absPath));
+    $imagesDir = dirname($absPath);
+    
+    // Step 1: Call calculate_corners function directly
+    require_once __DIR__ . '/ai_calc_corners.php';
+    
+    $offsetPercent = isset($_POST['offset']) ? (float)$_POST['offset'] : 1.0;
+    $cornersData = calculate_corners($imagePath, $offsetPercent);
+    
+    if (!is_array($cornersData) || !$cornersData['ok'] || !isset($cornersData['corners'])) {
+        http_response_code(502);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'corner_detection_failed',
+            'detail' => $cornersData['error'] ?? 'Unknown error'
+        ]);
+        exit;
+    }
+    
+    $corners = $cornersData['corners'];
+    if (!is_array($corners) || count($corners) !== 4) {
+        http_response_code(502);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'invalid_corner_count',
+            'count' => is_array($corners) ? count($corners) : 0
+        ]);
+        exit;
+    }
+
+    // Step 2: Create final image using perspective transformation (similar to rectify.php)
+    // Check if ImageMagick is available
+    if (!extension_loaded('imagick') || !class_exists('Imagick')) {
+        http_response_code(500);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'imagick_extension_not_available',
+            'detail' => 'ImageMagick extension is not loaded. Please install and enable the imagick PHP extension.',
+            'extension_loaded' => extension_loaded('imagick'),
+            'class_exists' => class_exists('Imagick')
+        ]);
+        exit;
+    }
+    
+    try {
+        $im = new Imagick($absPath);
+        // Get actual image dimensions from Imagick
+        $actualImgW = $im->getImageWidth();
+        $actualImgH = $im->getImageHeight();
+        
+        // Verify dimensions match what we expect
+        $imageInfo = @getimagesize($absPath);
+        $expectedW = $imageInfo ? $imageInfo[0] : null;
+        $expectedH = $imageInfo ? $imageInfo[1] : null;
+        
+        if ($expectedW && $actualImgW !== $expectedW) {
+            error_log("ImageMagick width mismatch: expected {$expectedW}, got {$actualImgW}");
+        }
+        if ($expectedH && $actualImgH !== $expectedH) {
+            error_log("ImageMagick height mismatch: expected {$expectedH}, got {$actualImgH}");
+        }
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'failed_to_load_image_with_imagick',
+            'detail' => $e->getMessage(),
+            'path' => $absPath
+        ]);
+        exit;
+    }
+    
+    // Calculate output dimensions based on corners
+    // Top-left (0), top-right (1), bottom-right (2), bottom-left (3)
+    $tl = $corners[0];
+    $tr = $corners[1];
+    $br = $corners[2];
+    $bl = $corners[3];
+    
+    // Calculate average width (top and bottom edges)
+    $topWidth = sqrt(pow($tr[0] - $tl[0], 2) + pow($tr[1] - $tl[1], 2));
+    $bottomWidth = sqrt(pow($br[0] - $bl[0], 2) + pow($br[1] - $bl[1], 2));
+    $outputWidth = (int)round(max($topWidth, $bottomWidth));
+    
+    // Calculate average height (left and right edges)
+    $leftHeight = sqrt(pow($bl[0] - $tl[0], 2) + pow($bl[1] - $tl[1], 2));
+    $rightHeight = sqrt(pow($br[0] - $tr[0], 2) + pow($br[1] - $tr[1], 2));
+    $outputHeight = (int)round(max($leftHeight, $rightHeight));
+    
+    // Ensure minimum dimensions
+    $outputWidth = max($outputWidth, 64);
+    $outputHeight = max($outputHeight, 64);
+    
+    // Prepare perspective transformation arguments
+    // Format: source_x1, source_y1, dest_x1, dest_y1, source_x2, source_y2, dest_x2, dest_y2, ...
+    // Note: ImageMagick DISTORTION_PERSPECTIVE maps source corners to destination corners
+    // The corners array from calculate_corners() is: [top-left, top-right, bottom-right, bottom-left]
+    $args = [
+        $tl[0], $tl[1],   0,           0,           // top-left: source -> dest (0,0)
+        $tr[0], $tr[1],   $outputWidth - 1, 0,           // top-right: source -> dest (width-1, 0)
+        $br[0], $br[1],   $outputWidth - 1, $outputHeight - 1, // bottom-right: source -> dest (width-1, height-1)
+        $bl[0], $bl[1],   0,           $outputHeight - 1  // bottom-left: source -> dest (0, height-1)
+    ];
+    
+    // Debug: Log the corners being used for extraction
+    error_log("AI Image Extraction - Using corners: TL=({$tl[0]},{$tl[1]}), TR=({$tr[0]},{$tr[1]}), BR=({$br[0]},{$br[1]}), BL=({$bl[0]},{$bl[1]})");
+    error_log("AI Image Extraction - Output dimensions: {$outputWidth}x{$outputHeight}");
+    
+    try {
+        // Apply perspective transformation
+        $im->setImageColorspace(Imagick::COLORSPACE_SRGB);
+        $im->setImageAlphaChannel(Imagick::ALPHACHANNEL_SET);
+        
+        // Set virtual pixel method to transparent for areas outside the image
+        $im->setImageVirtualPixelMethod(Imagick::VIRTUALPIXELMETHOD_TRANSPARENT);
+        
+        // Apply perspective distortion
+        // The 'true' parameter means "bestfit" - it will adjust the output size to fit the transformation
+        // But we want to control the output size, so we calculate it ourselves
+        $im->distortImage(Imagick::DISTORTION_PERSPECTIVE, $args, false);
+        
+        // Crop to the calculated output dimensions
+        // First get the image geometry after distortion
+        $geometry = $im->getImageGeometry();
+        $distortedW = $geometry['width'];
+        $distortedH = $geometry['height'];
+        
+        // If the distorted image is larger than our calculated size, we might need to adjust
+        // But typically it should match our calculation
+        $im->extentImage($outputWidth, $outputHeight, 0, 0);
+        
+        // Set JPEG output format
+        $im->setImageCompression(Imagick::COMPRESSION_JPEG);
+        $im->setImageCompressionQuality(95);
+        $im->setImageFormat('jpeg');
+        
+        // Step 3: Save final image
+        $finalPath = $imagesDir . '/' . $baseName . '_final.jpg';
+        $im->writeImage($finalPath);
+        $im->clear();
+        $im->destroy();
+    } catch (Throwable $e) {
+        $im->clear();
+        $im->destroy();
+        http_response_code(500);
+        echo json_encode([
+            'ok' => false,
+            'error' => 'failed_to_transform_image',
+            'detail' => $e->getMessage()
+        ]);
+        exit;
+    }
+    
+    // Step 4: Generate thumbnail for _final image
+    $thumbPath = generate_thumbnail_path($finalPath);
+    generate_thumbnail($finalPath, $thumbPath, 512, 1024);
+    
+    // Step 5: Update metadata with corner positions
+    $metaPath = $imagesDir . '/' . $baseName . '_original.jpg.json';
+    $meta = [];
+    if (is_file($metaPath)) {
+        $existingContent = file_get_contents($metaPath);
+        $meta = json_decode($existingContent, true) ?? [];
+    }
+    
+    // Add corner positions to metadata
+    $meta['manual_corners'] = $corners;
+    
+    // Save image dimensions if not already present
+    if (!isset($meta['image_dimensions'])) {
+        $imageInfo = @getimagesize($absPath);
+        if ($imageInfo !== false) {
+            $meta['image_dimensions'] = [
+                'width' => $imageInfo[0],
+                'height' => $imageInfo[1]
+            ];
+        }
+    }
+    
+    // Preserve original_filename if it exists
+    if (!isset($meta['original_filename'])) {
+        $meta['original_filename'] = $baseName;
+    }
+    
+    // Save updated metadata
+    file_put_contents($metaPath, json_encode($meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    
+    // Step 6: Check if this entry is in gallery and update it automatically
+    $galleryDir = dirname(__DIR__) . '/img/gallery/';
+    $originalFilename = $meta['original_filename'] ?? $baseName;
+    $galleryFilename = find_gallery_entry($originalFilename, $galleryDir);
+    $inGallery = $galleryFilename !== null;
+    
+    // If in gallery, automatically update using unified function
+    if ($inGallery) {
+        update_gallery_entry($originalFilename, $meta, $imagesDir, $galleryDir);
+    }
+    
+    // Step 7: Regenerate all variants after final image is saved
+    require_once __DIR__ . '/variants.php';
+    try {
+        // Get dimensions from metadata if available
+        $width = isset($meta['width']) ? (string)$meta['width'] : null;
+        $height = isset($meta['height']) ? (string)$meta['height'] : null;
+        $regenerateResult = regenerateAllVariants($baseName, $width, $height);
+        // Log result but don't fail if variant regeneration fails
+        error_log("Variant regeneration for {$baseName}: " . json_encode($regenerateResult));
+    } catch (Exception $e) {
+        // Log error but don't fail the save action
+        error_log("Failed to regenerate variants for {$baseName}: " . $e->getMessage());
+    }
+    
+    // Step 8: Always trigger optimization to ensure gallery is updated
+    async_http_post('admin/optimize_images.php', ['action' => 'both', 'force' => '1']);
+    
+    echo json_encode([
+        'ok' => true,
+        'final_image' => $baseName . '_final.jpg',
+        'corners' => $corners,
+        'corners_used' => [
+            'top_left' => ['x' => $tl[0], 'y' => $tl[1]],
+            'top_right' => ['x' => $tr[0], 'y' => $tr[1]],
+            'bottom_right' => ['x' => $br[0], 'y' => $br[1]],
+            'bottom_left' => ['x' => $bl[0], 'y' => $bl[1]]
+        ],
+        'output_dimensions' => ['width' => $outputWidth, 'height' => $outputHeight],
+        'in_gallery' => $inGallery
+    ]);
+    
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'ok' => false,
+        'error' => 'unexpected_error',
+        'detail' => $e->getMessage()
+    ]);
+    exit;
+}
+

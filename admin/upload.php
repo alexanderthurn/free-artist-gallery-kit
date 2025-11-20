@@ -204,27 +204,59 @@ for ($i = 0; $i < $count; $i++) {
     $thumbPath = generate_thumbnail_path($finalTarget);
     generate_thumbnail($finalTarget, $thumbPath, 512, 1024);
 
+    // Get image dimensions for metadata
+    $imageInfo = @getimagesize($target);
+    $imageDimensions = null;
+    if ($imageInfo !== false) {
+        $imageDimensions = [
+            'width' => $imageInfo[0],
+            'height' => $imageInfo[1]
+        ];
+    }
+    
     // For non-AI uploads, create JSON metadata file with title "#n" and frame "white"
     if (!$isAIUpload) {
         $baseName = extract_base_name(basename($target));
         $jsonPath = $target . '.json';
         
-        // Only create JSON if it doesn't exist
-        if (!is_file($jsonPath)) {
+        // Load existing metadata or create new
+        $metaData = [];
+        if (is_file($jsonPath)) {
+            $existingContent = file_get_contents($jsonPath);
+            $metaData = json_decode($existingContent, true) ?? [];
+        }
+        
+        // Only set default values if JSON doesn't exist
+        if (!isset($metaData['title']) || $metaData['title'] === '') {
             $paintingNumber = $existingPaintingCount + $uploaded + 1;
-            $metaData = [
-                'title' => '#' . $paintingNumber,
-                'description' => '',
-                'width' => '',
-                'height' => '',
-                'tags' => '',
-                'date' => '',
-                'sold' => false,
-                'frame_type' => 'white',
-                'original_filename' => $baseName
-            ];
-            
-            file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $metaData['title'] = '#' . $paintingNumber;
+        }
+        
+        // Set default values if not present
+        if (!isset($metaData['description'])) $metaData['description'] = '';
+        if (!isset($metaData['width'])) $metaData['width'] = '';
+        if (!isset($metaData['height'])) $metaData['height'] = '';
+        if (!isset($metaData['tags'])) $metaData['tags'] = '';
+        if (!isset($metaData['date'])) $metaData['date'] = '';
+        if (!isset($metaData['sold'])) $metaData['sold'] = false;
+        if (!isset($metaData['frame_type'])) $metaData['frame_type'] = 'white';
+        if (!isset($metaData['original_filename'])) $metaData['original_filename'] = $baseName;
+        
+        // Save image dimensions
+        if ($imageDimensions) {
+            $metaData['image_dimensions'] = $imageDimensions;
+        }
+        
+        file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+    } else {
+        // For AI uploads, also save dimensions if JSON exists
+        $baseName = extract_base_name(basename($target));
+        $jsonPath = $target . '.json';
+        if (is_file($jsonPath) && $imageDimensions) {
+            $existingContent = file_get_contents($jsonPath);
+            $metaData = json_decode($existingContent, true) ?? [];
+            $metaData['image_dimensions'] = $imageDimensions;
+            file_put_contents($jsonPath, json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
         }
     }
 

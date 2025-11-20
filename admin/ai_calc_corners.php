@@ -1,79 +1,71 @@
 <?php
 declare(strict_types=1);
 
-// Continue execution even if user closes browser/connection
-ignore_user_abort(true);
-
-// Increase execution time limit for long-running predictions (10 minutes)
-set_time_limit(600);
-
 require_once __DIR__ . '/utils.php';
 
-header('Content-Type: application/json; charset=utf-8');
-
-try {
-    $TOKEN = load_replicate_token();
-} catch (RuntimeException $e) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'missing REPLICATE_API_TOKEN']);
-    exit;
-}
-
-// ---- Eingabe ----
-$rel = $_POST['image_path'] ?? '';
-if ($rel === '') {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'image_path required']);
-    exit;
-}
-
-// Get offset from POST (default: 1.0 percent)
-$offsetPercent = isset($_POST['offset']) ? (float)$_POST['offset'] : 1.0;
-$offsetPercent = max(0, min(10, $offsetPercent)); // Clamp between 0 and 10 percent
-
-$abs = $rel;
-if ($rel[0] !== '/' && !preg_match('#^[a-z]+://#i', $rel)) {
-    $abs = dirname(__DIR__) . '/' . ltrim($rel, '/');
-}
-if (!is_file($abs)) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'image not found', 'path' => $abs]);
-    exit;
-}
-
-[$imgW, $imgH] = getimagesize($abs);
-$mime = mime_content_type($abs);
-if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
-    http_response_code(400);
-    echo json_encode(['ok' => false, 'error' => 'unsupported image type', 'mime' => $mime]);
-    exit;
-}
-$imgB64 = base64_encode(file_get_contents($abs));
-
-// ---- Check for cached Replicate response ----
-$jsonPath = $abs . '.json';
-$cachedResponse = null;
-if (is_file($jsonPath)) {
-    $existingJson = json_decode(file_get_contents($jsonPath), true);
-    if (is_array($existingJson) && isset($existingJson['corner_detection']) && 
-        isset($existingJson['corner_detection']['replicate_response']) && 
-        is_array($existingJson['corner_detection']['replicate_response'])) {
-        // Use cached Replicate response
-        $cachedResponse = $existingJson['corner_detection']['replicate_response'];
+/**
+ * Calculate corners for an image using AI (Replicate/Gemini)
+ * 
+ * @param string $imagePath Relative or absolute path to the _original image
+ * @param float $offsetPercent Offset percentage (0-10, default 1.0)
+ * @return array Result array with 'ok' => true/false and corner data or error info
+ */
+function calculate_corners(string $imagePath, float $offsetPercent = 1.0): array {
+    // Clamp offset between 0 and 10 percent
+    $offsetPercent = max(0, min(10, $offsetPercent));
+    
+    try {
+        $TOKEN = load_replicate_token();
+    } catch (RuntimeException $e) {
+        return ['ok' => false, 'error' => 'missing REPLICATE_API_TOKEN'];
     }
-}
+    
+    // Resolve absolute path
+    $abs = $imagePath;
+    if ($imagePath[0] !== '/' && !preg_match('#^[a-z]+://#i', $imagePath)) {
+        $abs = dirname(__DIR__) . '/' . ltrim($imagePath, '/');
+    }
+    
+    if (!is_file($abs)) {
+        return ['ok' => false, 'error' => 'image not found', 'path' => $abs];
+    }
+    
+    $rel = $imagePath;
 
-// If we have cached response, use it and skip API call
-// But always recalculate corners (don't cache computed values)
-if ($cachedResponse !== null && isset($cachedResponse['status']) && $cachedResponse['status'] === 'succeeded') {
-    // Use cached response and skip to processing (will recalculate corners)
-    $resp = $cachedResponse;
-    $status = $resp['status'];
-    goto process_cached_response;
-}
+    [$imgW, $imgH] = getimagesize($abs);
+    $mime = mime_content_type($abs);
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
+        return ['ok' => false, 'error' => 'unsupported image type', 'mime' => $mime];
+    }
+    $imgB64 = base64_encode(file_get_contents($abs));
 
-// ---- Prompt for corner detection ----
-$prompt = <<<PROMPT
+    // ---- Check for cached Replicate response ----
+    $jsonPath = $abs . '.json';
+    $cachedResponse = null;
+    if (is_file($jsonPath)) {
+        $existingJson = json_decode(file_get_contents($jsonPath), true);
+        if (is_array($existingJson) && isset($existingJson['corner_detection']) && 
+            isset($existingJson['corner_detection']['replicate_response']) && 
+            is_array($existingJson['corner_detection']['replicate_response'])) {
+            // Use cached Replicate response
+            $cachedResponse = $existingJson['corner_detection']['replicate_response'];
+        }
+    }
+
+    // If we have cached response, use it and skip API call
+    // But always recalculate corners (don't cache computed values)
+    $resp = null;
+    $status = null;
+    $attempt = 0;
+    
+    if ($cachedResponse !== null && isset($cachedResponse['status']) && $cachedResponse['status'] === 'succeeded') {
+        // Use cached response and skip to processing (will recalculate corners)
+        $resp = $cachedResponse;
+        $status = $resp['status'];
+    } else {
+
+        // ---- Prompt for corner detection ----
+        $prompt = <<<PROMPT
 Analyze this image and identify the four corners of the painting canvas (excluding frame, wall, mat, glass, shadows).
 
 Return the coordinates as percentages relative to the image dimensions in JSON format:
@@ -94,131 +86,126 @@ The coordinates should be percentages (0-100) where:
 Return ONLY valid JSON, no other text.
 PROMPT;
 
-// ---- Replicate API Call (Google Gemini 3 Pro) ----
-// Using the structure for gemini-3-pro
-$payload = [
-    'input' => [
-        'images' => ["data:$mime;base64,$imgB64"],
-        'max_output_tokens' => 65535,
-        'prompt' => $prompt,
-        'temperature' => 1,
-        'thinking_level' => 'low',
-        'top_p' => 0.95,
-        'videos' => []
-    ]
-];
+        // ---- Replicate API Call (Google Gemini 3 Pro) ----
+        // Using the structure for gemini-3-pro
+        $payload = [
+            'input' => [
+                'images' => ["data:$mime;base64,$imgB64"],
+                'max_output_tokens' => 65535,
+                'prompt' => $prompt,
+                'temperature' => 1,
+                'thinking_level' => 'low',
+                'top_p' => 0.95,
+                'videos' => []
+            ]
+        ];
 
-try {
-    // Step 1: Create prediction (without waiting)
-    $ch = curl_init("https://api.replicate.com/v1/models/google/gemini-3-pro/predictions");
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 30
-    ]);
+        try {
+            // Step 1: Create prediction (without waiting)
+            $ch = curl_init("https://api.replicate.com/v1/models/google/gemini-3-pro/predictions");
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => 30
+            ]);
+            
+            $res = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
     
-    $res = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false || $httpCode >= 400) {
-        http_response_code(502);
-        echo json_encode([
-            'ok' => false,
-            'error' => 'replicate_failed',
-            'detail' => $err ?: $res,
-            'http_code' => $httpCode
-        ]);
-        exit;
-    }
-    
-    $resp = json_decode($res, true);
-    if (!is_array($resp) || !isset($resp['urls']['get'])) {
-        http_response_code(502);
-        echo json_encode(['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)]);
-        exit;
-    }
-    
-    $predictionUrl = $resp['urls']['get'];
-    $status = $resp['status'] ?? 'unknown';
-    
-    // Step 2: Poll until prediction completes (max 10 minutes)
-    $maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
-    $attempt = 0;
-    
-    while (in_array($status, ['starting', 'processing']) && $attempt < $maxAttempts) {
-        sleep(5); // Wait 5 seconds between polls
-        $attempt++;
-        
-        $ch = curl_init($predictionUrl);
-        curl_setopt_array($ch, [
-            CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN"],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30
-        ]);
-        
-        $res = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($res === false || $httpCode >= 400) {
-            continue; // Retry on error
-        }
-        
-        $resp = json_decode($res, true);
-        if (!is_array($resp)) {
-            continue; // Retry on invalid JSON
-        }
-        
-        $status = $resp['status'] ?? 'unknown';
-        
-        // If completed or failed, save response IMMEDIATELY and break the loop
-        if ($status === 'succeeded' || $status === 'failed' || $status === 'canceled') {
-            // Save the response IMMEDIATELY after receiving it (before any further processing)
-            $existingJson = [];
-            if (is_file($jsonPath)) {
-                $existingJson = json_decode(file_get_contents($jsonPath), true);
-                if (!is_array($existingJson)) {
-                    $existingJson = [];
-                }
+            if ($res === false || $httpCode >= 400) {
+                return [
+                    'ok' => false,
+                    'error' => 'replicate_failed',
+                    'detail' => $err ?: $res,
+                    'http_code' => $httpCode
+                ];
             }
             
-            // Store ONLY the complete Replicate response (no computed values)
-            $existingJson['corner_detection'] = [
-                'replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                'replicate_response' => $resp, // Also store as array for easier access
-                'timestamp' => date('c'),
-                'status' => $status,
-                'attempts' => $attempt
-            ];
+            $resp = json_decode($res, true);
+            if (!is_array($resp) || !isset($resp['urls']['get'])) {
+                return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
+            }
             
-            // Save immediately - RIGHT AFTER receiving response, before any processing
-            // Use LOCK_EX to ensure atomic write
-            file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+            $predictionUrl = $resp['urls']['get'];
+            $status = $resp['status'] ?? 'unknown';
             
-            break;
+            // Step 2: Poll until prediction completes (max 10 minutes)
+            $maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
+            $attempt = 0;
+    
+            while (in_array($status, ['starting', 'processing']) && $attempt < $maxAttempts) {
+                sleep(5); // Wait 5 seconds between polls
+                $attempt++;
+                
+                $ch = curl_init($predictionUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN"],
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 30
+                ]);
+                
+                $res = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                
+                if ($res === false || $httpCode >= 400) {
+                    continue; // Retry on error
+                }
+                
+                $resp = json_decode($res, true);
+                if (!is_array($resp)) {
+                    continue; // Retry on invalid JSON
+                }
+                
+                $status = $resp['status'] ?? 'unknown';
+                
+                // If completed or failed, save response IMMEDIATELY and break the loop
+                if ($status === 'succeeded' || $status === 'failed' || $status === 'canceled') {
+                    // Save the response IMMEDIATELY after receiving it (before any further processing)
+                    $existingJson = [];
+                    if (is_file($jsonPath)) {
+                        $existingJson = json_decode(file_get_contents($jsonPath), true);
+                        if (!is_array($existingJson)) {
+                            $existingJson = [];
+                        }
+                    }
+                    
+                    // Store ONLY the complete Replicate response (no computed values)
+                    $existingJson['corner_detection'] = [
+                        'replicate_response_raw' => json_encode($resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                        'replicate_response' => $resp, // Also store as array for easier access
+                        'timestamp' => date('c'),
+                        'status' => $status,
+                        'attempts' => $attempt
+                    ];
+                    
+                    // Save immediately - RIGHT AFTER receiving response, before any processing
+                    // Use LOCK_EX to ensure atomic write
+                    file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+                    
+                    break;
+                }
+            }
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => 'replicate_api_error', 'detail' => $e->getMessage()];
         }
     }
-    
-    // Label for processing cached response
-    process_cached_response:
     
     // Step 4: Check final status and extract output
     if ($status !== 'succeeded') {
-        http_response_code(502);
-        echo json_encode([
+        return [
             'ok' => false,
             'error' => 'prediction_not_completed',
             'status' => $status,
             'detail' => $resp['error'] ?? 'Prediction did not complete in time',
             'attempts' => $attempt
-        ]);
-        exit;
+        ];
     }
     
     // Extract text from Replicate/Gemini response
@@ -233,9 +220,7 @@ try {
     }
     
     if (empty($outputText)) {
-        http_response_code(502);
-        echo json_encode(['ok' => false, 'error' => 'empty_output', 'response' => $resp]);
-        exit;
+        return ['ok' => false, 'error' => 'empty_output', 'response' => $resp];
     }
     
     // Try to extract JSON from the response
@@ -396,28 +381,24 @@ try {
     }
     
     if (!is_array($cornersData) || !isset($cornersData['corners']) || !is_array($cornersData['corners'])) {
-        http_response_code(502);
-        echo json_encode([
+        return [
             'ok' => false,
             'error' => 'invalid_corners_format',
             'output_text' => substr($outputText, 0, 1000),
             'parsed' => $cornersData,
             'output_length' => strlen($outputText)
-        ]);
-        exit;
+        ];
     }
     
     // Ensure we have exactly 4 corners in the parsed data
     if (count($cornersData['corners']) !== 4) {
-        http_response_code(502);
-        echo json_encode([
+        return [
             'ok' => false,
             'error' => 'invalid_corner_count_in_response',
             'count' => count($cornersData['corners']),
             'raw_corners' => $cornersData['corners'],
             'output_text' => substr($outputText, 0, 500)
-        ]);
-        exit;
+        ];
     }
     
     // Convert percentages to pixel coordinates
@@ -453,15 +434,13 @@ try {
         }
         
         if ($xPercent === null || $yPercent === null) {
-            http_response_code(502);
-            echo json_encode([
+            return [
                 'ok' => false,
                 'error' => 'missing_corner_coordinates',
                 'corner' => $corner,
                 'normalized_corner' => $normalizedCorner,
                 'all_corners' => $cornersData['corners']
-            ]);
-            exit;
+            ];
         }
         
         // Convert percentage to pixels (without offset yet)
@@ -547,15 +526,13 @@ try {
     
     // Ensure we have exactly 4 corners after processing
     if (count($pixelCorners) !== 4) {
-        http_response_code(502);
-        echo json_encode([
+        return [
             'ok' => false,
             'error' => 'invalid_corner_count_after_processing',
             'count' => count($pixelCorners),
             'corners' => $pixelCorners,
             'raw_corners_count' => count($cornersData['corners'])
-        ]);
-        exit;
+        ];
     }
     
     // Return in the same format as corners.php (array of [x, y] pairs)
@@ -581,7 +558,7 @@ try {
         file_put_contents($jsonPath, json_encode($existingJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
     }
     
-    echo json_encode([
+    return [
         'ok' => true,
         'corners' => $resultCorners,
         'original_corners' => $resultCorners, // Alias for compatibility with free.html
@@ -590,16 +567,44 @@ try {
         'image_height' => $imgH,
         'source' => $rel,
         'offset_percent' => $offsetPercent,
-        'cached' => false
-    ]);
+        'cached' => ($cachedResponse !== null)
+    ];
+}
+
+// HTTP endpoint - for backward compatibility
+// Only run if this script is being called directly (not included)
+if (php_sapi_name() !== 'cli' && basename($_SERVER['SCRIPT_NAME'] ?? '') === 'ai_calc_corners.php') {
+    // Continue execution even if user closes browser/connection
+    ignore_user_abort(true);
     
-} catch (RuntimeException $e) {
-    http_response_code(502);
-    echo json_encode(['ok' => false, 'error' => 'replicate_failed', 'detail' => $e->getMessage()]);
-    exit;
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'unexpected_error', 'detail' => $e->getMessage()]);
-    exit;
+    // Increase execution time limit for long-running predictions (10 minutes)
+    set_time_limit(600);
+    
+    header('Content-Type: application/json; charset=utf-8');
+    
+    try {
+        // ---- Eingabe ----
+        $rel = $_POST['image_path'] ?? '';
+        if ($rel === '') {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'image_path required']);
+            exit;
+        }
+        
+        // Get offset from POST (default: 1.0 percent)
+        $offsetPercent = isset($_POST['offset']) ? (float)$_POST['offset'] : 1.0;
+        
+        $result = calculate_corners($rel, $offsetPercent);
+        
+        // Set appropriate HTTP status code
+        if (!$result['ok']) {
+            http_response_code(500);
+        }
+        
+        echo json_encode($result);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'unexpected_error', 'detail' => $e->getMessage()]);
+    }
 }
 
