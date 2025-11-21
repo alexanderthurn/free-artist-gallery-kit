@@ -19,6 +19,10 @@ function get_meta_path(string $imageFilename, ?string $imagesDir = null): string
         $imagesDir .= '/';
     }
     $imagePath = $imagesDir . basename($imageFilename);
+    // Don't add .json if it already ends with .json
+    if (substr($imagePath, -5) === '.json') {
+        return $imagePath;
+    }
     return $imagePath . '.json';
 }
 

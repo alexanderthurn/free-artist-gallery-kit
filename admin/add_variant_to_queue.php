@@ -31,8 +31,11 @@ if (!$jsonFile || !is_file($imagesDir . '/' . $jsonFile)) {
     exit;
 }
 
+// Extract image filename from JSON filename (remove .json extension)
+$imageFilename = preg_replace('/\.json$/', '', $jsonFile);
+
 // Load existing metadata
-$meta = load_meta($jsonFile, $imagesDir);
+$meta = load_meta($imageFilename, $imagesDir);
 
 // Add variant to active_variants list (thread-safe)
 if (!isset($meta['active_variants']) || !is_array($meta['active_variants'])) {
@@ -46,7 +49,7 @@ $alreadyExists = in_array($variantName, $meta['active_variants'], true) || is_fi
 
 if (!$alreadyExists) {
     $meta['active_variants'][] = $variantName;
-    $jsonPath = get_meta_path($jsonFile, $imagesDir);
+    $jsonPath = get_meta_path($imageFilename, $imagesDir);
     update_json_file($jsonPath, ['active_variants' => $meta['active_variants']], false);
 }
 
