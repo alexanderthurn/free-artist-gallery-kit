@@ -223,10 +223,7 @@ Task:
 {$dimensionsInfo}
 PROMPT;
     
-    $VERSION = '2784c5d54c07d79b0a2a5385477038719ad37cb0745e61bbddf2fc236d196a6b';
-    
     $payload = [
-        'version' => $VERSION,
         'input' => [
             'prompt' => $promptFinal,
             'image_input' => [
@@ -239,8 +236,7 @@ PROMPT;
     ];
     
     // Create prediction (without waiting)
-    // Using version endpoint directly (same as variants.php)
-    $ch = curl_init("https://api.replicate.com/v1/predictions");
+    $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
         CURLOPT_POST => true,
@@ -320,7 +316,6 @@ function generate_variant_template_async(
 PROMPT;
     
     $payload = [
-        'version' => $VERSION,
         'input' => [
             'prompt' => $promptFinal,
             'output_format' => 'jpg'
@@ -328,7 +323,7 @@ PROMPT;
     ];
     
     // Create prediction (without waiting)
-    $ch = curl_init("https://api.replicate.com/v1/predictions");
+    $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
     curl_setopt_array($ch, [
         CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
         CURLOPT_POST => true,

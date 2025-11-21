@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/utils.php';
 require_once __DIR__ . '/meta.php';
-require_once __DIR__ . '/ai_variant_by_prompt.php';
 
 /**
  * Process AI painting variants generation
@@ -111,15 +110,6 @@ function process_ai_painting_variants(string $imageBaseName, ?array $variantName
     }
     
     $finalMime = mime_content_type($finalImage);
-    $prompt = <<<PROMPT
-You are an image editor.
-
-Task:
-- Place the painting into the free space on the wall.
-- Ensure the painting is properly scaled and positioned realistically.
-- The painting should be centered or positioned appropriately on the wall.
-- Maintain natural lighting and shadows.
-PROMPT;
     
     $started = 0;
     $errors = [];
@@ -163,6 +153,25 @@ PROMPT;
             $aiPaintingVariants['active_variants'][] = $variantName;
         }
         
+        // Build prompt with dimensions info
+        $dimensionsInfo = '';
+        if ($width !== null && $height !== null && $width !== '' && $height !== '') {
+            $dimensionsInfo = "\n\nPainting dimensions: {$width}cm (width) × {$height}cm (height).";
+            $dimensionsInfo .= "\nRoom height: 250cm (ceiling height).";
+            $dimensionsInfo .= "\nPlace the painting at an appropriate scale relative to the room dimensions. The painting should be positioned realistically on the wall, considering its actual size.";
+        }
+        
+        $promptFinal = <<<PROMPT
+You are an image editor.
+
+Task:
+- Place the painting into the free space on the wall.
+- Ensure the painting is properly scaled and positioned realistically.
+- The painting should be centered or positioned appropriately on the wall.
+- Maintain natural lighting and shadows.
+{$dimensionsInfo}
+PROMPT;
+        
         // Create variant entry immediately (like ai_image_by_corners.php does)
         // This ensures the variant is tracked even if the API call fails
         $variants[$variantName] = [
@@ -175,8 +184,8 @@ PROMPT;
             'target_path' => $targetPath,
             'variant_template_path' => $variantTemplate['variant_path'],
             'final_image_path' => $finalImage,
-            'prompt' => $prompt,
-            'prompt_final' => null, // Will be updated after API call
+            'prompt' => $promptFinal,
+            'prompt_final' => $promptFinal,
             'width' => $width,
             'height' => $height
         ];
@@ -190,39 +199,119 @@ PROMPT;
         update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
         
         // Now start the async generation (non-blocking)
-        $result = generate_variant_async(
-            $variantName,
-            $variantTemplate['variant_path'],
-            $finalImage,
-            $prompt,
-            $targetPath,
-            $width,
-            $height
-        );
-        
-        if ($result['ok'] && isset($result['prediction_started'])) {
-            $started++;
-            // Update variant with prediction details
-            $variants[$variantName]['prediction_url'] = $result['prediction_url'] ?? null;
-            $variants[$variantName]['prediction_id'] = $result['prediction_id'] ?? null;
-            $variants[$variantName]['prediction_status'] = $result['prediction_status'] ?? 'unknown';
-            $variants[$variantName]['prompt_final'] = $result['prompt_final'] ?? null;
-            
-            // Update metadata again with prediction URL
+        try {
+            $TOKEN = load_replicate_token();
+        } catch (RuntimeException $e) {
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'missing REPLICATE_API_TOKEN';
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-        } else {
+            $errors[] = ['variant' => $variantName, 'error' => 'missing REPLICATE_API_TOKEN'];
+            continue;
+        }
+        
+        // Load images
+        $variantTemplatePath = $variantTemplate['variant_path'];
+        if (!is_file($variantTemplatePath)) {
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'variant_template_not_found';
+            $aiPaintingVariants['variants'] = $variants;
+            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+            $errors[] = ['variant' => $variantName, 'error' => 'variant_template_not_found'];
+            continue;
+        }
+        
+        $variantMime = mime_content_type($variantTemplatePath);
+        if (!in_array($variantMime, ['image/jpeg', 'image/png', 'image/webp'])) {
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'unsupported_variant_template_type';
+            $aiPaintingVariants['variants'] = $variants;
+            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_variant_template_type'];
+            continue;
+        }
+        
+        if (!in_array($finalMime, ['image/jpeg', 'image/png', 'image/webp'])) {
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'unsupported_final_image_type';
+            $aiPaintingVariants['variants'] = $variants;
+            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_final_image_type'];
+            continue;
+        }
+        
+        $variantB64 = base64_encode(file_get_contents($variantTemplatePath));
+        $finalB64 = base64_encode(file_get_contents($finalImage));
+        
+        $payload = [
+            'input' => [
+                'prompt' => $promptFinal,
+                'image_input' => [
+                    "data:$variantMime;base64,$variantB64",
+                    "data:$finalMime;base64,$finalB64"
+                ],
+                'aspect_ratio' => '1:1',
+                'output_format' => 'jpg'
+            ]
+        ];
+        
+        // Create prediction (without waiting)
+        $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 30
+        ]);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        
+        if ($res === false || $httpCode >= 400) {
             // API call failed - mark variant as wanted for retry
             $variants[$variantName]['status'] = 'wanted';
-            $variants[$variantName]['error'] = $result['error'] ?? 'Unknown error';
+            $variants[$variantName]['error'] = 'replicate_failed';
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-            
             $errors[] = [
                 'variant' => $variantName,
-                'error' => $result['error'] ?? 'Unknown error'
+                'error' => 'replicate_failed',
+                'detail' => $err ?: substr($res, 0, 500)
             ];
+            continue;
         }
+        
+        $resp = json_decode($res, true);
+        if (!is_array($resp) || !isset($resp['urls']['get'])) {
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'invalid_prediction_response';
+            $aiPaintingVariants['variants'] = $variants;
+            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+            $errors[] = [
+                'variant' => $variantName,
+                'error' => 'invalid_prediction_response'
+            ];
+            continue;
+        }
+        
+        $predictionUrl = $resp['urls']['get'];
+        $predictionId = $resp['id'] ?? null;
+        $status = $resp['status'] ?? 'unknown';
+        
+        $started++;
+        // Update variant with prediction details
+        $variants[$variantName]['prediction_url'] = $predictionUrl;
+        $variants[$variantName]['prediction_id'] = $predictionId;
+        $variants[$variantName]['prediction_status'] = $status;
+        
+        // Update metadata again with prediction URL
+        $aiPaintingVariants['variants'] = $variants;
+        update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
     }
     
     return [
