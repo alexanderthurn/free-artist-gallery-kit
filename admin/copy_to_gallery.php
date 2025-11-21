@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -35,25 +36,18 @@ if (!$jsonFile || !is_file($imagesDir.$jsonFile)) {
 }
 
 // Load JSON to get metadata
-$jsonContent = file_get_contents($imagesDir.$jsonFile);
-$meta = json_decode($jsonContent, true);
-if (!is_array($meta)) {
+$meta = load_meta($jsonFile, $imagesDir);
+if (empty($meta)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Invalid JSON metadata']);
     exit;
 }
 
 // Set live status to true (thread-safe)
-update_json_file($imagesDir.$jsonFile, ['live' => true], false);
+save_meta($jsonFile, ['live' => true], $imagesDir, false);
 
 // Reload meta for gallery operations
-$metaContent = @file_get_contents($imagesDir.$jsonFile);
-if ($metaContent !== false) {
-    $decoded = json_decode($metaContent, true);
-    if (is_array($decoded)) {
-        $meta = $decoded;
-    }
-}
+$meta = load_meta($jsonFile, $imagesDir);
 $meta['live'] = true;
 
 // Use unified function to update gallery entry

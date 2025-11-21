@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 
 /**
  * Process AI form filling for an image
@@ -66,8 +67,23 @@ function process_ai_fill_form(string $imageFilename): array {
         return ['ok' => false, 'error' => 'Image not found', 'path' => $finalPath];
     }
 
-    // Determine JSON file path
-    $jsonPath = $finalPath . '.json';
+    // Determine JSON file path - use _original image's JSON
+    // Find the _original image for metadata
+    $originalImageForMeta = null;
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $fileStem = pathinfo($file, PATHINFO_FILENAME);
+        if (preg_match('/^' . preg_quote($base, '/') . '_original\.(jpg|jpeg|png|webp)$/i', $fileStem)) {
+            $originalImageForMeta = $file;
+            break;
+        }
+    }
+    
+    if (!$originalImageForMeta) {
+        return ['ok' => false, 'error' => 'Original image not found for metadata'];
+    }
+    
+    $jsonPath = get_meta_path($originalImageForMeta, $imagesDir);
 
     // Log the image path being used
     error_log('AI Fill Form: Using image: ' . $finalPath);

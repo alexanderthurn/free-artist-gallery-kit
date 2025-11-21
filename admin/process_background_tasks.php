@@ -8,6 +8,7 @@ ignore_user_abort(true);
 set_time_limit(600);
 
 require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/meta.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -78,16 +79,9 @@ if (!is_dir($imagesDir)) {
  * Check if variant regeneration is needed
  */
 function check_variant_regeneration_needed(string $baseName, string $jsonPath, string $imagesDir): bool {
-    $meta = [];
-    if (is_file($jsonPath)) {
-        $content = @file_get_contents($jsonPath);
-        if ($content !== false) {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $meta = $decoded;
-            }
-        }
-    }
+    // Extract image filename from JSON path
+    $imageFilename = basename($jsonPath, '.json');
+    $meta = load_meta($imageFilename, $imagesDir);
     
     // Check status flag
     $status = $meta['variant_regeneration_status'] ?? null;
@@ -169,16 +163,9 @@ function process_variant_regeneration(string $baseName, string $jsonPath): array
     require_once __DIR__ . '/variants.php';
     
     // Load metadata to get dimensions
-    $meta = [];
-    if (is_file($jsonPath)) {
-        $content = @file_get_contents($jsonPath);
-        if ($content !== false) {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $meta = $decoded;
-            }
-        }
-    }
+    $imageFilename = basename($jsonPath, '.json');
+    $imagesDir = dirname($jsonPath);
+    $meta = load_meta($imageFilename, $imagesDir);
     
     // Set status to in_progress
     update_task_status($jsonPath, 'variant_regeneration', 'in_progress');
@@ -579,11 +566,9 @@ foreach ($files as $file) {
     $baseName = preg_replace('/_original\.jpg$/', '', $stem);
     $jsonPath = $imagesDir . '/' . $file;
     
-    $content = @file_get_contents($jsonPath);
-    if ($content === false) continue;
-    
-    $meta = json_decode($content, true);
-    if (!is_array($meta)) continue;
+    $imageFilename = basename($file, '.json');
+    $meta = load_meta($imageFilename, $imagesDir);
+    if (empty($meta)) continue;
     
     $jsonFiles[] = [
         'baseName' => $baseName,
@@ -667,13 +652,9 @@ foreach ($jsonFiles as $item) {
         ];
         $processedCount++;
         // Reload meta after corners processing (it may have changed)
-        $content = @file_get_contents($jsonPath);
-        if ($content !== false) {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $item['meta'] = $decoded;
-            }
-        }
+        $imageFilename = basename($jsonPath, '.json');
+        $imagesDir = dirname($jsonPath);
+        $item['meta'] = load_meta($imageFilename, $imagesDir);
     } else {
         error_log('[Background Tasks] ' . $baseName . ': AI corners failed: ' . ($result['error'] ?? 'Unknown error'));
         $results['errors'][] = [
@@ -805,13 +786,9 @@ foreach ($jsonFiles as $item) {
     $meta = $item['meta'];
     
     // Reload meta to get latest status after AI processing
-    $content = @file_get_contents($jsonPath);
-    if ($content !== false) {
-        $decoded = json_decode($content, true);
-        if (is_array($decoded)) {
-            $meta = $decoded;
-        }
-    }
+    $imageFilename = basename($jsonPath, '.json');
+    $imagesDir = dirname($jsonPath);
+    $meta = load_meta($imageFilename, $imagesDir);
     
     // Check if there are still pending AI tasks - if so, skip variants
     $aiNeeds = check_ai_generation_needed($meta);

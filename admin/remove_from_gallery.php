@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -31,8 +32,7 @@ $originalFilename = $base;
 $meta = [];
 
 if ($jsonFile && is_file($imagesDir.$jsonFile)) {
-    $jsonContent = file_get_contents($imagesDir.$jsonFile);
-    $meta = json_decode($jsonContent, true);
+    $meta = load_meta($jsonFile, $imagesDir);
     if (is_array($meta) && isset($meta['original_filename'])) {
         $originalFilename = $meta['original_filename'];
     }

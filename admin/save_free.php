@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -132,12 +133,8 @@ if ($imageData !== null) {
 }
 
 // Update metadata with corner positions
-$metaPath = $imagesDir . $base . '_original.jpg.json';
-$meta = [];
-if (is_file($metaPath)) {
-    $existingContent = file_get_contents($metaPath);
-    $meta = json_decode($existingContent, true) ?? [];
-}
+$originalImageFile = $base . '_original.jpg';
+$meta = load_meta($originalImageFile, $imagesDir);
 
 // Use thread-safe update function to preserve all existing data
 $updates = [];
@@ -148,16 +145,8 @@ if (!empty($corners)) {
 }
 
 // Set original_filename if not already present
-$existingMeta = [];
-if (is_file($metaPath)) {
-    $existingContent = @file_get_contents($metaPath);
-    if ($existingContent !== false) {
-        $decoded = json_decode($existingContent, true);
-        if (is_array($decoded)) {
-            $existingMeta = $decoded;
-        }
-    }
-}
+$existingMeta = load_meta($originalImageFile, $imagesDir);
+$metaPath = get_meta_path($originalImageFile, $imagesDir);
 
 if (!isset($existingMeta['original_filename'])) {
     $updates['original_filename'] = $base;
@@ -184,6 +173,7 @@ if ($inGallery) {
 }
 
 // Set variant regeneration flag (will be processed by background task processor)
+$metaPath = get_meta_path($originalImageFile, $imagesDir);
 update_json_file($metaPath, ['variant_regeneration_status' => 'needed'], false);
 
 echo json_encode(['ok' => true, 'in_gallery' => $inGallery]);

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/meta.php';
 
 /**
  * Process AI image corners and create final image
@@ -29,8 +30,22 @@ function process_ai_image_by_corners(string $imagePath, float $offsetPercent = 1
     $baseName = preg_replace('/_original\.(jpg|jpeg|png)$/i', '', basename($absPath));
     $imagesDir = dirname($absPath);
     
+    // Find the _original image filename for metadata
+    $originalImageFile = $baseName . '_original.jpg';
+    if (!is_file($imagesDir . '/' . $originalImageFile)) {
+        // Try other extensions
+        $extensions = ['png', 'jpeg', 'webp'];
+        foreach ($extensions as $e) {
+            $testFile = $baseName . '_original.' . $e;
+            if (is_file($imagesDir . '/' . $testFile)) {
+                $originalImageFile = $testFile;
+                break;
+            }
+        }
+    }
+    
     // Step 1: Update status to in_progress
-    $metaPath = $imagesDir . '/' . $baseName . '_original.jpg.json';
+    $metaPath = get_meta_path($originalImageFile, $imagesDir);
     update_task_status($metaPath, 'ai_corners', 'in_progress');
     
     // Step 2: Call calculate_corners function directly
@@ -179,7 +194,7 @@ function process_ai_image_by_corners(string $imagePath, float $offsetPercent = 1
     generate_thumbnail($finalPath, $thumbPath, 512, 1024);
     
     // Step 6: Update metadata with corner positions (thread-safe)
-    $metaPath = $imagesDir . '/' . $baseName . '_original.jpg.json';
+    $metaPath = get_meta_path($originalImageFile, $imagesDir);
     
     // Prepare updates
     $updates = [
@@ -276,8 +291,8 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
         echo json_encode($result);
     } catch (Throwable $e) {
         // Reset status to wanted for retry
-        if (isset($baseName) && isset($imagesDir)) {
-            $metaPath = $imagesDir . '/' . $baseName . '_original.jpg.json';
+        if (isset($originalImageFile) && isset($imagesDir)) {
+            $metaPath = get_meta_path($originalImageFile, $imagesDir);
             if (is_file($metaPath)) {
                 update_task_status($metaPath, 'ai_corners', 'wanted');
             }

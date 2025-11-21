@@ -40,16 +40,16 @@ function calculate_corners(string $imagePath, float $offsetPercent = 1.0): array
     $imgB64 = base64_encode(file_get_contents($abs));
 
     // ---- Check for cached Replicate response ----
-    $jsonPath = $abs . '.json';
+    $imageFilename = basename($abs);
+    $imagesDir = dirname($abs);
+    $jsonPath = get_meta_path($imageFilename, $imagesDir);
+    $existingJson = load_meta($imageFilename, $imagesDir);
     $cachedResponse = null;
-    if (is_file($jsonPath)) {
-        $existingJson = json_decode(file_get_contents($jsonPath), true);
-        if (is_array($existingJson) && isset($existingJson['corner_detection']) && 
-            isset($existingJson['corner_detection']['replicate_response']) && 
-            is_array($existingJson['corner_detection']['replicate_response'])) {
-            // Use cached Replicate response
-            $cachedResponse = $existingJson['corner_detection']['replicate_response'];
-        }
+    if (isset($existingJson['corner_detection']) && 
+        isset($existingJson['corner_detection']['replicate_response']) && 
+        is_array($existingJson['corner_detection']['replicate_response'])) {
+        // Use cached Replicate response
+        $cachedResponse = $existingJson['corner_detection']['replicate_response'];
     }
 
     // If we have cached response, use it and skip API call

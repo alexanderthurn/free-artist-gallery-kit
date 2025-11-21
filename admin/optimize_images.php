@@ -14,6 +14,7 @@ ob_start();
 
 try {
     require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 } catch (Throwable $e) {
     ob_clean();
     http_response_code(500);
@@ -153,10 +154,9 @@ function preview_processing(string $action, bool $force = false): array {
                     if (pathinfo($file, PATHINFO_EXTENSION) !== 'json') continue;
                     
                     $jsonPath = $imagesDir.$file;
-                    $jsonContent = @file_get_contents($jsonPath);
-                    if ($jsonContent === false) continue;
-                    
-                    $meta = @json_decode($jsonContent, true);
+                    $imageFilename = basename($file, '.json');
+                    $meta = load_meta($imageFilename, $imagesDir);
+                    if (empty($meta)) continue;
                     if (!is_array($meta) || !isset($meta['live']) || $meta['live'] !== true) {
                         continue; // Skip non-live paintings
                     }
@@ -195,10 +195,8 @@ function preview_processing(string $action, bool $force = false): array {
                     $isLive = false;
                     
                     if ($jsonFile && is_file($imagesDir.$jsonFile)) {
-                        $jsonContent = @file_get_contents($imagesDir.$jsonFile);
-                        if ($jsonContent !== false) {
-                            $meta = @json_decode($jsonContent, true);
-                            if (is_array($meta)) {
+                        $meta = load_meta($jsonFile, $imagesDir);
+                        if (is_array($meta) && !empty($meta)) {
                                 // Check multiple ways to determine if live
                                 $jsonStem = pathinfo($jsonFile, PATHINFO_FILENAME);
                                 $jsonBase = preg_replace('/_(original|color|final)$/', '', $jsonStem);
@@ -626,11 +624,9 @@ function rebuild_gallery(): void {
         if (pathinfo($file, PATHINFO_EXTENSION) !== 'json') continue;
         
         $jsonPath = $imagesDir.$file;
-        $jsonContent = @file_get_contents($jsonPath);
-        if ($jsonContent === false) continue;
-        
-        $meta = json_decode($jsonContent, true);
-        if (!is_array($meta) || !isset($meta['live']) || $meta['live'] !== true) {
+        $imageFilename = basename($file, '.json');
+        $meta = load_meta($imageFilename, $imagesDir);
+        if (empty($meta) || !isset($meta['live']) || $meta['live'] !== true) {
             continue; // Skip non-live paintings
         }
         
@@ -715,11 +711,8 @@ function rebuild_gallery(): void {
         }
         
         // Load JSON metadata
-        $jsonContent = @file_get_contents($imagesDir.$jsonFile);
-        if ($jsonContent === false) continue;
-        
-        $meta = @json_decode($jsonContent, true);
-        if (!is_array($meta) || !isset($meta['title'])) {
+        $meta = load_meta($jsonFile, $imagesDir);
+        if (empty($meta) || !isset($meta['title'])) {
             continue;
         }
         

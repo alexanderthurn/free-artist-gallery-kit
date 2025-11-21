@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -112,8 +115,8 @@ foreach ($groups as $key => &$g) {
     }
     
     if ($metaFile && is_file($metaFile)) {
-        $raw = file_get_contents($metaFile);
-        $decoded = json_decode($raw ?: '', true);
+        $imageFilename = basename($metaFile, '.json');
+        $decoded = load_meta($imageFilename, $dir);
         if (is_array($decoded) && isset($decoded['active_variants']) && is_array($decoded['active_variants'])) {
             foreach ($decoded['active_variants'] as $variantName) {
                 // Check if variant file already exists
@@ -155,8 +158,8 @@ foreach ($groups as $key => &$g) {
         $metaFile = $original ? ($dir.'/'.$original['name'].'.json') : ($dir.'/'.$variants[0]['name'].'.json');
     }
     if (is_file($metaFile)) {
-        $raw = file_get_contents($metaFile);
-        $decoded = json_decode($raw ?: '', true);
+        $imageFilename = basename($metaFile, '.json');
+        $decoded = load_meta($imageFilename, $dir);
         if (is_array($decoded)) $g['meta'] = $decoded;
     }
     // Check live status from JSON metadata (primary source)

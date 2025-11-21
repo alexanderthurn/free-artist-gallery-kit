@@ -324,7 +324,7 @@
         body.set('frame_type', frameTypeSelect ? frameTypeSelect.value : 'white');
       }
       
-      const res = await fetch('save_meta.php', { method: 'POST', body });
+      const res = await fetch('meta.php', { method: 'POST', body });
       if (!res.ok) {
         if (indicator) {
           indicator.textContent = 'Fehler beim Speichern';
@@ -504,6 +504,13 @@
       // Check AI generation status (corners and form separately)
       const cornersStatus = meta.ai_corners_status || null;
       const formStatus = meta.ai_form_status || null;
+      // Badge on _final image: 
+      // - If _final exists: only show if form is pending (corners is done, so image exists)
+      // - If _final doesn't exist: show if corners is pending (corners creates the _final)
+      const hasPendingAIForFinalImage = finalVariant 
+        ? (formStatus && ['wanted', 'in_progress'].includes(formStatus))
+        : (cornersStatus && ['wanted', 'in_progress'].includes(cornersStatus));
+      // General pending AI check (for other UI elements)
       const hasPendingAI = (cornersStatus && ['wanted', 'in_progress'].includes(cornersStatus)) || 
                            (formStatus && ['wanted', 'in_progress'].includes(formStatus));
       
@@ -518,13 +525,13 @@
           <div class="main-image-wrapper ${showSegmentedButton}" style="position: relative;">
             ${g.in_gallery ? `<div class="live-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Zurück auf Entwurf">Live</div>` : `<div class="draft-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Live schalten">Entwurf</div>`}
             <div class="admin-frame-preview frame-${frameType}" id="frame-preview-${g.base}" style="position: relative;">
-              ${hasPendingAI ? `<div class="ai-pending-badge" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; z-index: 120;" title="KI-Verarbeitung ausstehend - wird im Hintergrund verarbeitet">
+              ${hasPendingAIForFinalImage ? `<div class="ai-pending-badge" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; z-index: 120;" title="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI Formular ausfüllen ausstehend' : 'KI Ecken-Erkennung ausstehend'} - wird im Hintergrund verarbeitet">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);">
                   <span style="font-size: 20px;">⭐</span> KI ausstehend
                 </div>
               </div>` : ''}
               ${finalVariant ? `
-                <img class="${imageClass}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final" style="${hasPendingAI ? 'opacity: 0.3;' : ''}">
+                <img class="${imageClass}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final" style="${hasPendingAIForFinalImage ? 'opacity: 0.3;' : ''}">
               ` : '<div class="main-image" style="aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; color: #999;">Kein Final-Bild</div>'}
             </div>
             ${finalVariant ? `
@@ -1229,25 +1236,37 @@
       const aiUploadArea = document.getElementById('aiUploadArea');
       const aiUploadForm = document.getElementById('aiUploadForm');
       
+      // Function to remove painting parameter from URL
+      function removePaintingFromUrl() {
+        const url = new URL(window.location);
+        url.searchParams.delete('painting');
+        url.searchParams.delete('variant');
+        window.history.replaceState({}, '', url);
+      }
+      
       // Regular upload area click handler
       uploadArea.addEventListener('click', () => {
+        removePaintingFromUrl();
         fileInput.click();
       });
       
       // AI upload area click handler
       aiUploadArea.addEventListener('click', () => {
+        removePaintingFromUrl();
         aiFileInput.click();
       });
       
       // Regular file input change handler
       fileInput.addEventListener('change', async (e) => {
         if (!fileInput.files || fileInput.files.length === 0) return;
+        removePaintingFromUrl();
         await uploadFiles(fileInput.files, false);
       }, { passive: true });
       
       // AI file input change handler
       aiFileInput.addEventListener('change', async (e) => {
         if (!aiFileInput.files || aiFileInput.files.length === 0) return;
+        removePaintingFromUrl();
         await uploadFiles(aiFileInput.files, true);
       }, { passive: true });
       
@@ -1271,6 +1290,7 @@
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
+          removePaintingFromUrl();
           await uploadFiles(files, false);
         }
       });
@@ -1295,6 +1315,7 @@
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
+          removePaintingFromUrl();
           await uploadFiles(files, true);
         }
       });
@@ -1736,7 +1757,7 @@
       const soldCheckbox = item.querySelector('input[name=\"sold\"]');
       body.set('sold', soldCheckbox && soldCheckbox.checked ? '1' : '0');
       btn.disabled = true;
-      const res = await fetch('save_meta.php', { method: 'POST', body });
+      const res = await fetch('meta.php', { method: 'POST', body });
       btn.disabled = false;
       if (!res.ok) {
         showToast('Fehler beim Speichern der Metadaten', 'error');
@@ -2338,7 +2359,7 @@
       body.set(statusKey, statusValue || '');
       
       try {
-        const res = await fetch('save_meta.php', { method: 'POST', body });
+        const res = await fetch('meta.php', { method: 'POST', body });
         if (!res.ok) {
           showToast('Fehler beim Aktualisieren des Status', 'error');
           // Reload to restore previous value

@@ -9,6 +9,7 @@ error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE & ~E_DEPRECATED);
 ini_set('display_errors', '0');
 
 require_once __DIR__.'/utils.php';
+require_once __DIR__.'/meta.php';
 
 function ensure_dir(string $path): void {
     if (!is_dir($path)) {
@@ -218,85 +219,42 @@ for ($i = 0; $i < $count; $i++) {
         ];
     }
     
-    // For non-AI uploads, create JSON metadata file with title "#n" and frame "white"
-    if (!$isAIUpload) {
-        $baseName = extract_base_name(basename($target));
-        $jsonPath = $target . '.json';
-        
-        // Load existing metadata or create new
-        $metaData = [];
-        if (is_file($jsonPath)) {
-            $existingContent = file_get_contents($jsonPath);
-            $metaData = json_decode($existingContent, true) ?? [];
-        }
-        
-        // Only set default values if JSON doesn't exist
-        if (!isset($metaData['title']) || $metaData['title'] === '') {
-            $paintingNumber = $existingPaintingCount + $uploaded + 1;
-            $metaData['title'] = '#' . $paintingNumber;
-        }
-        
-        // Set default values if not present
-        if (!isset($metaData['description'])) $metaData['description'] = '';
-        if (!isset($metaData['width'])) $metaData['width'] = '';
-        if (!isset($metaData['height'])) $metaData['height'] = '';
-        if (!isset($metaData['tags'])) $metaData['tags'] = '';
-        if (!isset($metaData['date'])) $metaData['date'] = '';
-        if (!isset($metaData['sold'])) $metaData['sold'] = false;
-        if (!isset($metaData['frame_type'])) $metaData['frame_type'] = 'white';
-        if (!isset($metaData['original_filename'])) $metaData['original_filename'] = $baseName;
-        
-        // Save image dimensions
-        if ($imageDimensions) {
-            $metaData['image_dimensions'] = $imageDimensions;
-        }
-        
-        // Use thread-safe update function to preserve all existing data
-        update_json_file($jsonPath, $metaData, false);
-    } else {
-        // For AI uploads, set AI generation flag and save dimensions
-        $baseName = extract_base_name(basename($target));
-        $jsonPath = $target . '.json';
-        
-        // Create JSON file if it doesn't exist
-        $metaData = [];
-        if (is_file($jsonPath)) {
-            $existingContent = @file_get_contents($jsonPath);
-            if ($existingContent !== false) {
-                $decoded = json_decode($existingContent, true);
-                if (is_array($decoded)) {
-                    $metaData = $decoded;
-                }
-            }
-        }
-        
-        // Set default values if not present
-        if (!isset($metaData['title']) || $metaData['title'] === '') {
-            $paintingNumber = $existingPaintingCount + $uploaded + 1;
-            $metaData['title'] = '#' . $paintingNumber;
-        }
-        if (!isset($metaData['description'])) $metaData['description'] = '';
-        if (!isset($metaData['width'])) $metaData['width'] = '';
-        if (!isset($metaData['height'])) $metaData['height'] = '';
-        if (!isset($metaData['tags'])) $metaData['tags'] = '';
-        if (!isset($metaData['date'])) $metaData['date'] = '';
-        if (!isset($metaData['sold'])) $metaData['sold'] = false;
-        if (!isset($metaData['frame_type'])) $metaData['frame_type'] = 'white';
-        if (!isset($metaData['original_filename'])) $metaData['original_filename'] = $baseName;
-        
-        // Save image dimensions
-        if ($imageDimensions) {
-            $metaData['image_dimensions'] = $imageDimensions;
-        }
-        
-        // Set AI generation status to 'wanted' (both corners and form)
+    // Create or update JSON metadata file
+    $baseName = extract_base_name(basename($target));
+    $imageFilename = basename($target);
+    
+    // Load existing metadata
+    $metaData = load_meta($imageFilename, $dirImages);
+    
+    // Only set default values if JSON doesn't exist or title is empty
+    if (!isset($metaData['title']) || $metaData['title'] === '') {
+        $paintingNumber = $existingPaintingCount + $uploaded + 1;
+        $metaData['title'] = '#' . $paintingNumber;
+    }
+    
+    // Set default values if not present
+    if (!isset($metaData['description'])) $metaData['description'] = '';
+    if (!isset($metaData['width'])) $metaData['width'] = '';
+    if (!isset($metaData['height'])) $metaData['height'] = '';
+    if (!isset($metaData['tags'])) $metaData['tags'] = '';
+    if (!isset($metaData['date'])) $metaData['date'] = '';
+    if (!isset($metaData['sold'])) $metaData['sold'] = false;
+    if (!isset($metaData['frame_type'])) $metaData['frame_type'] = 'white';
+    if (!isset($metaData['original_filename'])) $metaData['original_filename'] = $baseName;
+    
+    // Save image dimensions
+    if ($imageDimensions) {
+        $metaData['image_dimensions'] = $imageDimensions;
+    }
+    
+    // For AI uploads, set AI generation status to 'wanted' (both corners and form)
+    if ($isAIUpload) {
         $metaData['ai_corners_status'] = 'wanted';
         $metaData['ai_form_status'] = 'wanted';
-        
-        // Save JSON file (create if doesn't exist)
-        $jsonContent = json_encode($metaData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        file_put_contents($jsonPath, $jsonContent, LOCK_EX);
     }
+    
+    // Save metadata using meta.php function
+    save_meta($imageFilename, $metaData, $dirImages, false);
 
     $uploaded++;
 }

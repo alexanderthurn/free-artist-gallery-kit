@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/meta.php';
 
 // Check if this file is being called directly (not required)
 // When required, $_SERVER['SCRIPT_NAME'] will be the calling script, not variants.php
@@ -658,17 +659,14 @@ function regenerateAllVariants(string $imageBaseName, ?string $width = null, ?st
   
   // Load metadata to get dimensions if not provided
   if ($width === null || $height === null) {
-    $metaPath = $imagesDir . '/' . $imageBaseName . '_original.jpg.json';
-    if (is_file($metaPath)) {
-      $metaContent = file_get_contents($metaPath);
-      $meta = json_decode($metaContent, true);
-      if (is_array($meta)) {
-        if ($width === null && isset($meta['width'])) {
-          $width = (string)$meta['width'];
-        }
-        if ($height === null && isset($meta['height'])) {
-          $height = (string)$meta['height'];
-        }
+    $originalImageFile = $imageBaseName . '_original.jpg';
+    $meta = load_meta($originalImageFile, $imagesDir);
+    if (is_array($meta)) {
+      if ($width === null && isset($meta['width'])) {
+        $width = (string)$meta['width'];
+      }
+      if ($height === null && isset($meta['height'])) {
+        $height = (string)$meta['height'];
       }
     }
   }

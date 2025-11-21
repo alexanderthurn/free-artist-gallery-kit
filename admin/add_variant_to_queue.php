@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/utils.php';
+require_once __DIR__ . '/meta.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -30,19 +31,8 @@ if (!$jsonFile || !is_file($imagesDir . '/' . $jsonFile)) {
     exit;
 }
 
-$jsonPath = $imagesDir . '/' . $jsonFile;
-
 // Load existing metadata
-$meta = [];
-if (is_file($jsonPath)) {
-    $content = @file_get_contents($jsonPath);
-    if ($content !== false) {
-        $decoded = json_decode($content, true);
-        if (is_array($decoded)) {
-            $meta = $decoded;
-        }
-    }
-}
+$meta = load_meta($jsonFile, $imagesDir);
 
 // Add variant to active_variants list (thread-safe)
 if (!isset($meta['active_variants']) || !is_array($meta['active_variants'])) {
@@ -56,6 +46,7 @@ $alreadyExists = in_array($variantName, $meta['active_variants'], true) || is_fi
 
 if (!$alreadyExists) {
     $meta['active_variants'][] = $variantName;
+    $jsonPath = get_meta_path($jsonFile, $imagesDir);
     update_json_file($jsonPath, ['active_variants' => $meta['active_variants']], false);
 }
 
