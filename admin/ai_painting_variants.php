@@ -95,16 +95,13 @@ function process_ai_painting_variants(string $imageBaseName, ?array $variantName
     }
     
     $aiPaintingVariants = $existingMeta['ai_painting_variants'] ?? [];
-    $status = $aiPaintingVariants['status'] ?? null;
     
     // Check if there's already a Replicate response for variants
     // If status is completed but image_generation_needed is set, regenerate
     $imageGenerationNeeded = $aiPaintingVariants['image_generation_needed'] ?? false;
     
-    // If status is not in_progress and not completed, start generation
-    if ($status !== 'in_progress' && $status !== 'completed') {
-        $aiPaintingVariants['status'] = 'in_progress';
-        $aiPaintingVariants['started_at'] = date('c');
+    // Initialize variants array if not exists
+    if (!isset($aiPaintingVariants['variants']) || !is_array($aiPaintingVariants['variants'])) {
         $aiPaintingVariants['variants'] = [];
         update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
     }
@@ -157,8 +154,7 @@ function process_ai_painting_variants(string $imageBaseName, ?array $variantName
         $dimensionsInfo = '';
         if ($width !== null && $height !== null && $width !== '' && $height !== '') {
             $dimensionsInfo = "\n\nPainting dimensions: {$width}cm (width) × {$height}cm (height).";
-            $dimensionsInfo .= "\nRoom height: 250cm (ceiling height).";
-            $dimensionsInfo .= "\nPlace the painting at an appropriate scale relative to the room dimensions. The painting should be positioned realistically on the wall, considering its actual size.";
+            $dimensionsInfo .= "\nPlace the painting at an appropriate scale relative to the room dimensions, considering its actual size.";
         }
         
         $promptFinal = <<<PROMPT
@@ -166,9 +162,7 @@ You are an image editor.
 
 Task:
 - Place the painting into the free space on the wall.
-- Ensure the painting is properly scaled and positioned realistically.
-- The painting should be centered or positioned appropriately on the wall.
-- Maintain natural lighting and shadows.
+- Make sure that the painting looks exactly like the original image.
 {$dimensionsInfo}
 PROMPT;
         
@@ -192,10 +186,6 @@ PROMPT;
         
         // Save immediately (non-blocking, like ai_image_by_corners.php)
         $aiPaintingVariants['variants'] = $variants;
-        $aiPaintingVariants['status'] = 'in_progress';
-        if (!isset($aiPaintingVariants['started_at'])) {
-            $aiPaintingVariants['started_at'] = date('c');
-        }
         update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
         
         // Now start the async generation (non-blocking)

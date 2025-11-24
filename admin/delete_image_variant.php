@@ -130,37 +130,7 @@ if ($variantName !== null && $base !== '') {
             $remainingVariants = $aiPaintingVariants['variants'] ?? [];
             $remainingActiveVariants = $aiPaintingVariants['active_variants'] ?? [];
             
-            if (empty($remainingVariants) && empty($remainingActiveVariants)) {
-                // No variants left - clear status or set to completed
-                unset($aiPaintingVariants['status']);
-                unset($aiPaintingVariants['started_at']);
-                unset($aiPaintingVariants['completed_at']);
-            } else {
-                // Check if all remaining variants are completed
-                $allCompleted = true;
-                $anyInProgress = false;
-                
-                foreach ($remainingVariants as $vName => $vData) {
-                    $vStatus = $vData['status'] ?? null;
-                    if ($vStatus === 'in_progress') {
-                        $anyInProgress = true;
-                        $allCompleted = false;
-                        break;
-                    } elseif ($vStatus !== 'completed') {
-                        $allCompleted = false;
-                    }
-                }
-                
-                if ($allCompleted && !$anyInProgress) {
-                    $aiPaintingVariants['status'] = 'completed';
-                    $aiPaintingVariants['completed_at'] = date('c');
-                } elseif ($anyInProgress) {
-                    $aiPaintingVariants['status'] = 'in_progress';
-                } else {
-                    // Some variants might be in other states (wanted, failed, etc.)
-                    $aiPaintingVariants['status'] = 'in_progress';
-                }
-            }
+            // No need to update top-level status - it's determined by iterating over variants
             
             // Update JSON thread-safely
             update_json_file($metaPath, ['ai_painting_variants' => $aiPaintingVariants], false);

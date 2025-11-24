@@ -95,39 +95,8 @@ function check_variant_regeneration_needed(string $baseName, string $jsonPath, s
         return true; // Stale, retry
     }
     
-    // Check file modification times
-    $finalImage = null;
-    $files = scandir($imagesDir) ?: [];
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') continue;
-        $fileStem = pathinfo($file, PATHINFO_FILENAME);
-        if (strpos($fileStem, $baseName.'_final') === 0) {
-            $finalImage = $imagesDir . '/' . $file;
-            break;
-        }
-    }
-    
-    if (!$finalImage || !is_file($finalImage)) {
-        return false; // No final image
-    }
-    
-    $finalMtime = filemtime($finalImage);
-    
-    // Check if any variant is older than final image
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') continue;
-        $fileStem = pathinfo($file, PATHINFO_FILENAME);
-        $pattern = '/^' . preg_quote($baseName, '/') . '_variant_(.+)$/';
-        if (preg_match($pattern, $fileStem)) {
-            $variantPath = $imagesDir . '/' . $file;
-            if (is_file($variantPath)) {
-                $variantMtime = filemtime($variantPath);
-                if ($variantMtime < $finalMtime) {
-                    return true; // Variant is older than final
-                }
-            }
-        }
-    }
+    // Variants are only regenerated when explicitly requested via regeneration_status flag
+    // File modification time checks removed to prevent automatic regeneration when _final.jpg is updated
     
     return false;
 }
@@ -161,39 +130,55 @@ function check_ai_generation_needed(array $meta): array {
 
 /**
  * Process variant regeneration
+ * Uses process_ai_painting_variants for async regeneration instead of synchronous regeneration
  */
 function process_variant_regeneration(string $baseName, string $jsonPath): array {
-    require_once __DIR__ . '/variants.php';
-    
-    // Load metadata to get dimensions
-    $imageFilename = basename($jsonPath, '.json');
     $imagesDir = dirname($jsonPath);
-    $meta = load_meta($imageFilename, $imagesDir);
+    $variantsDir = __DIR__ . '/variants';
     
     // Set status to in_progress
     update_task_status($jsonPath, 'variant_regeneration', 'in_progress');
     
     try {
-        $width = isset($meta['width']) ? (string)$meta['width'] : null;
-        $height = isset($meta['height']) ? (string)$meta['height'] : null;
-        
-        // Ensure token is loaded for variants
-        global $TOKEN, $variantsDir;
-        if (!isset($TOKEN) || $TOKEN === null) {
-            $TOKEN = load_replicate_token();
-        }
-        if (!isset($variantsDir)) {
-            $variantsDir = __DIR__ . '/variants';
-            if (!is_dir($variantsDir)) {
-                mkdir($variantsDir, 0755, true);
+        // Find all existing variant files for this image base
+        $existingVariants = [];
+        $files = scandir($imagesDir) ?: [];
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            $fileStem = pathinfo($file, PATHINFO_FILENAME);
+            // Check if this is a variant file: {base}_variant_{variantName}.jpg
+            $pattern = '/^' . preg_quote($baseName, '/') . '_variant_(.+)$/';
+            if (preg_match($pattern, $fileStem, $matches)) {
+                $variantName = $matches[1];
+                // Find the corresponding template in variants directory
+                $variantTemplatePath = $variantsDir . '/' . $variantName . '.jpg';
+                if (is_file($variantTemplatePath)) {
+                    $existingVariants[] = $variantName;
+                }
             }
         }
         
-        $result = regenerateAllVariants($baseName, $width, $height);
-        
-        if ($result['ok'] ?? false) {
+        if (empty($existingVariants)) {
             update_task_status($jsonPath, 'variant_regeneration', 'completed');
-            return ['ok' => true, 'result' => $result];
+            return ['ok' => true, 'result' => ['regenerated' => 0, 'message' => 'No existing variants found']];
+        }
+        
+        // Use process_ai_painting_variants to regenerate variants asynchronously
+        require_once __DIR__ . '/ai_painting_variants.php';
+        $result = process_ai_painting_variants($baseName, $existingVariants);
+        
+        if ($result['ok']) {
+            // Regeneration started - will be completed asynchronously
+            // Mark as completed since we've started the async process
+            update_task_status($jsonPath, 'variant_regeneration', 'completed');
+            return [
+                'ok' => true,
+                'result' => [
+                    'regenerated' => $result['started'] ?? 0,
+                    'total' => count($existingVariants),
+                    'message' => $result['message'] ?? 'Variants regeneration started'
+                ]
+            ];
         } else {
             update_task_status($jsonPath, 'variant_regeneration', 'needed'); // Retry
             return ['ok' => false, 'error' => $result['error'] ?? 'Unknown error'];
@@ -461,7 +446,6 @@ function poll_ai_painting_variants(string $baseName, string $jsonPath): array {
     $meta = load_meta($imageFilename, $imagesDir);
     
     $aiPaintingVariants = $meta['ai_painting_variants'] ?? [];
-    $status = $aiPaintingVariants['status'] ?? null;
     $variants = $aiPaintingVariants['variants'] ?? [];
     
     // Check if there are variants that need polling (in_progress with prediction_url)
@@ -576,8 +560,6 @@ function poll_ai_painting_variants(string $baseName, string $jsonPath): array {
         // Update painting metadata
         $aiPaintingVariants['variants'] = $variants;
         if ($allCompleted) {
-            $aiPaintingVariants['status'] = 'completed';
-            $aiPaintingVariants['completed_at'] = date('c');
             $aiPaintingVariants['image_generation_needed'] = false;
         }
         update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
@@ -658,13 +640,9 @@ function process_individual_variants(): array {
 
 /**
  * Process variant generation (create variants that are in active_variants but don't exist as files)
+ * Uses process_ai_painting_variants for async generation instead of synchronous generation
  */
 function process_variant_generation(string $baseName, string $jsonPath, string $imagesDir): array {
-    require_once __DIR__ . '/variants.php';
-    
-    $created = [];
-    $errors = [];
-    
     // Load metadata to get active variants
     $meta = [];
     if (is_file($jsonPath)) {
@@ -687,142 +665,65 @@ function process_variant_generation(string $baseName, string $jsonPath, string $
         return ['ok' => true, 'created' => [], 'errors' => []];
     }
     
-    // Get dimensions from metadata
-    $width = isset($meta['width']) ? (string)$meta['width'] : null;
-    $height = isset($meta['height']) ? (string)$meta['height'] : null;
-    
-    // Ensure token is loaded
-    global $TOKEN, $variantsDir;
-    if (!isset($TOKEN) || $TOKEN === null) {
-        try {
-            $TOKEN = load_replicate_token();
-        } catch (RuntimeException $e) {
-            return ['ok' => false, 'error' => 'Failed to load REPLICATE_API_TOKEN', 'created' => [], 'errors' => []];
-        }
-    }
-    if (!isset($variantsDir)) {
-        $variantsDir = __DIR__ . '/variants';
-        if (!is_dir($variantsDir)) {
-            mkdir($variantsDir, 0755, true);
-        }
-    }
-    
-    // Check each active variant - if file doesn't exist, create it
+    // Find missing variants (those in active_variants but don't exist as files)
+    $missingVariants = [];
     foreach ($activeVariants as $variantName) {
         $variantFile = $baseName . '_variant_' . $variantName . '.jpg';
         $variantPath = $imagesDir . '/' . $variantFile;
         
-        // Skip if file already exists
-        if (is_file($variantPath)) {
-            continue;
-        }
-        
-        // Check if variant template exists
-        $variantTemplatePath = $variantsDir . '/' . $variantName . '.jpg';
-        if (!is_file($variantTemplatePath)) {
-            $errors[] = "Variant template not found: {$variantName}.jpg";
-            continue;
-        }
-        
-        // Find the _final image - REQUIRED before generating variants
-        $finalImage = null;
-        $files = scandir($imagesDir) ?: [];
-        foreach ($files as $file) {
-            if ($file === '.' || $file === '..') continue;
-            $fileStem = pathinfo($file, PATHINFO_FILENAME);
-            if (strpos($fileStem, $baseName.'_final') === 0) {
-                $finalImage = $imagesDir . '/' . $file;
-                break;
+        // Check if file doesn't exist
+        if (!is_file($variantPath)) {
+            // Check if variant is already being tracked in variants object (async generation in progress)
+            $trackedVariants = $aiPaintingVariants['variants'] ?? [];
+            $variantTracked = isset($trackedVariants[$variantName]);
+            $variantStatus = $variantTracked ? ($trackedVariants[$variantName]['status'] ?? null) : null;
+            
+            // Only add to missing if not tracked or if tracked but not in progress (failed/wanted)
+            if (!$variantTracked || ($variantStatus !== 'in_progress' && $variantStatus !== 'completed')) {
+                $missingVariants[] = $variantName;
             }
-        }
-        
-        if (!$finalImage || !is_file($finalImage)) {
-            // Don't generate variants if final image doesn't exist yet
-            // This will be retried once the final image is created
-            $errors[] = "Final image not found for {$baseName} - waiting for AI corner generation to complete";
-            continue;
-        }
-        
-        try {
-            // Use the same logic as handleCopyToImage in variants.php
-            // Load both images as base64
-            $variantMime = mime_content_type($variantTemplatePath);
-            $finalMime = mime_content_type($finalImage);
-            
-            if (!in_array($variantMime, ['image/jpeg','image/png','image/webp']) || 
-                !in_array($finalMime, ['image/jpeg','image/png','image/webp'])) {
-                $errors[] = "Unsupported image type for {$variantName}";
-                continue;
-            }
-            
-            $variantB64 = base64_encode(file_get_contents($variantTemplatePath));
-            $finalB64 = base64_encode(file_get_contents($finalImage));
-            
-            // Use nano banana to place the painting into the variant
-            $VERSION = '2784c5d54c07d79b0a2a5385477038719ad37cb0745e61bbddf2fc236d196a6b';
-            
-            // Build prompt with dimensions if available
-            $dimensionsInfo = '';
-            if ($width !== '' && $height !== '') {
-                $dimensionsInfo = "\n\nPainting dimensions: {$width}cm (width) × {$height}cm (height).";
-                $dimensionsInfo .= "\nRoom height: 250cm (ceiling height).";
-                $dimensionsInfo .= "\nPlace the painting at an appropriate scale relative to the room dimensions. The painting should be positioned realistically on the wall, considering its actual size.";
-            }
-            
-            $prompt = <<<PROMPT
-You are an image editor.
-
-Task:
-- Place the painting into the free space on the wall.
-- Ensure the painting is properly scaled and positioned realistically.
-- The painting should be centered or positioned appropriately on the wall.
-- Maintain natural lighting and shadows.
-{$dimensionsInfo}
-PROMPT;
-            
-            $payload = [
-                'version' => $VERSION,
-                'input' => [
-                    'prompt' => $prompt,
-                    'image_input' => [
-                        "data:$variantMime;base64,$variantB64",
-                        "data:$finalMime;base64,$finalB64"
-                    ],
-                    'aspect_ratio' => '1:1',
-                    'output_format' => 'jpg'
-                ]
-            ];
-            
-            // Call Replicate API
-            $resp = replicate_call_version($TOKEN, $VERSION, $payload);
-            
-            // Extract image from result
-            $imgBytes = fetch_image_bytes($resp['output'] ?? null);
-            if ($imgBytes === null) {
-                if (is_array($resp['output']) && isset($resp['output']['images'][0])) {
-                    $imgBytes = fetch_image_bytes($resp['output']['images'][0]);
-                }
-            }
-            
-            if ($imgBytes === null) {
-                $errors[] = "Failed to generate {$variantName}: unexpected output format";
-                continue;
-            }
-            
-            // Save variant file
-            file_put_contents($variantPath, $imgBytes);
-            
-            // Generate thumbnail
-            $thumbPath = generate_thumbnail_path($variantPath);
-            generate_thumbnail($variantPath, $thumbPath, 512, 1024);
-            
-            $created[] = $variantName;
-        } catch (Throwable $e) {
-            $errors[] = "Failed to generate {$variantName}: " . $e->getMessage();
         }
     }
     
-    return ['ok' => true, 'created' => $created, 'errors' => $errors];
+    if (empty($missingVariants)) {
+        return ['ok' => true, 'created' => [], 'errors' => []];
+    }
+    
+    // Use process_ai_painting_variants to start async generation for missing variants
+    require_once __DIR__ . '/ai_painting_variants.php';
+    $result = process_ai_painting_variants($baseName, $missingVariants);
+    
+    if ($result['ok']) {
+        $created = [];
+        $errors = [];
+        
+        // Extract started variants and errors from result
+        if (isset($result['started']) && $result['started'] > 0) {
+            // Variants were started - they will be processed asynchronously
+            // We can't return the actual created files yet, but we can return the variant names that were started
+            $created = $missingVariants; // All missing variants were attempted
+        }
+        
+        if (!empty($result['errors'])) {
+            foreach ($result['errors'] as $error) {
+                $errors[] = ($error['variant'] ?? 'unknown') . ': ' . ($error['error'] ?? 'Unknown error');
+            }
+        }
+        
+        return [
+            'ok' => true,
+            'created' => $created,
+            'errors' => $errors,
+            'message' => $result['message'] ?? 'Variants generation started'
+        ];
+    } else {
+        return [
+            'ok' => false,
+            'error' => $result['error'] ?? 'Unknown error',
+            'created' => [],
+            'errors' => []
+        ];
+    }
 }
 
 /**
@@ -1186,7 +1087,6 @@ foreach ($jsonFiles as $item) {
     $meta = load_meta($imageFilename, $imagesDir);
     
     $aiPaintingVariants = $meta['ai_painting_variants'] ?? [];
-    $status = $aiPaintingVariants['status'] ?? null;
     $variants = $aiPaintingVariants['variants'] ?? [];
     
     // Check if there are any variants that need polling (in_progress with prediction_url)
@@ -1199,6 +1099,11 @@ foreach ($jsonFiles as $item) {
             break;
         }
     }
+    
+    // Get aggregate status by iterating over variants
+    require_once __DIR__ . '/utils.php';
+    $statusInfo = get_ai_painting_variants_status($aiPaintingVariants);
+    $status = $statusInfo['status'];
     
     // Skip if not in_progress/wanted/null AND no variants need polling
     if (($status !== 'in_progress' && $status !== 'wanted' && $status !== null) && !$hasInProgressVariants) {
@@ -1441,4 +1346,5 @@ error_log('[Background Tasks]   - AI Tasks: ' . $results['summary']['ai_tasks'][
 error_log('[Background Tasks]   - Images affected: ' . count($results['summary']['images_affected']) . ' (' . implode(', ', $results['summary']['images_affected']) . ')');
 
 echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
 

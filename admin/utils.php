@@ -618,69 +618,6 @@ function fetch_image_bytes($thing): ?string {
 }
 
 /**
- * Call Replicate API with version
- */
-function replicate_call_version(string $token, string $version, array $payload): array {
-    $payload['version'] = $version;
-    $ch = curl_init("https://api.replicate.com/v1/predictions");
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => ["Authorization: Token $token", "Content-Type: application/json", "Prefer: wait"],
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 300
-    ]);
-    $res = curl_exec($ch);
-    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false || $http >= 400) {
-        throw new RuntimeException('Replicate API error: ' . ($err ?: $res));
-    }
-    
-    $resp = json_decode($res, true);
-    if (!is_array($resp)) {
-        throw new RuntimeException('Invalid JSON response');
-    }
-    
-    return $resp;
-}
-
-/**
- * Call Replicate API with model name
- */
-function replicate_call_model(string $token, string $model, array $payload): array {
-    $ch = curl_init("https://api.replicate.com/v1/models/$model/predictions");
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => ["Authorization: Token $token", "Content-Type: application/json", "Prefer: wait"],
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 300
-    ]);
-    $res = curl_exec($ch);
-    $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false || $http >= 400) {
-        throw new RuntimeException('Replicate API error: ' . ($err ?: $res));
-    }
-    
-    $resp = json_decode($res, true);
-    if (!is_array($resp)) {
-        throw new RuntimeException('Invalid JSON response');
-    }
-    
-    return $resp;
-}
-
-/**
  * Resize image to maximum dimensions, maintaining aspect ratio
  * Overwrites original if resizing is needed
  * If force is true, always resizes even if within limits (recompresses with current quality settings)
@@ -855,6 +792,68 @@ function update_json_file(string $jsonPath, array $updates, bool $mergeNested = 
 }
 
 /**
+ * Get aggregate status from ai_painting_variants by iterating over individual variants
+ * 
+ * @param array $aiPaintingVariants The ai_painting_variants object from metadata
+ * @return array ['status' => string|null, 'started_at' => string|null, 'has_in_progress' => bool, 'has_completed' => bool, 'has_wanted' => bool]
+ */
+function get_ai_painting_variants_status(array $aiPaintingVariants): array {
+    $variants = $aiPaintingVariants['variants'] ?? [];
+    
+    if (empty($variants)) {
+        return ['status' => null, 'started_at' => null, 'has_in_progress' => false, 'has_completed' => false, 'has_wanted' => false];
+    }
+    
+    $hasInProgress = false;
+    $hasCompleted = false;
+    $hasWanted = false;
+    $earliestStartedAt = null;
+    
+    foreach ($variants as $variantInfo) {
+        $variantStatus = $variantInfo['status'] ?? null;
+        $variantStartedAt = $variantInfo['started_at'] ?? null;
+        
+        if ($variantStatus === 'in_progress') {
+            $hasInProgress = true;
+            if ($variantStartedAt && ($earliestStartedAt === null || $variantStartedAt < $earliestStartedAt)) {
+                $earliestStartedAt = $variantStartedAt;
+            }
+        } elseif ($variantStatus === 'completed') {
+            $hasCompleted = true;
+        } elseif ($variantStatus === 'wanted') {
+            $hasWanted = true;
+        }
+    }
+    
+    // Determine aggregate status
+    $status = null;
+    if ($hasInProgress) {
+        $status = 'in_progress';
+    } elseif ($hasWanted) {
+        $status = 'wanted';
+    } elseif ($hasCompleted) {
+        // Check if all variants are completed
+        $allCompleted = true;
+        foreach ($variants as $variantInfo) {
+            $variantStatus = $variantInfo['status'] ?? null;
+            if ($variantStatus !== 'completed') {
+                $allCompleted = false;
+                break;
+            }
+        }
+        $status = $allCompleted ? 'completed' : null;
+    }
+    
+    return [
+        'status' => $status,
+        'started_at' => $earliestStartedAt,
+        'has_in_progress' => $hasInProgress,
+        'has_completed' => $hasCompleted,
+        'has_wanted' => $hasWanted
+    ];
+}
+
+/**
  * Check if a task is currently in progress and not stale
  * 
  * @param array $meta JSON metadata array
@@ -931,18 +930,17 @@ function is_task_in_progress(array $meta, string $taskType, int $maxMinutes = 10
     
     if ($taskType === 'ai_painting_variants') {
         $aiPaintingVariants = $meta['ai_painting_variants'] ?? [];
-        $status = $aiPaintingVariants['status'] ?? null;
-        $startedAt = $aiPaintingVariants['started_at'] ?? null;
+        $statusInfo = get_ai_painting_variants_status($aiPaintingVariants);
         
-        if ($status !== 'in_progress') {
+        if ($statusInfo['status'] !== 'in_progress') {
             return false;
         }
         
-        if ($startedAt === null) {
+        if ($statusInfo['started_at'] === null) {
             return false; // No start time, consider stale
         }
         
-        $startTime = strtotime($startedAt);
+        $startTime = strtotime($statusInfo['started_at']);
         if ($startTime === false) {
             return false; // Invalid timestamp
         }
@@ -999,7 +997,6 @@ function get_pending_tasks_count(string $imagesDir): array {
         $aiPaintingVariants = $meta['ai_painting_variants'] ?? [];
         $cornersStatus = $aiCorners['status'] ?? null;
         $formStatus = $aiFillForm['status'] ?? null;
-        $paintingVariantsStatus = $aiPaintingVariants['status'] ?? null;
         
         // Count corners tasks: wanted OR in_progress (including those with prediction_url waiting for async completion)
         if ($cornersStatus === 'wanted') {
@@ -1025,19 +1022,30 @@ function get_pending_tasks_count(string $imagesDir): array {
             }
         }
         
-        // Count painting variants tasks: wanted OR in_progress (including those with variants having prediction_url)
-        if ($paintingVariantsStatus === 'wanted') {
-            $counts['ai']++;
-        } elseif ($paintingVariantsStatus === 'in_progress') {
-            // Check if any variant has a prediction_url (actively processing)
-            $variants = $aiPaintingVariants['variants'] ?? [];
-            $hasActiveVariants = false;
-            foreach ($variants as $variantInfo) {
-                if (isset($variantInfo['prediction_url']) && is_string($variantInfo['prediction_url'])) {
+        // Count painting variants tasks by iterating over individual variants
+        $variants = $aiPaintingVariants['variants'] ?? [];
+        $hasWanted = false;
+        $hasInProgress = false;
+        $hasActiveVariants = false;
+        
+        foreach ($variants as $variantInfo) {
+            $variantStatus = $variantInfo['status'] ?? null;
+            $predictionUrl = $variantInfo['prediction_url'] ?? null;
+            
+            if ($variantStatus === 'wanted') {
+                $hasWanted = true;
+            } elseif ($variantStatus === 'in_progress') {
+                $hasInProgress = true;
+                if (isset($predictionUrl) && is_string($predictionUrl)) {
                     $hasActiveVariants = true;
-                    break;
                 }
             }
+        }
+        
+        if ($hasWanted) {
+            $counts['ai']++;
+        } elseif ($hasInProgress) {
+            // Count if has active variants (prediction_url) OR if stale (needs retry)
             if ($hasActiveVariants || !is_task_in_progress($meta, 'ai_painting_variants')) {
                 $counts['ai']++;
             }
@@ -1165,31 +1173,9 @@ function update_task_status(string $jsonPath, string $taskType, string $status, 
         }
         $updates['ai_fill_form'] = $aiFillForm;
     } elseif ($taskType === 'ai_painting_variants') {
-        // Load existing ai_painting_variants object to preserve other fields
-        $existingMeta = [];
-        if (is_file($jsonPath)) {
-            $content = @file_get_contents($jsonPath);
-            if ($content !== false) {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    $existingMeta = $decoded;
-                }
-            }
-        }
-        $existingAiPaintingVariants = $existingMeta['ai_painting_variants'] ?? [];
-        
-        $aiPaintingVariants = $existingAiPaintingVariants;
-        $aiPaintingVariants['status'] = $status;
-        if ($status === 'in_progress') {
-            $aiPaintingVariants['started_at'] = $startedAt ?? date('c');
-        } elseif ($status === 'completed') {
-            $aiPaintingVariants['completed_at'] = date('c');
-            // Keep started_at for history
-        } elseif ($status === 'wanted') {
-            // Clear started_at when resetting to wanted
-            $aiPaintingVariants['started_at'] = null;
-        }
-        $updates['ai_painting_variants'] = $aiPaintingVariants;
+        // Top-level status is no longer used - status is determined by iterating over individual variants
+        // This function should not be called for ai_painting_variants anymore
+        return false;
     }
     
     if (empty($updates)) {
