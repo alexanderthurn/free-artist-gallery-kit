@@ -358,12 +358,18 @@ function process_ai_form(string $baseName, string $jsonPath): array {
     $imageFilename = basename($jsonPath, '.json');
     $meta = load_meta($imageFilename, $imagesDir);
     
-    // Check if prediction URL exists and status is in_progress
+    // Check if prediction URL exists (regardless of status - could be wanted or in_progress)
     $aiFillForm = $meta['ai_fill_form'] ?? [];
     $predictionUrl = $aiFillForm['prediction_url'] ?? null;
     $formStatus = $aiFillForm['status'] ?? null;
     
-    if ($predictionUrl && is_string($predictionUrl) && $formStatus === 'in_progress') {
+    // If prediction URL exists, poll it (even if status is 'wanted' - prediction might have been started elsewhere)
+    if ($predictionUrl && is_string($predictionUrl)) {
+        // Update status to in_progress if it's still wanted (prediction was started but status wasn't updated)
+        if ($formStatus === 'wanted') {
+            update_task_status($jsonPath, 'ai_form', 'in_progress');
+        }
+        
         // Poll the prediction once
         require_once __DIR__ . '/ai_fill_form.php';
         $pollResult = poll_form_prediction($jsonPath);
@@ -375,7 +381,7 @@ function process_ai_form(string $baseName, string $jsonPath): array {
         
         if (isset($pollResult['completed']) && $pollResult['completed']) {
             // Prediction completed - form data already saved by poll_form_prediction
-            return ['ok' => true, 'result' => $pollResult];
+            return ['ok' => true, 'result' => $pollResult, 'completed' => true];
         }
         
         // Polling failed or prediction failed

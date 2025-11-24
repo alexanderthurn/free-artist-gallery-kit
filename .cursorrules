@@ -1,3 +1,4 @@
  Replicate Integration Standards
 
 - Niemals Replicate synchron in HTTP-Request-Handlern aufrufen. Verwende immer das Job-Queue-Pattern aus admin/process_background_tasks.php
+- Javascript und CSS im admin/ Bereich immer in den common.css und common.js

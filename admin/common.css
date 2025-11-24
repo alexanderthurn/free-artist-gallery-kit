@@ -1,0 +1,45 @@
+/* Background Tasks Button Styles - KI Style */
+#bgTasksBtn {
+  font-size: 10px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  position: relative;
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#bgTasksBtn.has-tasks {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+#bgTasksBtn.has-tasks::before {
+  content: '⭐';
+  margin-right: 2px;
+  font-size: 10px;
+}
+
+#bgTasksBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#bgTasksBtn:hover:not(:disabled) {
+  background: #f0f0f0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#bgTasksBtn.has-tasks:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+}
+
