@@ -555,7 +555,7 @@ function process_ai_fill_form(string $imageFilename): array {
     try {
         $token = load_replicate_token();
         
-        // Get image info and encode to base64
+        // Validate image type
         [$imgW, $imgH] = getimagesize($finalPath);
         $mime = mime_content_type($finalPath);
         if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
@@ -563,22 +563,26 @@ function process_ai_fill_form(string $imageFilename): array {
             return ['ok' => false, 'error' => 'unsupported image type', 'mime' => $mime];
         }
         
-        // Read and encode image
-        $imageData = file_get_contents($finalPath);
-        if ($imageData === false) {
-            update_task_status($jsonPath, 'ai_form', 'wanted');
-            return ['ok' => false, 'error' => 'failed to read image file'];
+        // Upload image to Replicate file API (supports up to 100MB vs 7MB for base64)
+        try {
+            $imageUrl = replicate_upload_file($token, $finalPath);
+            error_log('AI Fill Form: Image uploaded to Replicate, URL: ' . $imageUrl);
+        } catch (Throwable $e) {
+            $errorMsg = $e->getMessage();
+            error_log('AI Fill Form: Failed to upload image to Replicate: ' . $errorMsg);
+            
+            // Save error details to JSON
+            $existingMeta = load_meta($originalImageForMeta, $imagesDir);
+            $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+            $aiFillForm['status'] = 'error';
+            $aiFillForm['error'] = 'upload_failed';
+            $aiFillForm['error_message'] = $errorMsg;
+            $aiFillForm['error_timestamp'] = date('c');
+            update_json_file($jsonPath, ['ai_fill_form' => $aiFillForm], false);
+            
+            update_task_status($jsonPath, 'ai_form', 'error');
+            return ['ok' => false, 'error' => 'upload_failed', 'detail' => $errorMsg];
         }
-        
-        $imgB64 = base64_encode($imageData);
-        
-        if (empty($imgB64)) {
-            update_task_status($jsonPath, 'ai_form', 'wanted');
-            return ['ok' => false, 'error' => 'failed to encode image'];
-        }
-        
-        // Log image size for debugging
-        error_log('AI Fill Form: Image size: ' . strlen($imageData) . ' bytes, Base64 length: ' . strlen($imgB64));
         
         $prompt = <<<PROMPT
 Du bist ein erfahrener Kunstkurator und Texter für eine hochwertige Online-Galerie. Deine Aufgabe ist es, eine atmosphärische und ästhetisch ansprechende Beschreibung des hochgeladenen Bildes zu verfassen.
@@ -607,9 +611,11 @@ Gib das Ergebnis ausschließlich als valides JSON-Objekt zurück:
 PROMPT;
         
         // Payload format for gemini-3-pro
+        // Use file URL instead of base64 data URI (more efficient, supports larger files)
+        // Images must be an array of URL strings: ["url"]
         $payload = [
             'input' => [
-                'images' => ["data:$mime;base64,$imgB64"],
+                'images' => [$imageUrl],
                 'max_output_tokens' => 65535,
                 'prompt' => $prompt,
                 'temperature' => 1,
@@ -637,19 +643,43 @@ PROMPT;
         curl_close($ch);
         
         if ($res === false || $httpCode >= 400) {
-            error_log('AI Fill Form: Replicate API error - HTTP ' . $httpCode . ': ' . ($err ?: substr($res, 0, 1000)));
+            $errorDetail = $err ?: substr($res, 0, 1000);
+            error_log('AI Fill Form: Replicate API error - HTTP ' . $httpCode . ': ' . $errorDetail);
+            
+            // Save error details to JSON
+            $existingMeta = load_meta($originalImageForMeta, $imagesDir);
+            $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+            $aiFillForm['status'] = 'error';
+            $aiFillForm['error'] = 'replicate_api_failed';
+            $aiFillForm['error_message'] = $errorDetail;
+            $aiFillForm['error_http_code'] = $httpCode;
+            $aiFillForm['error_timestamp'] = date('c');
+            update_json_file($jsonPath, ['ai_fill_form' => $aiFillForm], false);
+            
             update_task_status($jsonPath, 'ai_form', 'error');
             return [
                 'ok' => false,
                 'error' => 'replicate_failed',
-                'detail' => $err ?: $res,
+                'detail' => $errorDetail,
                 'http_code' => $httpCode
             ];
         }
         
         $resp = json_decode($res, true);
         if (!is_array($resp)) {
-            error_log('AI Fill Form: Invalid JSON response from Replicate: ' . substr($res, 0, 1000));
+            $errorSample = substr($res, 0, 1000);
+            error_log('AI Fill Form: Invalid JSON response from Replicate: ' . $errorSample);
+            
+            // Save error details to JSON
+            $existingMeta = load_meta($originalImageForMeta, $imagesDir);
+            $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+            $aiFillForm['status'] = 'error';
+            $aiFillForm['error'] = 'invalid_json_response';
+            $aiFillForm['error_message'] = 'Invalid JSON response from Replicate API';
+            $aiFillForm['error_response_sample'] = substr($res, 0, 500);
+            $aiFillForm['error_timestamp'] = date('c');
+            update_json_file($jsonPath, ['ai_fill_form' => $aiFillForm], false);
+            
             update_task_status($jsonPath, 'ai_form', 'error');
             return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
         }
@@ -662,7 +692,19 @@ PROMPT;
         ]));
         
         if (!isset($resp['urls']['get'])) {
-            error_log('AI Fill Form: Missing prediction URL in response: ' . json_encode($resp));
+            $errorResp = json_encode($resp);
+            error_log('AI Fill Form: Missing prediction URL in response: ' . $errorResp);
+            
+            // Save error details to JSON
+            $existingMeta = load_meta($originalImageForMeta, $imagesDir);
+            $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+            $aiFillForm['status'] = 'error';
+            $aiFillForm['error'] = 'missing_prediction_url';
+            $aiFillForm['error_message'] = 'Missing prediction URL in Replicate response';
+            $aiFillForm['error_response'] = $resp;
+            $aiFillForm['error_timestamp'] = date('c');
+            update_json_file($jsonPath, ['ai_fill_form' => $aiFillForm], false);
+            
             update_task_status($jsonPath, 'ai_form', 'error');
             return ['ok' => false, 'error' => 'invalid_prediction_response', 'response' => $resp];
         }
@@ -691,11 +733,27 @@ PROMPT;
         ];
         
     } catch (Throwable $e) {
-        // Set status to error
-        if (is_file($jsonPath)) {
-            update_task_status($jsonPath, 'ai_form', 'error');
+        // Set status to error and save error details
+        $errorMsg = $e->getMessage();
+        error_log('AI Fill Form: Unexpected error: ' . $errorMsg . ' | Trace: ' . $e->getTraceAsString());
+        
+        if (isset($jsonPath) && is_file($jsonPath) && isset($originalImageForMeta) && isset($imagesDir)) {
+            // Save error details to JSON
+            try {
+                $existingMeta = load_meta($originalImageForMeta, $imagesDir);
+                $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+                $aiFillForm['status'] = 'error';
+                $aiFillForm['error'] = 'unexpected_error';
+                $aiFillForm['error_message'] = $errorMsg;
+                $aiFillForm['error_timestamp'] = date('c');
+                update_json_file($jsonPath, ['ai_fill_form' => $aiFillForm], false);
+                
+                update_task_status($jsonPath, 'ai_form', 'error');
+            } catch (Throwable $saveError) {
+                error_log('AI Fill Form: Failed to save error details: ' . $saveError->getMessage());
+            }
         }
-        return ['ok' => false, 'error' => $e->getMessage()];
+        return ['ok' => false, 'error' => $errorMsg];
     }
 }
 

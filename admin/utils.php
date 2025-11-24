@@ -51,33 +51,71 @@ function http_json_post(string $url, array $headers, array $payload): array {
     return $data;
 }
 
+/**
+ * Upload a file to Replicate's file API and return the URL
+ * Supports files up to 100MB (vs 7MB limit for base64)
+ * 
+ * @param string $token Replicate API token
+ * @param string $filePath Full path to the file to upload
+ * @return string URL to the uploaded file (from urls.get field)
+ * @throws InvalidArgumentException if file doesn't exist
+ * @throws RuntimeException on upload or API errors
+ */
 function replicate_upload_file(string $token, string $filePath): string {
-    if (!file_exists($filePath)) throw new InvalidArgumentException('File not found: '.$filePath);
+    if (!file_exists($filePath)) {
+        throw new InvalidArgumentException('File not found: '.$filePath);
+    }
+    
     $ch = curl_init('https://api.replicate.com/v1/files');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $headers = [ 'Authorization: Bearer '.$token ];
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    $cfile = new CURLFile($filePath);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer '.$token
+        ],
+        CURLOPT_TIMEOUT => 300, // 5 minutes for large files
+    ]);
+    
+    // Create CURLFile with explicit MIME type as per Replicate API docs
+    $filename = basename($filePath);
+    $cfile = new CURLFile($filePath, 'application/octet-stream', $filename);
+    
     // Replicate expects multipart field named 'content'
-    $post = [ 'content' => $cfile ];
-    curl_setopt($ch, CURLOPT_POST, true);
+    $post = ['content' => $cfile];
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+    
     $res = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+    
     if ($res === false) {
-        $err = curl_error($ch);
-        curl_close($ch);
         throw new RuntimeException('Upload error: '.$err);
     }
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    
     $data = json_decode($res, true);
-    if ($code < 200 || $code >= 300) {
-        throw new RuntimeException('Upload HTTP '.$code.': '.($res ?: ''));
+    if ($httpCode < 200 || $httpCode >= 300) {
+        throw new RuntimeException('Upload HTTP '.$httpCode.': '.($res ?: ''));
     }
-    // Prefer 'url', fallback to nested fields
-    if (isset($data['url']) && is_string($data['url'])) return $data['url'];
-    if (isset($data['urls']['get']) && is_string($data['urls']['get'])) return $data['urls']['get'];
-    if (isset($data['id']) && is_string($data['id'])) return 'https://api.replicate.com/v1/files/'.$data['id'];
+    
+    if (!is_array($data)) {
+        throw new RuntimeException('Invalid JSON response from Replicate: '.substr($res, 0, 500));
+    }
+    
+    // Replicate API returns urls.get field with the file URL
+    if (isset($data['urls']['get']) && is_string($data['urls']['get'])) {
+        return $data['urls']['get'];
+    }
+    
+    // Fallback to other possible response formats
+    if (isset($data['url']) && is_string($data['url'])) {
+        return $data['url'];
+    }
+    
+    if (isset($data['id']) && is_string($data['id'])) {
+        return 'https://api.replicate.com/v1/files/'.$data['id'];
+    }
+    
     throw new RuntimeException('Unexpected upload response: '.json_encode($data));
 }
 
