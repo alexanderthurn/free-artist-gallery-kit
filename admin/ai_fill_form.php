@@ -563,9 +563,10 @@ function process_ai_fill_form(string $imageFilename): array {
             return ['ok' => false, 'error' => 'unsupported image type', 'mime' => $mime];
         }
         
-        // Upload image to Replicate file API (supports up to 100MB vs 7MB for base64)
+        // Upload image to Replicate file API
+        // Note: File upload supports 100MB, but gemini-3-pro has 7MB limit, so resize if needed
         try {
-            $imageUrl = replicate_upload_file($token, $finalPath);
+            $imageUrl = replicate_upload_file($token, $finalPath, 7 * 1024 * 1024); // 7MB limit
             error_log('AI Fill Form: Image uploaded to Replicate, URL: ' . $imageUrl);
         } catch (Throwable $e) {
             $errorMsg = $e->getMessage();
@@ -597,7 +598,7 @@ Regeln für die Beschreibung:
 - Steige direkt in die Szenerie oder die Stimmung ein.
 - Nutze Adjektive, die die Sinne ansprechen (z.B. "leuchtend", "düster", "texturiert", "sanft").
 - Interpretiere das Gesehene, statt es nur aufzulisten.
-
+- Fasse dich kurz und präzise. Am besten nur 2 Sätze.
 Gib das Ergebnis ausschließlich als valides JSON-Objekt zurück:
 
 {

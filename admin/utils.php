@@ -52,71 +52,213 @@ function http_json_post(string $url, array $headers, array $payload): array {
 }
 
 /**
+ * Resize image to be under specified size limit using Imagick
+ * Reduces dimensions and/or quality until file size is under limit
+ * 
+ * @param string $sourcePath Full path to source image
+ * @param int $maxSizeBytes Maximum file size in bytes (default: 7MB)
+ * @return string Path to resized image (may be temporary file or original if already small enough)
+ * @throws RuntimeException if Imagick is not available or resize fails
+ */
+function resize_image_under_size(string $sourcePath, int $maxSizeBytes = 7340032): string {
+    if (!file_exists($sourcePath)) {
+        throw new InvalidArgumentException('File not found: '.$sourcePath);
+    }
+    
+    $fileSize = filesize($sourcePath);
+    if ($fileSize <= $maxSizeBytes) {
+        // Already small enough, return original path
+        return $sourcePath;
+    }
+    
+    if (!extension_loaded('imagick')) {
+        throw new RuntimeException('Imagick extension is required for image resizing');
+    }
+    
+    try {
+        $imagick = new Imagick($sourcePath);
+        $originalWidth = $imagick->getImageWidth();
+        $originalHeight = $imagick->getImageHeight();
+        
+        // Create temporary file for resized image
+        $tempPath = sys_get_temp_dir().'/replicate_upload_'.uniqid().'.jpg';
+        
+        // Start with high quality and reduce if needed
+        $quality = 90;
+        $scale = 1.0;
+        $attempts = 0;
+        $maxAttempts = 20;
+        
+        while ($attempts < $maxAttempts) {
+            // Calculate new dimensions
+            $newWidth = (int)($originalWidth * $scale);
+            $newHeight = (int)($originalHeight * $scale);
+            
+            // Reset image to original
+            $imagick->clear();
+            $imagick->destroy();
+            $imagick = new Imagick($sourcePath);
+            
+            // Resize if needed
+            if ($scale < 1.0) {
+                $imagick->resizeImage($newWidth, $newHeight, Imagick::FILTER_LANCZOS, 1, true);
+            }
+            
+            // Set format and quality
+            $imagick->setImageFormat('jpeg');
+            $imagick->setImageCompressionQuality($quality);
+            $imagick->setImageCompression(Imagick::COMPRESSION_JPEG);
+            $imagick->stripImage(); // Remove EXIF to reduce size
+            
+            // Handle transparency: flatten to white background
+            if ($imagick->getImageAlphaChannel()) {
+                $white = new ImagickPixel('white');
+                $imagick->setImageBackgroundColor($white);
+                $imagick->setImageAlphaChannel(Imagick::ALPHACHANNEL_REMOVE);
+                $imagick = $imagick->mergeImageLayers(Imagick::LAYER_METHOD_FLATTEN);
+            }
+            
+            // Write to temp file
+            $imagick->writeImage($tempPath);
+            
+            $newSize = filesize($tempPath);
+            
+            if ($newSize <= $maxSizeBytes) {
+                // Success! File is under limit
+                $imagick->clear();
+                $imagick->destroy();
+                error_log("Image resized: {$fileSize} bytes -> {$newSize} bytes (scale: {$scale}, quality: {$quality})");
+                return $tempPath;
+            }
+            
+            // File still too large, reduce quality or scale
+            if ($quality > 60) {
+                // First reduce quality
+                $quality -= 5;
+            } elseif ($scale > 0.5) {
+                // Then reduce dimensions
+                $scale -= 0.1;
+                $quality = 85; // Reset quality when scaling
+            } else {
+                // Last resort: aggressive quality reduction
+                $quality = max(50, $quality - 10);
+            }
+            
+            $attempts++;
+        }
+        
+        $imagick->clear();
+        $imagick->destroy();
+        
+        // If we get here, we couldn't get it under the limit
+        // Return the best attempt anyway
+        if (file_exists($tempPath)) {
+            error_log("Warning: Could not resize image below {$maxSizeBytes} bytes, best attempt: ".filesize($tempPath)." bytes");
+            return $tempPath;
+        }
+        
+        throw new RuntimeException('Failed to resize image');
+        
+    } catch (Exception $e) {
+        throw new RuntimeException('Imagick resize error: '.$e->getMessage());
+    }
+}
+
+/**
  * Upload a file to Replicate's file API and return the URL
  * Supports files up to 100MB (vs 7MB limit for base64)
  * 
  * @param string $token Replicate API token
  * @param string $filePath Full path to the file to upload
+ * @param int|null $maxSizeBytes Optional: resize image to be under this size (in bytes) before upload. Default: null (no resize)
  * @return string URL to the uploaded file (from urls.get field)
  * @throws InvalidArgumentException if file doesn't exist
  * @throws RuntimeException on upload or API errors
  */
-function replicate_upload_file(string $token, string $filePath): string {
+function replicate_upload_file(string $token, string $filePath, ?int $maxSizeBytes = null): string {
     if (!file_exists($filePath)) {
         throw new InvalidArgumentException('File not found: '.$filePath);
     }
     
-    $ch = curl_init('https://api.replicate.com/v1/files');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer '.$token
-        ],
-        CURLOPT_TIMEOUT => 300, // 5 minutes for large files
-    ]);
+    $uploadPath = $filePath;
+    $isTempFile = false;
     
-    // Create CURLFile with explicit MIME type as per Replicate API docs
-    $filename = basename($filePath);
-    $cfile = new CURLFile($filePath, 'application/octet-stream', $filename);
-    
-    // Replicate expects multipart field named 'content'
-    $post = ['content' => $cfile];
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
-    
-    $res = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false) {
-        throw new RuntimeException('Upload error: '.$err);
+    // Resize image if maxSizeBytes is specified
+    if ($maxSizeBytes !== null) {
+        try {
+            $uploadPath = resize_image_under_size($filePath, $maxSizeBytes);
+            $isTempFile = ($uploadPath !== $filePath);
+        } catch (Throwable $e) {
+            error_log('Warning: Failed to resize image for upload: '.$e->getMessage());
+            // Continue with original file if resize fails
+        }
     }
     
-    $data = json_decode($res, true);
-    if ($httpCode < 200 || $httpCode >= 300) {
-        throw new RuntimeException('Upload HTTP '.$httpCode.': '.($res ?: ''));
+    try {
+        $ch = curl_init('https://api.replicate.com/v1/files');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer '.$token
+            ],
+            CURLOPT_TIMEOUT => 300, // 5 minutes for large files
+        ]);
+        
+        // Create CURLFile with explicit MIME type as per Replicate API docs
+        $filename = basename($filePath);
+        $cfile = new CURLFile($uploadPath, 'application/octet-stream', $filename);
+        
+        // Replicate expects multipart field named 'content'
+        $post = ['content' => $cfile];
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $post);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        
+        // Clean up temporary file if we created one
+        if ($isTempFile && file_exists($uploadPath)) {
+            @unlink($uploadPath);
+        }
+        
+        if ($res === false) {
+            throw new RuntimeException('Upload error: '.$err);
+        }
+        
+        $data = json_decode($res, true);
+        if ($httpCode < 200 || $httpCode >= 300) {
+            throw new RuntimeException('Upload HTTP '.$httpCode.': '.($res ?: ''));
+        }
+        
+        if (!is_array($data)) {
+            throw new RuntimeException('Invalid JSON response from Replicate: '.substr($res, 0, 500));
+        }
+        
+        // Replicate API returns urls.get field with the file URL
+        if (isset($data['urls']['get']) && is_string($data['urls']['get'])) {
+            return $data['urls']['get'];
+        }
+        
+        // Fallback to other possible response formats
+        if (isset($data['url']) && is_string($data['url'])) {
+            return $data['url'];
+        }
+        
+        if (isset($data['id']) && is_string($data['id'])) {
+            return 'https://api.replicate.com/v1/files/'.$data['id'];
+        }
+        
+        throw new RuntimeException('Unexpected upload response: '.json_encode($data));
+        
+    } catch (Throwable $e) {
+        // Clean up temporary file on error
+        if ($isTempFile && file_exists($uploadPath)) {
+            @unlink($uploadPath);
+        }
+        throw $e;
     }
-    
-    if (!is_array($data)) {
-        throw new RuntimeException('Invalid JSON response from Replicate: '.substr($res, 0, 500));
-    }
-    
-    // Replicate API returns urls.get field with the file URL
-    if (isset($data['urls']['get']) && is_string($data['urls']['get'])) {
-        return $data['urls']['get'];
-    }
-    
-    // Fallback to other possible response formats
-    if (isset($data['url']) && is_string($data['url'])) {
-        return $data['url'];
-    }
-    
-    if (isset($data['id']) && is_string($data['id'])) {
-        return 'https://api.replicate.com/v1/files/'.$data['id'];
-    }
-    
-    throw new RuntimeException('Unexpected upload response: '.json_encode($data));
 }
 
 function replicate_expand_square(string $token, string $imageUrl): string {
