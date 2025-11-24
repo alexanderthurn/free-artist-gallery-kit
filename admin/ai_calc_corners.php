@@ -72,9 +72,9 @@ function poll_corner_prediction(string $jsonPath, float $offsetPercent = 1.0): a
         // Process the completed prediction
         return process_completed_corner_prediction($jsonPath, $resp, $offsetPercent);
     } elseif ($status === 'failed' || $status === 'canceled') {
-        // Prediction failed - set status to wanted for retry
+        // Prediction failed - set status to error
         require_once __DIR__ . '/meta.php';
-        update_task_status($jsonPath, 'ai_corners', 'wanted');
+        update_task_status($jsonPath, 'ai_corners', 'error');
         return [
             'ok' => false,
             'error' => 'prediction_failed',
@@ -510,7 +510,7 @@ PROMPT;
 
         if ($res === false || $httpCode >= 400) {
             require_once __DIR__ . '/meta.php';
-            update_task_status($jsonPath, 'ai_corners', 'wanted');
+            update_task_status($jsonPath, 'ai_corners', 'error');
             return [
                 'ok' => false,
                 'error' => 'replicate_failed',
@@ -522,7 +522,7 @@ PROMPT;
         $resp = json_decode($res, true);
         if (!is_array($resp) || !isset($resp['urls']['get'])) {
             require_once __DIR__ . '/meta.php';
-            update_task_status($jsonPath, 'ai_corners', 'wanted');
+            update_task_status($jsonPath, 'ai_corners', 'error');
             return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
         }
         
@@ -554,7 +554,7 @@ PROMPT;
         ];
     } catch (Throwable $e) {
         require_once __DIR__ . '/meta.php';
-        update_task_status($jsonPath, 'ai_corners', 'wanted');
+        update_task_status($jsonPath, 'ai_corners', 'error');
         return ['ok' => false, 'error' => 'replicate_api_error', 'detail' => $e->getMessage()];
     }
 }

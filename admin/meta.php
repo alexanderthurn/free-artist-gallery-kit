@@ -191,27 +191,29 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
         }
         if (isset($_POST['ai_corners_status'])) {
             $status = trim((string)$_POST['ai_corners_status']);
-            // Update nested ai_corners.status
-            $existingMeta = load_meta($image, $imagesDir);
-            $aiCorners = $existingMeta['ai_corners'] ?? [];
-            $aiCorners['status'] = $status === '' ? null : $status;
             if ($status === '') {
-                $aiCorners['started_at'] = null;
-                $aiCorners['completed_at'] = null;
+                // Reset entire ai_corners object when status is cleared (set to "-")
+                $updates['ai_corners'] = [];
+            } else {
+                // Update nested ai_corners.status
+                $existingMeta = load_meta($image, $imagesDir);
+                $aiCorners = $existingMeta['ai_corners'] ?? [];
+                $aiCorners['status'] = $status;
+                $updates['ai_corners'] = $aiCorners;
             }
-            $updates['ai_corners'] = $aiCorners;
         }
         if (isset($_POST['ai_form_status'])) {
             $status = trim((string)$_POST['ai_form_status']);
-            // Update nested ai_fill_form.status
-            $existingMeta = load_meta($image, $imagesDir);
-            $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
-            $aiFillForm['status'] = $status === '' ? null : $status;
             if ($status === '') {
-                $aiFillForm['started_at'] = null;
-                $aiFillForm['completed_at'] = null;
+                // Reset entire ai_fill_form object when status is cleared (set to "-")
+                $updates['ai_fill_form'] = [];
+            } else {
+                // Update nested ai_fill_form.status
+                $existingMeta = load_meta($image, $imagesDir);
+                $aiFillForm = $existingMeta['ai_fill_form'] ?? [];
+                $aiFillForm['status'] = $status;
+                $updates['ai_fill_form'] = $aiFillForm;
             }
-            $updates['ai_fill_form'] = $aiFillForm;
         }
         if (isset($_POST['ai_painting_variant_status']) && isset($_POST['ai_painting_variant_key'])) {
             $status = trim((string)$_POST['ai_painting_variant_status']);
@@ -222,13 +224,16 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
             if (!isset($aiPaintingVariants['variants']) || !is_array($aiPaintingVariants['variants'])) {
                 $aiPaintingVariants['variants'] = [];
             }
-            if (!isset($aiPaintingVariants['variants'][$variantKey]) || !is_array($aiPaintingVariants['variants'][$variantKey])) {
-                $aiPaintingVariants['variants'][$variantKey] = [];
-            }
-            $aiPaintingVariants['variants'][$variantKey]['status'] = $status === '' ? null : $status;
             if ($status === '') {
-                $aiPaintingVariants['variants'][$variantKey]['started_at'] = null;
-                $aiPaintingVariants['variants'][$variantKey]['completed_at'] = null;
+                // Remove entire variant object when status is cleared (set to "-")
+                if (isset($aiPaintingVariants['variants'][$variantKey])) {
+                    unset($aiPaintingVariants['variants'][$variantKey]);
+                }
+            } else {
+                if (!isset($aiPaintingVariants['variants'][$variantKey]) || !is_array($aiPaintingVariants['variants'][$variantKey])) {
+                    $aiPaintingVariants['variants'][$variantKey] = [];
+                }
+                $aiPaintingVariants['variants'][$variantKey]['status'] = $status;
             }
             $updates['ai_painting_variants'] = $aiPaintingVariants;
         }

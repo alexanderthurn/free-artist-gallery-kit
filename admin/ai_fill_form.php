@@ -70,8 +70,8 @@ function poll_form_prediction(string $jsonPath): array {
         // Process the completed prediction
         return process_completed_form_prediction($jsonPath, $resp);
     } elseif ($status === 'failed' || $status === 'canceled') {
-        // Prediction failed - set status to wanted for retry
-        update_task_status($jsonPath, 'ai_form', 'wanted');
+        // Prediction failed - set status to error
+        update_task_status($jsonPath, 'ai_form', 'error');
         return [
             'ok' => false,
             'error' => 'prediction_failed',
@@ -638,7 +638,7 @@ PROMPT;
         
         if ($res === false || $httpCode >= 400) {
             error_log('AI Fill Form: Replicate API error - HTTP ' . $httpCode . ': ' . ($err ?: substr($res, 0, 1000)));
-            update_task_status($jsonPath, 'ai_form', 'wanted');
+            update_task_status($jsonPath, 'ai_form', 'error');
             return [
                 'ok' => false,
                 'error' => 'replicate_failed',
@@ -650,7 +650,7 @@ PROMPT;
         $resp = json_decode($res, true);
         if (!is_array($resp)) {
             error_log('AI Fill Form: Invalid JSON response from Replicate: ' . substr($res, 0, 1000));
-            update_task_status($jsonPath, 'ai_form', 'wanted');
+            update_task_status($jsonPath, 'ai_form', 'error');
             return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
         }
         
@@ -663,7 +663,7 @@ PROMPT;
         
         if (!isset($resp['urls']['get'])) {
             error_log('AI Fill Form: Missing prediction URL in response: ' . json_encode($resp));
-            update_task_status($jsonPath, 'ai_form', 'wanted');
+            update_task_status($jsonPath, 'ai_form', 'error');
             return ['ok' => false, 'error' => 'invalid_prediction_response', 'response' => $resp];
         }
         
@@ -691,9 +691,9 @@ PROMPT;
         ];
         
     } catch (Throwable $e) {
-        // Reset status to wanted for retry
+        // Set status to error
         if (is_file($jsonPath)) {
-            update_task_status($jsonPath, 'ai_form', 'wanted');
+            update_task_status($jsonPath, 'ai_form', 'error');
         }
         return ['ok' => false, 'error' => $e->getMessage()];
     }

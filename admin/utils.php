@@ -1144,6 +1144,9 @@ function update_task_status(string $jsonPath, string $taskType, string $status, 
         } elseif ($status === 'wanted') {
             // Clear started_at when resetting to wanted
             $aiCorners['started_at'] = null;
+        } elseif ($status === 'error') {
+            // Keep started_at for error status (to see when it started)
+            // Don't set completed_at
         }
         $updates['ai_corners'] = $aiCorners;
     } elseif ($taskType === 'ai_form') {
@@ -1170,6 +1173,9 @@ function update_task_status(string $jsonPath, string $taskType, string $status, 
         } elseif ($status === 'wanted') {
             // Clear started_at when resetting to wanted
             $aiFillForm['started_at'] = null;
+        } elseif ($status === 'error') {
+            // Keep started_at for error status (to see when it started)
+            // Don't set completed_at
         }
         $updates['ai_fill_form'] = $aiFillForm;
     } elseif ($taskType === 'ai_painting_variants') {

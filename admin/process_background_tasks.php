@@ -587,8 +587,8 @@ function poll_ai_painting_variants(string $baseName, string $jsonPath): array {
                         $allCompleted = false;
                     }
                 } elseif ($predictionStatus === 'failed' || $predictionStatus === 'canceled') {
-                    // Prediction failed - set status to wanted for retry
-                    $variants[$variantName]['status'] = 'wanted';
+                    // Prediction failed - set status to error
+                    $variants[$variantName]['status'] = 'error';
                     $allCompleted = false;
                 } else {
                     // Still processing

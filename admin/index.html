@@ -634,6 +634,7 @@
                       <option value="wanted" ${cornersStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                       <option value="in_progress" ${cornersStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
                       <option value="completed" ${cornersStatus === 'completed' ? 'selected' : ''}>completed</option>
+                      <option value="error" ${cornersStatus === 'error' ? 'selected' : ''}>error</option>
                     </select>
                     ${aiCorners.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(aiCorners.started_at).toLocaleString('de-DE')}</small>` : ''}
                     ${aiCorners.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(aiCorners.completed_at).toLocaleString('de-DE')}</small>` : ''}
@@ -646,6 +647,7 @@
                       <option value="wanted" ${formStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                       <option value="in_progress" ${formStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
                       <option value="completed" ${formStatus === 'completed' ? 'selected' : ''}>completed</option>
+                      <option value="error" ${formStatus === 'error' ? 'selected' : ''}>error</option>
                     </select>
                     ${aiFillForm.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(aiFillForm.started_at).toLocaleString('de-DE')}</small>` : ''}
                     ${aiFillForm.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
@@ -669,7 +671,7 @@
                               <option value="wanted" ${variantStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                               <option value="in_progress" ${variantStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
                               <option value="completed" ${variantStatus === 'completed' ? 'selected' : ''}>completed</option>
-                              <option value="failed" ${variantStatus === 'failed' ? 'selected' : ''}>failed</option>
+                              <option value="error" ${variantStatus === 'error' ? 'selected' : ''}>error</option>
                             </select>
                           </div>
                           ${predictionStatus ? `<small style="color: #999; font-size: 9px; display: block; margin-bottom: 4px;">Prediction Status: ${escapeHtml(predictionStatus)}</small>` : ''}
