@@ -561,10 +561,6 @@
               <span class="short-text">${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI ausstehend' : 'KI'}</span>
               <span class="full-text">${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'Formular ausfüllen ausstehend' : 'Formular ausfüllen lassen'}</span>
             </button>
-            <button type="button" class="primary" onclick='saveMeta("${escapeHtml(originalVariant.name)}", this)' 
-                    style="padding: 10px 16px; font-size: 13px; font-weight: 600;">
-              Speichern
-            </button>
           </div>
           <div class="field">
             <label>Titel</label>
@@ -612,7 +608,14 @@
               <option value="natural" ${frameType === 'natural' ? 'selected' : ''}>Natur (Beige)</option>
               <option value="none" ${frameType === 'none' ? 'selected' : ''}>Kein Rahmen</option>
             </select>
+            
           </div>
+          <div>
+                        <button type="button" class="primary" onclick='saveMeta("${escapeHtml(originalVariant.name)}", this)' 
+                    style="padding: 10px 16px; font-size: 13px; font-weight: 600;">
+              Speichern
+            </button>
+            </div>
           <div class="field" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
             <button type="button" id="toggle-details-${g.base}" onclick="const content = document.getElementById('details-content-${g.base}'); const btn = this; content.style.display = content.style.display === 'none' ? 'block' : 'none'; btn.textContent = content.style.display === 'none' ? '▶ Weitere Informationen' : '▼ Weitere Informationen';" 
                     style="background: none; border: none; padding: 0; margin: 0 0 8px 0; font-size: 11px; color: #666; cursor: pointer; text-align: left; font-weight: 600;">
