@@ -43,9 +43,43 @@ if (isset($_POST['async']) && $_POST['async'] === '1') {
 
 $imagesDir = __DIR__ . '/images';
 
-// Preview mode - just return counts
+// Preview mode - return counts AND trigger async processing if needed
 if (isset($_GET['preview']) && $_GET['preview'] === '1') {
     $counts = get_pending_tasks_count($imagesDir);
+    $hasPendingTasks = ($counts['variants'] > 0 || $counts['ai'] > 0);
+    
+    // Trigger async processing if there are pending tasks
+    // Use a simple lock file to prevent multiple simultaneous triggers
+    if ($hasPendingTasks) {
+        $lockFile = sys_get_temp_dir() . '/herzfabrik_bg_tasks.lock';
+        $lockTimeout = 30; // Lock expires after 30 seconds
+        
+        // Check if lock exists and is still valid
+        $shouldTrigger = true;
+        if (is_file($lockFile)) {
+            $lockTime = filemtime($lockFile);
+            if (time() - $lockTime < $lockTimeout) {
+                $shouldTrigger = false; // Lock still valid, don't trigger again
+            } else {
+                // Lock expired, remove it
+                @unlink($lockFile);
+            }
+        }
+        
+        if ($shouldTrigger) {
+            // Create lock file
+            @touch($lockFile);
+            
+            // Trigger async processing (fire-and-forget)
+            $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $url = $scheme . '://' . $host . '/admin/process_background_tasks.php';
+            
+            // Start async processing (fire-and-forget)
+            async_http_post($url, ['async' => '0']); // async=0 means actual processing
+        }
+    }
+    
     echo json_encode([
         'ok' => true,
         'preview' => true,
