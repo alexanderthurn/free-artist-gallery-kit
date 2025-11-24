@@ -155,8 +155,15 @@ function check_ai_generation_needed(array $meta): array {
     // Check form status
     if ($formStatus === 'wanted') {
         $needs['form'] = true;
-    } elseif ($formStatus === 'in_progress' && !is_task_in_progress($meta, 'ai_form')) {
-        $needs['form'] = true; // Stale, retry
+    } elseif ($formStatus === 'in_progress') {
+        // Check if there's a prediction URL - if so, we need to poll it
+        $hasPredictionUrl = isset($aiFillForm['prediction_url']) && 
+                          is_string($aiFillForm['prediction_url']);
+        if ($hasPredictionUrl) {
+            $needs['form'] = true; // Has prediction URL, needs polling
+        } elseif (!is_task_in_progress($meta, 'ai_form')) {
+            $needs['form'] = true; // Stale, retry
+        }
     }
     
     return $needs;

@@ -119,61 +119,6 @@
       padding: 40px;
       color: #666;
     }
-    .ai-corners-button { 
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-      color: #fff; 
-      border: none; 
-      padding: 10px 16px; 
-      border-radius: 6px; 
-      cursor: pointer; 
-      font-size: 13px; 
-      font-weight: 600; 
-      display: inline-flex; 
-      align-items: center; 
-      justify-content: center;
-      gap: 8px; 
-      transition: all 0.3s ease; 
-      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3); 
-      white-space: nowrap; 
-      min-width: 180px; /* Fixed width to prevent size changes */
-      box-sizing: border-box;
-    }
-    .ai-corners-button:hover { 
-      transform: translateY(-1px); 
-      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4); 
-    }
-    .ai-corners-button:active { 
-      transform: translateY(0); 
-    }
-    .ai-corners-button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .ai-corners-button .star-icon { 
-      font-size: 16px; 
-      flex-shrink: 0; 
-    }
-    .offset-control {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      margin-left: 12px;
-    }
-    .offset-control.visible {
-      display: flex;
-    }
-    .offset-control label {
-      font-size: 13px;
-      color: #333;
-      white-space: nowrap;
-    }
-    .offset-control input {
-      width: 60px;
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 13px;
-    }
     #zoomCanvas {
       z-index: 10;
     }
@@ -202,14 +147,6 @@
       
       <div class="controls">
         <button id="resetBtn">Punkte zurücksetzen</button>
-        <button id="aiCornersBtn" class="ai-corners-button">
-          <span class="star-icon">✨</span>
-          <span>KI-Ecken erkennen</span>
-        </button>
-        <div id="offsetControl" class="offset-control">
-          <label for="offsetInput">Offset (%):</label>
-          <input type="number" id="offsetInput" value="1.0" min="0" max="10" step="0.1">
-        </div>
         <button id="saveBtn" class="primary">Speichern</button>
         <button onclick="window.location.href='index.html'">Zurück zur Übersicht</button>
       </div>
@@ -283,14 +220,6 @@
           const meta = await response.json();
           if (meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4) {
             savedCorners = meta.manual_corners;
-          }
-          // Load saved offset if available
-          const aiCorners = meta.ai_corners || {};
-          if (aiCorners.offset_percent !== undefined) {
-            const offsetInput = document.getElementById('offsetInput');
-            if (offsetInput) {
-              offsetInput.value = aiCorners.offset_percent;
-            }
           }
         }
       } catch (error) {
@@ -845,94 +774,6 @@
       drawZoom(mouseX, mouseY);
     });
 
-    // Apply detected corners to canvas
-    function applyCornersToCanvas(detectedCorners) {
-      if (!detectedCorners || !Array.isArray(detectedCorners) || detectedCorners.length !== 4) {
-        alert('Ungültige Eckpunkte erhalten');
-        return;
-      }
-      
-      // Scale corners from original image coordinates to canvas coordinates
-      const scaleX = sourceCanvas.width / sourceImage.width;
-      const scaleY = sourceCanvas.height / sourceImage.height;
-      
-      corners[0] = { x: detectedCorners[0][0] * scaleX, y: detectedCorners[0][1] * scaleY };
-      corners[1] = { x: detectedCorners[1][0] * scaleX, y: detectedCorners[1][1] * scaleY };
-      corners[2] = { x: detectedCorners[2][0] * scaleX, y: detectedCorners[2][1] * scaleY };
-      corners[3] = { x: detectedCorners[3][0] * scaleX, y: detectedCorners[3][1] * scaleY };
-      
-      currentCornerIndex = 0;
-      drawCorners();
-      updatePreview();
-    }
-
-    // Track if computation was done once
-    let computationDone = false;
-    
-    // AI Corner Detection using Replicate API (Google Gemini 3 Pro)
-    async function detectCornersWithAI() {
-      const btn = document.getElementById('aiCornersBtn');
-      const prevHTML = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="star-icon">✨</span><span>KI erkennt...</span>';
-      
-      try {
-        const formData = new FormData();
-        formData.append('image_path', `admin/images/${paintingBase}_original.jpg`);
-        
-        // Get offset value from input (as percentage)
-        const offsetInput = document.getElementById('offsetInput');
-        const offset = offsetInput ? parseFloat(offsetInput.value) || 1.0 : 1.0;
-        formData.append('offset', offset);
-        
-        const response = await fetch('ai_calc_corners.php', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
-        
-        const data = await response.json();
-        if (!data.ok) {
-          throw new Error(data.error || 'Unbekannter Fehler');
-        }
-        
-        if (data.original_corners && Array.isArray(data.original_corners) && data.original_corners.length === 4) {
-          applyCornersToCanvas(data.original_corners);
-          computationDone = true;
-          // Show offset control after first successful computation
-          const offsetControl = document.getElementById('offsetControl');
-          if (offsetControl) {
-            offsetControl.classList.add('visible');
-          }
-        } else {
-          alert('Keine Ecken in der Antwort gefunden. Die KI-Verarbeitung war erfolgreich, aber keine Ecken wurden erkannt.');
-        }
-      } catch (error) {
-        alert('Fehler bei KI-Erkennung: ' + error.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = prevHTML;
-      }
-    }
-    
-    // Handle offset input change - recalculate corners with new offset
-    // Use 'input' event to trigger on every change, not just on blur
-    let offsetTimeout = null;
-    document.getElementById('offsetInput')?.addEventListener('input', function() {
-      if (computationDone) {
-        // Debounce: wait 500ms after user stops typing before recalculating
-        clearTimeout(offsetTimeout);
-        offsetTimeout = setTimeout(() => {
-          detectCornersWithAI();
-        }, 500);
-      }
-    });
-
-   
-
     document.getElementById('resetBtn').addEventListener('click', () => {
       corners[0] = { x: 0, y: 0 };
       corners[1] = { x: sourceCanvas.width, y: 0 };
@@ -943,8 +784,6 @@
       updatePreview();
     });
 
-    document.getElementById('aiCornersBtn').addEventListener('click', detectCornersWithAI);
-   
     document.getElementById('saveBtn').addEventListener('click', async () => {
       const btn = document.getElementById('saveBtn');
       btn.disabled = true;
