@@ -1059,7 +1059,7 @@
       }
     }
 
-    async function updateImageRow(imageBaseName) {
+    async function updateImageRow(imageBaseName, options = {}) {
       // Fetch updated image data
       const { groups } = await fetchImages();
       const updatedGroup = groups.find(g => g.base === imageBaseName);
@@ -1078,11 +1078,61 @@
         return;
       }
 
+      // Check if form is locked (AI form fill in progress)
+      // If locked, we can safely update form fields since user can't edit them anyway
+      const formContainer = existingRow.querySelector('.form-container');
+      const formFields = formContainer ? formContainer.querySelectorAll('input[data-ai-field="true"], textarea[data-ai-field="true"]') : [];
+      const isFormLocked = formFields.length > 0 && Array.from(formFields).some(field => field.disabled);
+      
+      // Check if we should update form fields
+      // Update form if: explicitly requested, form is locked, or forceFormUpdate option is set
+      const shouldUpdateForm = options.forceFormUpdate !== false && (isFormLocked || options.forceFormUpdate === true);
+      
+      // If form is not locked and we shouldn't update it, preserve form values
+      let preservedFormValues = null;
+      if (!shouldUpdateForm && formFields.length > 0) {
+        preservedFormValues = {};
+        formFields.forEach(field => {
+          if (field.type === 'checkbox') {
+            preservedFormValues[field.name] = field.checked;
+          } else {
+            preservedFormValues[field.name] = field.value;
+          }
+        });
+        // Also preserve frame type
+        const frameSelect = formContainer.querySelector('select[name="frame_type"]');
+        if (frameSelect) {
+          preservedFormValues.frame_type = frameSelect.value;
+        }
+        // Also preserve sold checkbox
+        const soldCheckbox = formContainer.querySelector('input[name="sold"]');
+        if (soldCheckbox) {
+          preservedFormValues.sold = soldCheckbox.checked;
+        }
+      }
+
       // Fetch variants first to ensure they're available
       availableVariants = await fetchVariants();
 
       // Render the new row
       const newRow = renderImageRow(updatedGroup);
+      
+      // Restore preserved form values if needed
+      if (preservedFormValues && !shouldUpdateForm) {
+        const newFormContainer = newRow.querySelector('.form-container');
+        if (newFormContainer) {
+          Object.keys(preservedFormValues).forEach(name => {
+            const field = newFormContainer.querySelector(`[name="${name}"]`);
+            if (field) {
+              if (field.type === 'checkbox') {
+                field.checked = preservedFormValues[name];
+              } else {
+                field.value = preservedFormValues[name];
+              }
+            }
+          });
+        }
+      }
       
       // Replace the old row with the new one
       existingRow.replaceWith(newRow);

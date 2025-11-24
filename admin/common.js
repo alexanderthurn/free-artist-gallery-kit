@@ -84,6 +84,7 @@
 
   /**
    * Reload images and variants for paintings affected by completed AI/variant tasks
+   * Updates all paintings that might have active tasks, using smart form update logic
    */
   async function reloadAffectedPaintings() {
     // Check if we're on index.html
@@ -92,18 +93,51 @@
     
     if (!isIndexPage) return;
 
-    // Check if required function exists
-    if (typeof window.refresh !== 'function') {
-      console.log('refresh function not available');
+    // Check if required functions exist
+    if (typeof window.updateImageRow !== 'function') {
+      // Fallback to refresh if updateImageRow is not available
+      if (typeof window.refresh === 'function') {
+        try {
+          await window.refresh();
+        } catch (error) {
+          console.error('Error refreshing images:', error);
+        }
+      }
       return;
     }
 
-    // Reload images and variants (they don't interfere with form input)
-    if (typeof window.refresh === 'function') {
-      try {
-        await window.refresh();
-      } catch (error) {
-        console.error('Error refreshing images:', error);
+    try {
+      // Find all painting rows in the DOM
+      const paintingRows = document.querySelectorAll('[id^="painting-"]');
+      
+      if (paintingRows.length === 0) {
+        // No paintings found, do full refresh as fallback
+        if (typeof window.refresh === 'function') {
+          await window.refresh();
+        }
+        return;
+      }
+
+      // Update each painting row individually
+      // This allows smart form updates (only updates forms if they're locked)
+      const updatePromises = Array.from(paintingRows).map(row => {
+        const baseName = row.id.replace('painting-', '');
+        if (baseName && typeof window.updateImageRow === 'function') {
+          return window.updateImageRow(baseName, { forceFormUpdate: false });
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(updatePromises);
+    } catch (error) {
+      console.error('Error reloading affected paintings:', error);
+      // Fallback to full refresh on error
+      if (typeof window.refresh === 'function') {
+        try {
+          await window.refresh();
+        } catch (refreshError) {
+          console.error('Error in fallback refresh:', refreshError);
+        }
       }
     }
   }
@@ -133,6 +167,9 @@
       const aiDecreased = currentAICount < previousAICount;
       const variantsDecreased = currentVariantsCount < previousVariantsCount;
       
+      // Check if there are active tasks (for periodic updates)
+      const hasActiveTasks = count > 0;
+      
       // Update previous counts
       previousAICount = currentAICount;
       previousVariantsCount = currentVariantsCount;
@@ -143,12 +180,26 @@
       const tooltipText = `Background Tasks\nVariants: ${preview.summary.variants || 0}\nAI: ${preview.summary.ai || 0}\nGallery: ${preview.summary.gallery || 0}`;
       btn.setAttribute('title', tooltipText);
 
-      // If AI or variants count decreased, reload affected paintings
+      // Reload affected paintings if:
+      // 1. Tasks completed (counts decreased) - immediate update
+      // 2. Active tasks exist - periodic update to refresh variant images and locked forms
       if (aiDecreased || variantsDecreased) {
         // Small delay to ensure backend has finished processing
         setTimeout(() => {
           reloadAffectedPaintings();
         }, 500);
+      } else if (hasActiveTasks) {
+        // Periodic update for active tasks (throttled to avoid too frequent updates)
+        // Update every ~30 seconds when tasks are active
+        const now = Date.now();
+        const throttleInterval = 30000; // 30 seconds
+        if (!window.lastAutoUpdate || (now - window.lastAutoUpdate) >= throttleInterval) {
+          window.lastAutoUpdate = now;
+          // Small delay to avoid conflicts
+          setTimeout(() => {
+            reloadAffectedPaintings();
+          }, 1000);
+        }
       }
 
       // Adjust polling interval based on task count (only AI and Variants, not Gallery)
