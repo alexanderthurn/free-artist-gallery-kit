@@ -441,6 +441,7 @@
       // Check AI generation status (corners and form separately)
       const aiCorners = meta.ai_corners || {};
       const aiFillForm = meta.ai_fill_form || {};
+      const aiPaintingVariants = meta.ai_painting_variants || {};
       const cornersStatus = aiCorners.status || null;
       const formStatus = aiFillForm.status || null;
       // Badge on _final image: 
@@ -650,6 +651,37 @@
                     ${aiFillForm.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
                   </div>
                 </div>
+                ${aiPaintingVariants.variants && Object.keys(aiPaintingVariants.variants).length > 0 ? `
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #dee2e6;">
+                  <label style="font-size: 11px; color: #666; margin-bottom: 8px; display: block; font-weight: 600;">KI Painting Variants:</label>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    ${Object.entries(aiPaintingVariants.variants).map(([variantKey, variant]) => {
+                      const variantStatus = variant.status || null;
+                      const predictionStatus = variant.prediction_status || null;
+                      return `
+                        <div style="padding: 8px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 10px; color: #888; font-weight: 600;">${escapeHtml(variant.variant_name || variantKey)}:</label>
+                            <select id="ai-painting-variant-status-${g.base}-${variantKey}" 
+                                    onchange="updateAIPaintingVariantStatus('${escapeHtml(originalVariant.name)}', '${variantKey}', this.value, '${g.base}')" 
+                                    style="padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; background: #fff;">
+                              <option value="" ${!variantStatus ? 'selected' : ''}>-</option>
+                              <option value="wanted" ${variantStatus === 'wanted' ? 'selected' : ''}>wanted</option>
+                              <option value="in_progress" ${variantStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
+                              <option value="completed" ${variantStatus === 'completed' ? 'selected' : ''}>completed</option>
+                              <option value="failed" ${variantStatus === 'failed' ? 'selected' : ''}>failed</option>
+                            </select>
+                          </div>
+                          ${predictionStatus ? `<small style="color: #999; font-size: 9px; display: block; margin-bottom: 4px;">Prediction Status: ${escapeHtml(predictionStatus)}</small>` : ''}
+                          ${variant.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(variant.started_at).toLocaleString('de-DE')}</small>` : ''}
+                          ${variant.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(variant.completed_at).toLocaleString('de-DE')}</small>` : ''}
+                          ${variant.prediction_id ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Prediction ID: ${escapeHtml(variant.prediction_id)}</small>` : ''}
+                        </div>
+                      `;
+                    }).join('')}
+                  </div>
+                </div>
+                ` : ''}
                 <button type="button" onclick="showFullJSON('${escapeHtml(originalVariant.name)}', '${g.base}')" 
                         style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: #fff; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">
                   JSON anzeigen
@@ -2204,6 +2236,32 @@
       } catch (error) {
         console.error('Error updating AI status:', error);
         showToast('Fehler beim Aktualisieren des Status', 'error');
+        // Reload to restore previous value
+        await updateImageRow(imageBaseName);
+      }
+    }
+    
+    async function updateAIPaintingVariantStatus(imageOriginalName, variantKey, statusValue, imageBaseName) {
+      const body = new FormData();
+      body.set('image', imageOriginalName);
+      body.set('ai_painting_variant_key', variantKey);
+      body.set('ai_painting_variant_status', statusValue || '');
+      
+      try {
+        const res = await fetch('meta.php', { method: 'POST', body });
+        if (!res.ok) {
+          showToast('Fehler beim Aktualisieren des Variant-Status', 'error');
+          // Reload to restore previous value
+          await updateImageRow(imageBaseName);
+          return;
+        }
+        
+        showToast('Variant-Status aktualisiert', 'success');
+        // Reload to show updated status
+        await updateImageRow(imageBaseName);
+      } catch (error) {
+        console.error('Error updating AI painting variant status:', error);
+        showToast('Fehler beim Aktualisieren des Variant-Status', 'error');
         // Reload to restore previous value
         await updateImageRow(imageBaseName);
       }

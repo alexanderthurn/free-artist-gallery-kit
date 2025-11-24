@@ -213,6 +213,25 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
             }
             $updates['ai_fill_form'] = $aiFillForm;
         }
+        if (isset($_POST['ai_painting_variant_status']) && isset($_POST['ai_painting_variant_key'])) {
+            $status = trim((string)$_POST['ai_painting_variant_status']);
+            $variantKey = trim((string)$_POST['ai_painting_variant_key']);
+            // Update nested ai_painting_variants.variants[variantKey].status
+            $existingMeta = load_meta($image, $imagesDir);
+            $aiPaintingVariants = $existingMeta['ai_painting_variants'] ?? [];
+            if (!isset($aiPaintingVariants['variants']) || !is_array($aiPaintingVariants['variants'])) {
+                $aiPaintingVariants['variants'] = [];
+            }
+            if (!isset($aiPaintingVariants['variants'][$variantKey]) || !is_array($aiPaintingVariants['variants'][$variantKey])) {
+                $aiPaintingVariants['variants'][$variantKey] = [];
+            }
+            $aiPaintingVariants['variants'][$variantKey]['status'] = $status === '' ? null : $status;
+            if ($status === '') {
+                $aiPaintingVariants['variants'][$variantKey]['started_at'] = null;
+                $aiPaintingVariants['variants'][$variantKey]['completed_at'] = null;
+            }
+            $updates['ai_painting_variants'] = $aiPaintingVariants;
+        }
         
         // Save metadata
         $result = save_meta($image, $updates, $imagesDir, true);
