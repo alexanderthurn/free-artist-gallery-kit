@@ -34,26 +34,35 @@ function poll_variant_prediction(string $variantJsonPath): array {
     }
     
     // Make single GET request to check status
-    $ch = curl_init($predictionUrl);
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN"],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30
-    ]);
-    
-    $res = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false || $httpCode >= 400) {
-        // Network error - keep status as in_progress, retry next run
-        return ['ok' => true, 'still_processing' => true, 'error' => 'poll_failed', 'detail' => $err ?: 'HTTP ' . $httpCode];
-    }
-    
-    $resp = json_decode($res, true);
-    if (!is_array($resp)) {
-        return ['ok' => true, 'still_processing' => true, 'error' => 'invalid_response'];
+    try {
+        $ch = curl_init($predictionUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN"],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30
+        ]);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        
+        if ($res === false || $httpCode >= 400) {
+            // Network error - keep status as in_progress, retry next run
+            $errorDetail = $err ?: 'HTTP ' . $httpCode;
+            error_log('AI Variant By Prompt: Poll failed for variant - HTTP ' . $httpCode . ': ' . $errorDetail);
+            return ['ok' => true, 'still_processing' => true, 'error' => 'poll_failed', 'detail' => $errorDetail];
+        }
+        
+        $resp = json_decode($res, true);
+        if (!is_array($resp)) {
+            error_log('AI Variant By Prompt: Invalid response format: ' . substr($res, 0, 500));
+            return ['ok' => true, 'still_processing' => true, 'error' => 'invalid_response'];
+        }
+    } catch (Throwable $e) {
+        $errorMsg = $e->getMessage();
+        error_log('AI Variant By Prompt: Unexpected error during poll: ' . $errorMsg);
+        return ['ok' => true, 'still_processing' => true, 'error' => 'poll_exception', 'detail' => $errorMsg];
     }
     
     $status = $resp['status'] ?? 'unknown';
@@ -70,13 +79,19 @@ function poll_variant_prediction(string $variantJsonPath): array {
         return process_completed_variant_prediction($variantJsonPath, $resp);
     } elseif ($status === 'failed' || $status === 'canceled') {
         // Prediction failed - set status to wanted for retry
+        $errorDetail = $resp['error'] ?? 'Prediction failed';
+        error_log('AI Variant By Prompt: Prediction failed for variant - Status: ' . $status . ', Error: ' . $errorDetail);
+        
         $variantMeta['status'] = 'wanted';
+        $variantMeta['error'] = 'prediction_failed';
+        $variantMeta['error_detail'] = $errorDetail;
+        $variantMeta['error_timestamp'] = date('c');
         update_json_file($variantJsonPath, $variantMeta, false);
         return [
             'ok' => false,
             'error' => 'prediction_failed',
             'status' => $status,
-            'detail' => $resp['error'] ?? 'Prediction failed'
+            'detail' => $errorDetail
         ];
     } else {
         // Still processing
@@ -112,7 +127,10 @@ function process_completed_variant_prediction(string $variantJsonPath, array $re
     }
     
     if ($imgBytes === null) {
+        error_log('AI Variant By Prompt: Failed to extract image from response');
         $variantMeta['status'] = 'wanted';
+        $variantMeta['error'] = 'failed_to_extract_image';
+        $variantMeta['error_timestamp'] = date('c');
         update_json_file($variantJsonPath, $variantMeta, false);
         return ['ok' => false, 'error' => 'failed_to_extract_image', 'response' => $resp];
     }
@@ -120,25 +138,53 @@ function process_completed_variant_prediction(string $variantJsonPath, array $re
     // Save the generated variant image
     $targetPath = $variantMeta['target_path'] ?? null;
     if (!$targetPath || !is_string($targetPath)) {
+        error_log('AI Variant By Prompt: Target path not found in variant metadata');
         return ['ok' => false, 'error' => 'target_path_not_found'];
     }
     
     // Ensure target directory exists
-    $targetDir = dirname($targetPath);
-    if (!is_dir($targetDir)) {
-        mkdir($targetDir, 0755, true);
+    try {
+        $targetDir = dirname($targetPath);
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0755, true);
+        }
+        
+        if (file_put_contents($targetPath, $imgBytes) === false) {
+            error_log('AI Variant By Prompt: Failed to write image to: ' . $targetPath);
+            $variantMeta['status'] = 'wanted';
+            $variantMeta['error'] = 'failed_to_write_image';
+            $variantMeta['error_detail'] = 'Failed to write image file';
+            $variantMeta['error_timestamp'] = date('c');
+            update_json_file($variantJsonPath, $variantMeta, false);
+            return ['ok' => false, 'error' => 'failed_to_write_image', 'target_path' => $targetPath];
+        }
+    } catch (Throwable $e) {
+        $errorMsg = $e->getMessage();
+        error_log('AI Variant By Prompt: Error saving image: ' . $errorMsg);
+        $variantMeta['status'] = 'wanted';
+        $variantMeta['error'] = 'save_image_exception';
+        $variantMeta['error_detail'] = $errorMsg;
+        $variantMeta['error_timestamp'] = date('c');
+        update_json_file($variantJsonPath, $variantMeta, false);
+        return ['ok' => false, 'error' => 'save_image_exception', 'detail' => $errorMsg];
     }
     
-    file_put_contents($targetPath, $imgBytes);
-    
     // Generate thumbnail only if not in variants/ directory
-    $variantsDir = __DIR__ . '/variants';
-    $variantsDirReal = realpath($variantsDir);
-    $targetPathReal = realpath(dirname($targetPath));
-    if ($variantsDirReal && $targetPathReal && strpos($targetPathReal, $variantsDirReal) === false) {
-        // Not in variants directory - generate thumbnail
-        $thumbPath = generate_thumbnail_path($targetPath);
-        generate_thumbnail($targetPath, $thumbPath, 512, 1024);
+    try {
+        $variantsDir = __DIR__ . '/variants';
+        $variantsDirReal = realpath($variantsDir);
+        $targetPathReal = realpath(dirname($targetPath));
+        if ($variantsDirReal && $targetPathReal && strpos($targetPathReal, $variantsDirReal) === false) {
+            // Not in variants directory - generate thumbnail
+            $thumbPath = generate_thumbnail_path($targetPath);
+            if (!generate_thumbnail($targetPath, $thumbPath, 512, 1024)) {
+                error_log('AI Variant By Prompt: Failed to generate thumbnail for: ' . $targetPath);
+                // Don't fail the whole operation if thumbnail generation fails
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('AI Variant By Prompt: Error generating thumbnail: ' . $e->getMessage());
+        // Don't fail the whole operation if thumbnail generation fails
     }
     
     // Update status to completed
@@ -191,34 +237,48 @@ PROMPT;
     ];
     
     // Create prediction (without waiting)
-    $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
-    curl_setopt_array($ch, [
-        CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_TIMEOUT => 30
-    ]);
-    
-    $res = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    
-    if ($res === false || $httpCode >= 400) {
+    try {
+        $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 30
+        ]);
+        
+        $res = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        
+        if ($res === false || $httpCode >= 400) {
+            $errorDetail = $err ?: substr($res, 0, 1000);
+            error_log('AI Variant By Prompt: Replicate API error for variant template ' . $variantName . ' - HTTP ' . $httpCode . ': ' . $errorDetail);
+            return [
+                'ok' => false,
+                'error' => 'replicate_failed',
+                'detail' => $errorDetail,
+                'http_code' => $httpCode
+            ];
+        }
+        
+        $resp = json_decode($res, true);
+        if (!is_array($resp) || !isset($resp['urls']['get'])) {
+            $errorSample = substr($res, 0, 1000);
+            error_log('AI Variant By Prompt: Invalid prediction response for variant template ' . $variantName . ': ' . $errorSample);
+            return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
+        }
+    } catch (Throwable $e) {
+        $errorMsg = $e->getMessage();
+        error_log('AI Variant By Prompt: Unexpected error for variant template ' . $variantName . ': ' . $errorMsg . ' | Trace: ' . $e->getTraceAsString());
         return [
             'ok' => false,
-            'error' => 'replicate_failed',
-            'detail' => $err ?: $res,
-            'http_code' => $httpCode
+            'error' => 'unexpected_error',
+            'detail' => $errorMsg
         ];
-    }
-    
-    $resp = json_decode($res, true);
-    if (!is_array($resp) || !isset($resp['urls']['get'])) {
-        return ['ok' => false, 'error' => 'invalid_prediction_response', 'sample' => substr($res, 0, 500)];
     }
     
     $predictionUrl = $resp['urls']['get'];

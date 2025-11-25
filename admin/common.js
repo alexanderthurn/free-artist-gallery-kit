@@ -59,6 +59,32 @@
   }
 
   /**
+   * Trigger async background task processing (fire-and-forget)
+   * This starts background processing without waiting for completion
+   */
+  async function triggerBackgroundTasks() {
+    try {
+      const formData = new FormData();
+      formData.set('async', '1');
+      
+      // Fire-and-forget: don't wait for response, just trigger it
+      fetch('process_background_tasks.php', {
+        method: 'POST',
+        body: formData
+      }).catch(error => {
+        // Silently ignore errors - this is fire-and-forget
+        console.debug('Background task trigger error (ignored):', error);
+      });
+    } catch (error) {
+      // Silently ignore errors - this is fire-and-forget
+      console.debug('Background task trigger error (ignored):', error);
+    }
+  }
+
+  // Expose triggerBackgroundTasks globally so it can be called from index.html
+  window.triggerBackgroundTasks = triggerBackgroundTasks;
+
+  /**
    * Calculate total task count from preview summary (only AI and Variants, excluding Gallery)
    */
   function calculateTaskCount(summary) {
@@ -84,7 +110,7 @@
 
   /**
    * Reload images and variants for paintings affected by completed AI/variant tasks
-   * Updates all paintings that might have active tasks, using smart form update logic
+   * Updates only paintings that have active AI/variant generation tasks
    */
   async function reloadAffectedPaintings() {
     // Check if we're on index.html
@@ -107,22 +133,85 @@
     }
 
     try {
-      // Find all painting rows in the DOM
-      const paintingRows = document.querySelectorAll('[id^="painting-"]');
-      
-      if (paintingRows.length === 0) {
-        // No paintings found, do full refresh as fallback
+      // Fetch image data to check which paintings have active tasks
+      if (typeof window.fetchImages !== 'function') {
+        // Fallback to refresh if fetchImages is not available
         if (typeof window.refresh === 'function') {
           await window.refresh();
         }
         return;
       }
 
-      // Update each painting row individually
-      // This allows smart form updates (only updates forms if they're locked)
-      const updatePromises = Array.from(paintingRows).map(row => {
-        const baseName = row.id.replace('painting-', '');
-        if (baseName && typeof window.updateImageRow === 'function') {
+      const { groups } = await window.fetchImages();
+      if (!groups || groups.length === 0) {
+        return;
+      }
+
+      // Find paintings with active AI/variant tasks
+      // Update entire painting if ANY AI generation is in progress (corners, form, or variants)
+      const paintingsToUpdate = new Set();
+      
+      for (const group of groups) {
+        const meta = group.meta || {};
+        const aiCorners = meta.ai_corners || {};
+        const aiFillForm = meta.ai_fill_form || {};
+        const aiPaintingVariants = meta.ai_painting_variants || {};
+        
+        // Check corners status - if wanted or in_progress, update entire painting
+        const cornersStatus = aiCorners.status || null;
+        const hasActiveCorners = cornersStatus && ['wanted', 'in_progress'].includes(cornersStatus);
+        
+        // Check form status - if wanted or in_progress, update entire painting
+        const formStatus = aiFillForm.status || null;
+        const hasActiveForm = formStatus && ['wanted', 'in_progress'].includes(formStatus);
+        
+        // Check variant regeneration status - if wanted or in_progress, update entire painting
+        const variantRegenStatus = aiPaintingVariants.regeneration_status || null;
+        const hasActiveVariantRegen = variantRegenStatus && ['wanted', 'in_progress'].includes(variantRegenStatus);
+        
+        // Check if there are active variants (variants being tracked/generated)
+        const hasActiveVariantsList = aiPaintingVariants.active_variants && 
+                                     Array.isArray(aiPaintingVariants.active_variants) && 
+                                     aiPaintingVariants.active_variants.length > 0;
+        
+        // Check individual variants - if ANY variant is wanted or in_progress, update entire painting
+        let hasActiveVariants = false;
+        if (aiPaintingVariants.variants && typeof aiPaintingVariants.variants === 'object') {
+          for (const variantName in aiPaintingVariants.variants) {
+            const variant = aiPaintingVariants.variants[variantName];
+            const variantStatus = variant.status || null;
+            if (variantStatus && ['wanted', 'in_progress'].includes(variantStatus)) {
+              hasActiveVariants = true;
+              break;
+            }
+          }
+        }
+        
+        // If ANY AI generation is active for this painting, update the ENTIRE painting
+        // Also update if there are active_variants (variants being tracked, even if completed)
+        // This ensures all images (main image, variants), and forms are updated together
+        // The painting-level check means if ANY variant/form/corners is active, update everything
+        if (hasActiveCorners || hasActiveForm || hasActiveVariantRegen || hasActiveVariants || hasActiveVariantsList) {
+          paintingsToUpdate.add(group.base);
+        }
+      }
+
+      // Only update paintings with active AI generation
+      if (paintingsToUpdate.size === 0) {
+        return; // No active AI generation, nothing to update
+      }
+
+      // Update each painting with active AI generation - update entire painting row
+      const updatePromises = Array.from(paintingsToUpdate).map(baseName => {
+        // Check if row exists in DOM
+        const row = document.getElementById(`painting-${baseName}`);
+        if (!row) {
+          return Promise.resolve(); // Row doesn't exist, skip
+        }
+        
+        // Update entire painting row - this will refresh all images, variants, and forms
+        // forceFormUpdate: false means forms are only updated if locked (in generation)
+        if (typeof window.updateImageRow === 'function') {
           return window.updateImageRow(baseName, { forceFormUpdate: false });
         }
         return Promise.resolve();

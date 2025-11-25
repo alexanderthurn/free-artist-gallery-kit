@@ -192,8 +192,10 @@ PROMPT;
         try {
             $TOKEN = load_replicate_token();
         } catch (RuntimeException $e) {
+            error_log('AI Painting Variants: Missing REPLICATE_API_TOKEN for variant ' . $variantName);
             $variants[$variantName]['status'] = 'wanted';
             $variants[$variantName]['error'] = 'missing REPLICATE_API_TOKEN';
+            $variants[$variantName]['error_timestamp'] = date('c');
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
             $errors[] = ['variant' => $variantName, 'error' => 'missing REPLICATE_API_TOKEN'];
@@ -203,30 +205,39 @@ PROMPT;
         // Load images
         $variantTemplatePath = $variantTemplate['variant_path'];
         if (!is_file($variantTemplatePath)) {
+            error_log('AI Painting Variants: Variant template not found: ' . $variantTemplatePath);
             $variants[$variantName]['status'] = 'wanted';
             $variants[$variantName]['error'] = 'variant_template_not_found';
+            $variants[$variantName]['error_detail'] = 'Template file not found: ' . $variantTemplatePath;
+            $variants[$variantName]['error_timestamp'] = date('c');
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-            $errors[] = ['variant' => $variantName, 'error' => 'variant_template_not_found'];
+            $errors[] = ['variant' => $variantName, 'error' => 'variant_template_not_found', 'path' => $variantTemplatePath];
             continue;
         }
         
         $variantMime = mime_content_type($variantTemplatePath);
         if (!in_array($variantMime, ['image/jpeg', 'image/png', 'image/webp'])) {
+            error_log('AI Painting Variants: Unsupported variant template type: ' . $variantMime);
             $variants[$variantName]['status'] = 'wanted';
             $variants[$variantName]['error'] = 'unsupported_variant_template_type';
+            $variants[$variantName]['error_detail'] = 'Unsupported MIME type: ' . $variantMime;
+            $variants[$variantName]['error_timestamp'] = date('c');
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_variant_template_type'];
+            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_variant_template_type', 'mime' => $variantMime];
             continue;
         }
         
         if (!in_array($finalMime, ['image/jpeg', 'image/png', 'image/webp'])) {
+            error_log('AI Painting Variants: Unsupported final image type: ' . $finalMime);
             $variants[$variantName]['status'] = 'wanted';
             $variants[$variantName]['error'] = 'unsupported_final_image_type';
+            $variants[$variantName]['error_detail'] = 'Unsupported MIME type: ' . $finalMime;
+            $variants[$variantName]['error_timestamp'] = date('c');
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_final_image_type'];
+            $errors[] = ['variant' => $variantName, 'error' => 'unsupported_final_image_type', 'mime' => $finalMime];
             continue;
         }
         
@@ -260,45 +271,77 @@ PROMPT;
         ];
         
         // Create prediction (without waiting)
-        $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
-        curl_setopt_array($ch, [
-            CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 5,
-            CURLOPT_TIMEOUT => 30
-        ]);
-        
-        $res = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $err = curl_error($ch);
-        curl_close($ch);
-        
-        if ($res === false || $httpCode >= 400) {
-            // API call failed - mark variant as wanted for retry
+        try {
+            $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
+            curl_setopt_array($ch, [
+                CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => 30
+            ]);
+            
+            $res = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+            
+            if ($res === false || $httpCode >= 400) {
+                // API call failed - mark variant as wanted for retry
+                $errorDetail = $err ?: substr($res, 0, 1000);
+                error_log('AI Painting Variants: Replicate API error for variant ' . $variantName . ' - HTTP ' . $httpCode . ': ' . $errorDetail);
+                
+                $variants[$variantName]['status'] = 'wanted';
+                $variants[$variantName]['error'] = 'replicate_failed';
+                $variants[$variantName]['error_detail'] = $errorDetail;
+                $variants[$variantName]['error_http_code'] = $httpCode;
+                $variants[$variantName]['error_timestamp'] = date('c');
+                $aiPaintingVariants['variants'] = $variants;
+                update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+                $errors[] = [
+                    'variant' => $variantName,
+                    'error' => 'replicate_failed',
+                    'detail' => $errorDetail,
+                    'http_code' => $httpCode
+                ];
+                continue;
+            }
+            
+            $resp = json_decode($res, true);
+            if (!is_array($resp) || !isset($resp['urls']['get'])) {
+                $errorSample = substr($res, 0, 1000);
+                error_log('AI Painting Variants: Invalid prediction response for variant ' . $variantName . ': ' . $errorSample);
+                
+                $variants[$variantName]['status'] = 'wanted';
+                $variants[$variantName]['error'] = 'invalid_prediction_response';
+                $variants[$variantName]['error_detail'] = 'Invalid JSON response from Replicate API';
+                $variants[$variantName]['error_response_sample'] = substr($res, 0, 500);
+                $variants[$variantName]['error_timestamp'] = date('c');
+                $aiPaintingVariants['variants'] = $variants;
+                update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+                $errors[] = [
+                    'variant' => $variantName,
+                    'error' => 'invalid_prediction_response',
+                    'sample' => substr($res, 0, 500)
+                ];
+                continue;
+            }
+        } catch (Throwable $e) {
+            $errorMsg = $e->getMessage();
+            error_log('AI Painting Variants: Unexpected error for variant ' . $variantName . ': ' . $errorMsg . ' | Trace: ' . $e->getTraceAsString());
+            
             $variants[$variantName]['status'] = 'wanted';
-            $variants[$variantName]['error'] = 'replicate_failed';
+            $variants[$variantName]['error'] = 'unexpected_error';
+            $variants[$variantName]['error_detail'] = $errorMsg;
+            $variants[$variantName]['error_timestamp'] = date('c');
             $aiPaintingVariants['variants'] = $variants;
             update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
             $errors[] = [
                 'variant' => $variantName,
-                'error' => 'replicate_failed',
-                'detail' => $err ?: substr($res, 0, 500)
-            ];
-            continue;
-        }
-        
-        $resp = json_decode($res, true);
-        if (!is_array($resp) || !isset($resp['urls']['get'])) {
-            $variants[$variantName]['status'] = 'wanted';
-            $variants[$variantName]['error'] = 'invalid_prediction_response';
-            $aiPaintingVariants['variants'] = $variants;
-            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
-            $errors[] = [
-                'variant' => $variantName,
-                'error' => 'invalid_prediction_response'
+                'error' => 'unexpected_error',
+                'detail' => $errorMsg
             ];
             continue;
         }
