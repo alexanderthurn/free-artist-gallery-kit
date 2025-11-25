@@ -1448,7 +1448,43 @@
                   }
                 } else {
                   // Regular upload - redirect response
-                  resolve({ ok: true, redirect: true });
+                  // Extract error info from redirect URL if available
+                  let uploaded = 0;
+                  let errors = 0;
+                  let errorMessages = [];
+                  
+                  try {
+                    const redirectUrl = xhr.responseURL || '';
+                    if (redirectUrl) {
+                      const urlObj = new URL(redirectUrl, window.location.origin);
+                      uploaded = parseInt(urlObj.searchParams.get('uploaded') || '0', 10);
+                      errors = parseInt(urlObj.searchParams.get('errors') || '0', 10);
+                      const errorsDetailRaw = urlObj.searchParams.get('errors_detail');
+                      
+                      if (errorsDetailRaw) {
+                        try {
+                          const details = JSON.parse(decodeURIComponent(errorsDetailRaw));
+                          if (Array.isArray(details)) {
+                            errorMessages = details;
+                          }
+                        } catch (e) {
+                          // Ignore parse errors
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    // If we can't parse the redirect URL, assume success for now
+                    // The page refresh will show the flash message from URL params
+                    console.warn('Could not parse redirect URL:', e);
+                  }
+                  
+                  resolve({ 
+                    ok: errors === 0, 
+                    redirect: true,
+                    uploaded: uploaded,
+                    errors: errors,
+                    errorMessages: errorMessages
+                  });
                 }
               } else {
                 // Try to parse error response as JSON
@@ -1456,7 +1492,12 @@
                   const jsonMatch = xhr.responseText.match(/\{[\s\S]*\}/);
                   if (jsonMatch) {
                     const errorData = JSON.parse(jsonMatch[0]);
-                    reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+                    // For AI uploads with errors array, include all errors
+                    if (isAIUpload && errorData.errors && Array.isArray(errorData.errors)) {
+                      reject(new Error(errorData.errors.join('; ')));
+                    } else {
+                      reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+                    }
                   } else {
                     reject(new Error(`Upload failed: ${xhr.status}. Response: ${xhr.responseText.substring(0, 200)}`));
                   }
@@ -1478,6 +1519,17 @@
           timeText.textContent = `Abgeschlossen in ${formatDuration(elapsed)}`;
           
           if (isAIUpload) {
+            // Check for errors first
+            if (!response.ok || (response.errors && response.errors.length > 0)) {
+              const errorMessages = response.errors || [response.error || 'Unbekannter Fehler'];
+              errorMessages.forEach(err => {
+                showToast(err, 'error', 8000);
+              });
+              progressContainer.style.display = 'none';
+              refresh();
+              return;
+            }
+            
             // Parse response to get uploaded image names
             if (response.ok && response.uploaded_images && response.uploaded_images.length > 0) {
               // Show warning if images were resized
@@ -1492,9 +1544,22 @@
               refresh();
             }
           } else {
-            // Check if response contains resized_images info (for standard uploads via redirect)
-            // The redirect will handle showing the flash message
-            showToast(`${files.length} Bild(er) erfolgreich hochgeladen`, 'success');
+            // Regular upload - check for errors from redirect URL
+            if (response.errorMessages && response.errorMessages.length > 0) {
+              // Show error messages
+              response.errorMessages.forEach(err => {
+                showToast(err, 'error', 8000);
+              });
+              if (response.uploaded > 0) {
+                showToast(`${response.uploaded} Bild(er) erfolgreich hochgeladen, ${response.errors} fehlgeschlagen`, 'info', 5000);
+              } else {
+                showToast(`Upload fehlgeschlagen: ${response.errors} Bild(er) konnten nicht hochgeladen werden`, 'error', 8000);
+              }
+            } else if (response.uploaded > 0) {
+              showToast(`${response.uploaded} Bild(er) erfolgreich hochgeladen`, 'success');
+            } else {
+              showToast('Upload abgeschlossen', 'info');
+            }
             fileInputElement.value = '';
             setTimeout(() => {
               progressContainer.style.display = 'none';
@@ -1546,65 +1611,22 @@
             step4.style.opacity = '0.5';
             const imageProgress = baseProgress + (i * progressPerImage);
             progressBar.style.width = imageProgress + '%';
-            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: KI Bild freistellen lassen...`;
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: Flags werden gesetzt...`;
             
-            // Step 2: AI flags already set by upload.php (ai_generation_status: 'wanted')
-            // Just confirm - no need to wait for processing
-            step2.textContent = `✅ KI Verarbeitung geplant (${i + 1}/${uploadedImages.length}) - wird im Hintergrund verarbeitet`;
+            // Step 2: AI corners flag set by upload.php
+            step2.textContent = `✅ Flag 1 gesetzt: KI Bild freistellen (${i + 1}/${uploadedImages.length})`;
             step2.style.opacity = '1';
+            progressBar.style.width = (imageProgress + progressPerStep * 1) + '%';
+            
+            // Step 3: AI form fill flag set by upload.php
+            step3.textContent = `✅ Flag 2 gesetzt: KI Formular ausfüllen (${i + 1}/${uploadedImages.length})`;
+            step3.style.opacity = '1';
             progressBar.style.width = (imageProgress + progressPerStep * 2) + '%';
             
-            // Step 3: Skip form filling - it's already queued via ai_generation_status
-            step3.textContent = `⏭ KI Formular ausfüllen übersprungen (wird im Hintergrund verarbeitet) (${i + 1}/${uploadedImages.length})`;
-            step3.style.opacity = '0.7';
-            progressBar.style.width = (imageProgress + progressPerStep * 3) + '%';
-            
-            // Step 4: Generate random variant
-            step4.textContent = `🔄 KI Variante generieren (${i + 1}/${uploadedImages.length})...`;
+            // Step 4: AI variant flag set by upload.php
+            step4.textContent = `✅ Flag 3 gesetzt: KI Variante generieren (${i + 1}/${uploadedImages.length})`;
             step4.style.opacity = '1';
-            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: KI Variante generieren...`;
-            progressBar.style.width = (imageProgress + progressPerStep * 3.5) + '%';
-            
-            // Get available variants
-            const variantsRes = await fetch('variants.php?action=list');
-            if (!variantsRes.ok) {
-              throw new Error('Varianten konnten nicht geladen werden');
-            }
-            
-            const variantsData = await variantsRes.json();
-            if (!variantsData.ok || !variantsData.variants || variantsData.variants.length === 0) {
-              step4.textContent = `⏭ KI Variante übersprungen (keine Varianten verfügbar)`;
-              step4.style.opacity = '0.7';
-            } else {
-              // Pick a random variant
-              const randomVariant = variantsData.variants[Math.floor(Math.random() * variantsData.variants.length)];
-              
-              // Extract variant name from filename
-              const variantName = randomVariant.name.replace(/\.(jpg|jpeg)$/i, '');
-              
-              // Add variant to queue (only updates JSON, doesn't create file yet)
-              const variantRes = await fetch('/admin/add_variant_to_queue.php', {
-                method: 'POST',
-                body: (() => {
-                  const fd = new FormData();
-                  fd.append('image_base_name', imageBase);
-                  fd.append('variant_name', variantName);
-                  return fd;
-                })()
-              });
-              
-              if (!variantRes.ok) {
-                throw new Error('KI Variante zur Warteschlange hinzufügen fehlgeschlagen');
-              }
-              
-              const variantData = await variantRes.json();
-              if (!variantData.ok) {
-                throw new Error('KI Variante zur Warteschlange hinzufügen fehlgeschlagen: ' + (variantData.error || 'Unknown'));
-              }
-              
-              step4.textContent = `✅ KI Variante zur Warteschlange hinzugefügt (${i + 1}/${uploadedImages.length}) - wird im Hintergrund generiert`;
-            }
-            
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: Alle 3 Flags gesetzt`;
             progressBar.style.width = (imageProgress + progressPerImage) + '%';
             
           } catch (error) {
@@ -1740,12 +1762,16 @@
       
       if (e > 0) {
         box.classList.remove('success');
-        html += `<strong>Upload finished:</strong> ${u} succeeded, ${e} failed.`;
+        if (u > 0) {
+          html += `<strong>Upload beendet:</strong> ${u} erfolgreich, ${e} fehlgeschlagen.`;
+        } else {
+          html += `<strong>Upload fehlgeschlagen:</strong> ${e} Bild(er) konnten nicht hochgeladen werden.`;
+        }
         if (errorsDetailRaw) {
           try {
             const details = JSON.parse(errorsDetailRaw);
             if (Array.isArray(details) && details.length) {
-              html += '<div class="flash-error-list"><strong>Errors:</strong><ul>' +
+              html += '<div class="flash-error-list"><strong>Fehler:</strong><ul>' +
                 details.map(d => `<li>${String(d)}</li>`).join('') + '</ul></div>';
             }
           } catch {}

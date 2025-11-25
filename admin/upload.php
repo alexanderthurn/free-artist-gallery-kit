@@ -85,6 +85,15 @@ function is_allowed_image(string $tmpFile, string $originalName): bool {
     return in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP], true);
 }
 
+/**
+ * Check if a painting with the given base name already exists
+ */
+function painting_exists(string $baseName, string $imagesDir): bool {
+    $originalImage = $imagesDir.'/'.$baseName.'_original.jpg';
+    $originalJson = $imagesDir.'/'.$baseName.'_original.jpg.json';
+    return file_exists($originalImage) || file_exists($originalJson);
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo 'Method not allowed';
@@ -130,14 +139,25 @@ for ($i = 0; $i < $count; $i++) {
         continue;
     }
 
-    // Save into images/ with _original postfix as JPG
+    // Extract base name from original filename (before adding _original)
     $stem = pathinfo($name, PATHINFO_FILENAME);
+    // Remove _original suffix if already present in filename
+    $baseStem = preg_replace('/_original$/i', '', $stem);
+    
+    // Check if painting already exists BEFORE processing
+    if (painting_exists($baseStem, $dirImages)) {
+        $errors[] = $files['name'][$i].' (Gemälde existiert bereits: '.$baseStem.')';
+        continue; // Skip this file - don't create duplicate
+    }
+
+    // Save into images/ with _original postfix as JPG
     // Avoid double _original if already present
     if (!preg_match('/_original$/i', $stem)) {
         $stem .= '_original';
     }
     $destName = $stem.'.jpg';
-    $target = unique_path($dirImages, $destName);
+    // Use direct path since we've already checked for duplicates
+    $target = rtrim($dirImages, '/').'/'.$destName;
     
     // Convert image to JPG (handles PNG, WEBP, JPG) - keep full resolution
     // Only resize if server gives an error (file too large)
@@ -310,11 +330,18 @@ $resizedImages = array_filter($uploadedImages, function($item) {
     return is_array($item) && isset($item['resized']) && $item['resized'];
 });
 
-$query = http_build_query([
+$queryParams = [
     'uploaded' => $uploaded,
     'errors' => $errors ? count($errors) : 0,
     'resized' => count($resizedImages),
-]);
+];
+
+// Include error details if there are errors
+if ($errors) {
+    $queryParams['errors_detail'] = json_encode($errors);
+}
+
+$query = http_build_query($queryParams);
 
 // Use absolute path to avoid double admin/admin issue
 header('Location: /admin/index.html?'.$query);
