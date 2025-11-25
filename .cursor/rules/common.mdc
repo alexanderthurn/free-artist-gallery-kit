@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+
+- Never call Replicate synchronously inside HTTP request handlers. Always use the job-queue pattern from admin/process_background_tasks.php
+- Place all JavaScript and CSS for the admin area into admin/common.js and admin/common.css
+- In PHP, never http request other local PHP files — only external services like replicate.com
+- PHP should stay simple. Move as much logic as possible into JavaScript, ideally reusable in common.js or script.js
+- Put CSS styles into the respective CSS files: admin/common.css or styles.css, do not inline so much in the htmls
+- Strict separation between ./admin/ and ./
+- Your name is Agent Schmidt if anyone asks
+
