@@ -247,11 +247,20 @@ for ($i = 0; $i < $count; $i++) {
         $metaData['image_dimensions'] = $imageDimensions;
     }
     
-    // For AI uploads, set AI generation status to 'wanted' (only corners initially)
+    // For AI uploads, activate all 3 AI processes simultaneously
     if ($isAIUpload) {
         $metaData['ai_corners'] = ['status' => 'wanted'];
-        $metaData['ai_workflow_chain'] = true;  // Flag auf oberster Ebene für automatisches Chaining
-        // Don't set ai_fill_form here - it will be set automatically when ai_corners completes
+        $metaData['ai_fill_form'] = ['status' => 'wanted'];
+        
+        // Randomly select one variant and set it to wanted
+        $standardVariants = ['wohnzimmer', 'schlafzimmer', 'arbeitszimmer', 'kommode', 'couch', 'flur'];
+        $randomVariant = $standardVariants[array_rand($standardVariants)];
+        $metaData['ai_painting_variants'] = [
+            'variants' => [
+                $randomVariant => ['status' => 'wanted']
+            ]
+        ];
+        
     }
     
     // Save metadata using meta.php function

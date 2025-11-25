@@ -107,26 +107,8 @@ function save_meta(string $imageFilename, array $updates, ?string $imagesDir = n
         }
     }
     
-    // Handle __REMOVE__ marker for ai_workflow_chain
-    if (isset($updates['ai_workflow_chain']) && $updates['ai_workflow_chain'] === '__REMOVE__') {
-        // Load existing meta, remove the field, then save
-        $existingMeta = load_meta($imageFilename, $imagesDir);
-        if (isset($existingMeta['ai_workflow_chain'])) {
-            unset($existingMeta['ai_workflow_chain']);
-            // Save the updated meta without the field
-            $jsonContent = json_encode($existingMeta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-            $ok = file_put_contents($metaPath, $jsonContent, LOCK_EX) !== false;
-            // Remove from updates so it's not processed again
-            unset($updates['ai_workflow_chain']);
-        } else {
-            // Field doesn't exist, nothing to remove
-            unset($updates['ai_workflow_chain']);
-            $ok = true;
-        }
-    } else {
-        // Use thread-safe JSON update function
-        $ok = update_json_file($metaPath, $updates, false);
-    }
+    // Use thread-safe JSON update function
+    $ok = update_json_file($metaPath, $updates, false);
     if (!$ok) {
         return ['ok' => false, 'error' => 'Failed to write metadata'];
     }
@@ -255,18 +237,6 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
             }
             $updates['ai_painting_variants'] = $aiPaintingVariants;
         }
-        if (isset($_POST['ai_workflow_chain'])) {
-            $value = trim((string)$_POST['ai_workflow_chain']);
-            $existingMeta = load_meta($image, $imagesDir);
-            if ($value === '' || $value === '0') {
-                // Remove flag when cleared (set to "-")
-                // Use a special marker that will be handled in save_meta
-                $updates['ai_workflow_chain'] = '__REMOVE__';
-            } else {
-                // Set flag to true when enabled
-                $updates['ai_workflow_chain'] = true;
-            }
-        }
         
         // Save metadata
         $result = save_meta($image, $updates, $imagesDir, true);
@@ -306,4 +276,5 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
     echo json_encode(['ok' => false, 'error' => 'Method not allowed']);
     exit;
 }
+
 

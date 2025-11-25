@@ -659,12 +659,10 @@
                     ${aiFillForm.completed_at ? `<small class="details-text-small">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
                   </div>
                   <div>
-                    <label class="details-label-sm">AI Workflow Chain:</label>
-                    <select id="ai-workflow-chain-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_workflow_chain', this.value, '${g.base}')" class="select-field-sm">
-                      <option value="" ${!meta.ai_workflow_chain ? 'selected' : ''}>- (deaktiviert)</option>
-                      <option value="1" ${meta.ai_workflow_chain ? 'selected' : ''}>aktiviert</option>
-                    </select>
-                    <small class="details-text-small">Automatisches Chaining: Corners → Form → Variants</small>
+                    <button type="button" onclick="activateAllAIProcesses('${escapeHtml(originalVariant.name)}', '${g.base}')" class="button-primary" style="font-size: 11px; padding: 6px 12px;">
+                      Alle AI-Prozesse starten
+                    </button>
+                    <small class="details-text-small">Startet Corners, Form und eine zufällige Variante gleichzeitig</small>
                   </div>
                 </div>
                 ${aiPaintingVariants.variants && Object.keys(aiPaintingVariants.variants).length > 0 ? `
@@ -2322,6 +2320,37 @@
       }
     }
     
+    async function activateAllAIProcesses(imageOriginalName, imageBaseName) {
+      const body = new FormData();
+      body.set('image', imageOriginalName);
+      
+      // Activate corners and form
+      body.set('ai_corners_status', 'wanted');
+      body.set('ai_form_status', 'wanted');
+      
+      // For variants: randomly select one variant and set it to wanted
+      const standardVariants = ['wohnzimmer', 'schlafzimmer', 'arbeitszimmer', 'kommode', 'couch', 'flur'];
+      const randomVariant = standardVariants[Math.floor(Math.random() * standardVariants.length)];
+      body.set('ai_painting_variant_key', randomVariant);
+      body.set('ai_painting_variant_status', 'wanted');
+      
+      try {
+        const res = await fetch('meta.php', { method: 'POST', body });
+        if (!res.ok) {
+          showToast('Fehler beim Aktivieren der AI-Prozesse', 'error');
+          await updateImageRow(imageBaseName);
+          return;
+        }
+        
+        showToast('Alle AI-Prozesse gestartet (Corners, Form, Variante: ' + randomVariant + ')', 'success');
+        await updateImageRow(imageBaseName);
+      } catch (error) {
+        console.error('Error activating AI processes:', error);
+        showToast('Fehler beim Aktivieren der AI-Prozesse', 'error');
+        await updateImageRow(imageBaseName);
+      }
+    }
+
     async function updateAIPaintingVariantStatus(imageOriginalName, variantKey, statusValue, imageBaseName) {
       const body = new FormData();
       body.set('image', imageOriginalName);

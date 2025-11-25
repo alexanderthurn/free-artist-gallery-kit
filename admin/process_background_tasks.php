@@ -13,88 +13,40 @@ require_once __DIR__ . '/meta.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
-// If async mode is requested, trigger async processing and return immediately
-if (isset($_POST['async']) && $_POST['async'] === '1') {
-    // Get count BEFORE starting processing
-    $imagesDir = __DIR__ . '/images';
-    $counts = get_pending_tasks_count($imagesDir);
-    
-    // Trigger async processing using async_http_post
-    $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $url = $scheme . '://' . $host . '/admin/process_background_tasks.php';
-    
-    // Start async processing (fire-and-forget)
-    async_http_post($url, ['async' => '0']); // async=0 means actual processing
-    
-    // Return immediately with queue status (counted before processing started)
-    echo json_encode([
-        'ok' => true,
-        'async' => true,
-        'message' => 'Background processing started',
-        'summary' => [
-            'variants' => $counts['variants'],
-            'ai' => $counts['ai'],
-            'gallery' => $counts['gallery']
-        ]
-    ]);
-    exit;
-}
-
 $imagesDir = __DIR__ . '/images';
 
-// Preview mode - return counts AND trigger async processing if needed
-if (isset($_GET['preview']) && $_GET['preview'] === '1') {
-    $counts = get_pending_tasks_count($imagesDir);
-    $hasPendingTasks = ($counts['variants'] > 0 || $counts['ai'] > 0);
-    
-    // Trigger async processing if there are pending tasks
-    // Use a simple lock file to prevent multiple simultaneous triggers
-    if ($hasPendingTasks) {
-        $lockFile = sys_get_temp_dir() . '/herzfabrik_bg_tasks.lock';
-        $lockTimeout = 30; // Lock expires after 30 seconds
-        
-        // Check if lock exists and is still valid
-        $shouldTrigger = true;
-        if (is_file($lockFile)) {
-            $lockTime = filemtime($lockFile);
-            if (time() - $lockTime < $lockTimeout) {
-                $shouldTrigger = false; // Lock still valid, don't trigger again
-            } else {
-                // Lock expired, remove it
-                @unlink($lockFile);
-            }
-        }
-        
-        if ($shouldTrigger) {
-            // Create lock file
-            @touch($lockFile);
-            
-            // Trigger async processing (fire-and-forget)
-            $scheme = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $url = $scheme . '://' . $host . '/admin/process_background_tasks.php';
-            
-            // Start async processing (fire-and-forget)
-            async_http_post($url, ['async' => '0']); // async=0 means actual processing
+// Preview mode - check lock file to prevent multiple simultaneous executions
+$isPreview = isset($_GET['preview']) && $_GET['preview'] === '1';
+$lockFile = sys_get_temp_dir() . '/herzfabrik_bg_tasks.lock';
+$lockTimeout = 30; // Lock expires after 30 seconds
+
+if ($isPreview) {
+    // Check if lock exists and is still valid
+    if (is_file($lockFile)) {
+        $lockTime = filemtime($lockFile);
+        if (time() - $lockTime < $lockTimeout) {
+            // Lock still valid - return counts only without processing
+            $counts = get_pending_tasks_count($imagesDir);
+            echo json_encode([
+                'ok' => true,
+                'preview' => true,
+                'locked' => true,
+                'summary' => [
+                    'variants' => $counts['variants'],
+                    'ai' => $counts['ai'],
+                    'gallery' => $counts['gallery']
+                ]
+            ]);
+            exit;
+        } else {
+            // Lock expired, remove it
+            @unlink($lockFile);
         }
     }
     
-    echo json_encode([
-        'ok' => true,
-        'preview' => true,
-        'summary' => [
-            'variants' => $counts['variants'],
-            'ai' => $counts['ai'],
-            'gallery' => $counts['gallery']
-        ]
-    ]);
-    exit;
+    // Create lock file before processing
+    @touch($lockFile);
 }
-
-// Check if this is the actual processing run (async=0 or no async parameter)
-// If async=1 was sent, we already handled it above and exited
-$isAsyncProcessing = isset($_POST['async']) && $_POST['async'] === '0';
 
 $results = [
     'ok' => true,
@@ -286,22 +238,6 @@ function process_ai_corners(string $baseName, string $jsonPath): array {
             $result = process_ai_image_by_corners($imagePath, 1.0);
             
             if ($result['ok']) {
-                // Check if this was part of an AI upload workflow chain
-                $meta = load_meta($imageFilename, $imagesDir);
-                $shouldChain = $meta['ai_workflow_chain'] ?? false;
-                
-                if ($shouldChain) {
-                    // AI corners completed - now trigger AI form fill
-                    $aiFillForm = $meta['ai_fill_form'] ?? [];
-                    $formStatus = $aiFillForm['status'] ?? null;
-                    
-                    // Only set to 'wanted' if not already in progress or completed
-                    if ($formStatus !== 'in_progress' && $formStatus !== 'completed') {
-                        update_task_status($jsonPath, 'ai_form', 'wanted');
-                        // Flag bleibt bestehen für nächsten Schritt
-                    }
-                }
-                
                 return ['ok' => true, 'result' => $result];
             } else {
                 return ['ok' => false, 'error' => $result['error'] ?? 'Unknown error'];
@@ -363,22 +299,6 @@ function process_ai_corners(string $baseName, string $jsonPath): array {
                 $aiCorners['image_generation_needed'] = false;
                 $aiCorners['status'] = 'completed';
                 update_json_file($jsonPath, ['ai_corners' => $aiCorners], false);
-                
-                // Check if this was part of an AI upload workflow chain
-                $meta = load_meta($imageFilename, $imagesDir);
-                $shouldChain = $meta['ai_workflow_chain'] ?? false;
-                
-                if ($shouldChain) {
-                    // AI corners completed - now trigger AI form fill
-                    $aiFillForm = $meta['ai_fill_form'] ?? [];
-                    $formStatus = $aiFillForm['status'] ?? null;
-                    
-                    // Only set to 'wanted' if not already in progress or completed
-                    if ($formStatus !== 'in_progress' && $formStatus !== 'completed') {
-                        update_task_status($jsonPath, 'ai_form', 'wanted');
-                        // Flag bleibt bestehen für nächsten Schritt
-                    }
-                }
                 
                 return ['ok' => true, 'result' => $result, 'message' => 'Final image regenerated'];
             } else {
@@ -462,17 +382,6 @@ function process_ai_form(string $baseName, string $jsonPath): array {
         
         if (isset($pollResult['completed']) && $pollResult['completed']) {
             // Prediction completed - form data already saved by poll_form_prediction
-            
-            // Check if this was part of an AI upload workflow chain
-            $meta = load_meta($imageFilename, $imagesDir);
-            $shouldChain = $meta['ai_workflow_chain'] ?? false;
-            
-            if ($shouldChain) {
-                // AI form completed - variant generation will happen automatically in Phase 3
-                // Flag bleibt bestehen - wird manuell über UI gelöscht oder automatisch nach Variants
-                // (Optional: Hier könnte man es auch automatisch löschen, wenn alle Variants fertig sind)
-            }
-            
             return ['ok' => true, 'result' => $pollResult, 'completed' => true];
         }
         
@@ -1443,10 +1352,12 @@ error_log('[Background Tasks]   - Errors: ' . $results['summary']['error_count']
 error_log('[Background Tasks]   - AI Tasks: ' . $results['summary']['ai_tasks']['processed'] . ' processed, ' . $results['summary']['ai_tasks']['errors'] . ' errors, ' . $results['summary']['ai_tasks']['skipped'] . ' skipped');
 error_log('[Background Tasks]   - Images affected: ' . count($results['summary']['images_affected']) . ' (' . implode(', ', $results['summary']['images_affected']) . ')');
 
-// Only output JSON if this is NOT an async processing run (async=0)
-// Async runs are fire-and-forget and should not return output
-if (!$isAsyncProcessing) {
-    echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+// Remove lock file if it was set
+if ($isPreview && is_file($lockFile)) {
+    @unlink($lockFile);
 }
+
+// Always output JSON response
+echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
 
