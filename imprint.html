@@ -15,38 +15,50 @@
   <script src="script.js"></script>
   <style>
     .legal-page {
-      max-width: 800px;
+      max-width: 70ch;
       margin: 0 auto;
-      padding: 60px 20px;
+      padding: 40px 20px;
+      background: var(--color-contrast);
+      color: #333;
+      font-size: 1.1rem;
+      line-height: 1.8;
     }
     .legal-page h1 {
       margin-bottom: 30px;
+      color: #333;
     }
     .legal-page h2 {
       font-size: 1.5rem;
       margin-top: 30px;
       margin-bottom: 15px;
-      color: #5a4a3f;
+      color: #333;
+    }
+    .legal-page h3 {
+      color: #333;
+      margin-top: 20px;
+      margin-bottom: 10px;
     }
     .legal-page p {
       margin-bottom: 15px;
       line-height: 1.8;
+      color: #333;
+      opacity: 0.9;
     }
     .back-link {
       display: inline-block;
       margin-bottom: 30px;
-      color: #8b7355;
+      color: var(--color-primary);
       text-decoration: none;
       transition: color 0.3s;
     }
     .back-link:hover {
-      color: #5a4a3f;
+      color: var(--color-primary-hover);
       text-decoration: underline;
     }
     .admin-artist-btn {
       float: right;
-      background: #666;
-      color: #fff;
+      background: var(--color-primary);
+      color: var(--color-contrast);
       padding: 8px 16px;
       border-radius: 6px;
       text-decoration: none;
@@ -54,8 +66,8 @@
       margin-top: -8px;
     }
     .admin-artist-btn:hover {
-      background: #555;
-      color: #fff;
+      background: var(--color-primary-hover);
+      color: var(--color-contrast);
     }
   </style>
 </head>
