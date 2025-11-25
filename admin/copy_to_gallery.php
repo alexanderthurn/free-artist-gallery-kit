@@ -43,22 +43,29 @@ if (empty($meta)) {
     exit;
 }
 
-// Set live status to true (thread-safe)
-save_meta($jsonFile, ['live' => true], $imagesDir, false);
+// Always set live status to true first (thread-safe)
+// This ensures the state is saved even if gallery operations fail
+$saveResult = save_meta($jsonFile, ['live' => true], $imagesDir, false);
+if (!$saveResult['ok']) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Failed to update JSON metadata']);
+    exit;
+}
 
 // Reload meta for gallery operations
 $meta = load_meta($jsonFile, $imagesDir);
 $meta['live'] = true;
 
-// Use unified function to update gallery entry
-$result = update_gallery_entry($base, $meta, $imagesDir, $galleryDir);
+// Try to update gallery entry, but don't fail if there are errors
+// (e.g., missing final image, missing title, etc.)
+$galleryResult = update_gallery_entry($base, $meta, $imagesDir, $galleryDir);
 
-if (!$result['ok']) {
-    http_response_code(500);
-    echo json_encode($result);
-    exit;
-}
-
-echo json_encode($result);
+// Always return success if JSON was updated, even if gallery operations failed
+echo json_encode([
+    'ok' => true,
+    'json_updated' => true,
+    'gallery_updated' => $galleryResult['ok'] ?? false,
+    'gallery_error' => $galleryResult['ok'] ? null : ($galleryResult['error'] ?? 'Unknown error')
+]);
 exit;
 
