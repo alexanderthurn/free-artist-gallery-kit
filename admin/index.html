@@ -68,15 +68,15 @@
     @media (hover: none) {
       .main-image-wrapper.show-segmented-button .segmented-button { opacity: 1; visibility: visible; }
     }
-    .image-controls { position: absolute; top: 20px; right: 20px; display: flex; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; overflow: hidden; background: #28a745; box-shadow: 0 2px 8px rgba(0,0,0,0.25); z-index: 60; opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease; }
+    .image-controls { position: absolute; top: 20px; right: 20px; display: flex; border: 1px solid #ccc; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.25); z-index: 60; opacity: 0; visibility: hidden; transition: opacity 0.2s ease, visibility 0.2s ease; }
     .main-image-wrapper.show-segmented-button:hover .image-controls { opacity: 1; visibility: visible; }
     @media (hover: none) {
       .main-image-wrapper.show-segmented-button .image-controls { opacity: 1; visibility: visible; }
     }
-    .image-control-btn { background: #28a745; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; border: none; border-right: 1px solid rgba(255, 255, 255, 0.3); min-width: 40px; height: 32px; }
+    .image-control-btn { background: #fff; color: #000; padding: 8px 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; border: none; border-right: 1px solid #ccc; min-width: 40px; height: 32px; }
     .image-control-btn:last-child { border-right: none; }
-    .image-control-btn:hover { background: #218838; }
-    .image-control-btn:active { background: #1e7e34; }
+    .image-control-btn:hover { background: #f5f5f5; }
+    .image-control-btn:active { background: #e8e8e8; }
     .image-control-btn.rotate { font-size: 16px; }
     .image-control-btn.open-original { font-size: 14px; }
     .image-control-btn.open-final { font-size: 14px; }
@@ -469,6 +469,7 @@
                 </div>
               </div>` : ''}
               ${finalVariant ? `
+                <div class="image-name-label">${escapeHtml(g.base)}</div>
                 <img class="${imageClass} ${hasPendingAIForFinalImage ? 'opacity-30' : ''}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final">
               ` : '<div class="main-image main-image-placeholder">Kein Final-Bild</div>'}
             </div>
@@ -929,15 +930,66 @@
       }
     }
 
+    // Filter paintings based on current filter state
+    function filterPaintings(groups) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const statusFilter = urlParams.get('filter') || 'all';
+      const textFilter = urlParams.get('search') || '';
+      
+      let filtered = groups;
+      
+      // Apply status filter
+      if (statusFilter === 'live') {
+        filtered = filtered.filter(g => g.in_gallery);
+      } else if (statusFilter === 'draft') {
+        filtered = filtered.filter(g => !g.in_gallery);
+      }
+      
+      // Apply text filter
+      if (textFilter.trim()) {
+        const searchLower = textFilter.toLowerCase().trim();
+        filtered = filtered.filter(g => {
+          const meta = g.meta || {};
+          const title = (meta.title || '').toLowerCase();
+          const description = (meta.description || '').toLowerCase();
+          const tags = (meta.tags || '').toLowerCase();
+          const base = (g.base || '').toLowerCase();
+          
+          return title.includes(searchLower) ||
+                 description.includes(searchLower) ||
+                 tags.includes(searchLower) ||
+                 base.includes(searchLower);
+        });
+      }
+      
+      return filtered;
+    }
+
     function renderImages(groups) {
       const container = document.getElementById('images');
       container.innerHTML = '';
-      if (!groups.length) {
-        container.innerHTML = '<p class="muted">Noch keine Bilder vorhanden.</p>';
+      
+      // Apply filters
+      const filteredGroups = filterPaintings(groups);
+      
+      // Update painting count (show filtered count and total)
+      const countElement = document.getElementById('painting-count');
+      if (countElement) {
+        const totalCount = groups.length;
+        const filteredCount = filteredGroups.length;
+        if (filteredCount === totalCount) {
+          countElement.textContent = `${totalCount} ${totalCount === 1 ? 'Gemälde' : 'Gemälde'}`;
+        } else {
+          countElement.textContent = `${filteredCount} von ${totalCount} Gemälden`;
+        }
+      }
+      
+      if (!filteredGroups.length) {
+        container.innerHTML = '<p class="muted">Keine Gemälde gefunden.</p>';
         return;
       }
 
-      for (const g of groups) {
+      for (const g of filteredGroups) {
         const row = renderImageRow(g);
         container.appendChild(row);
       }
@@ -950,15 +1002,20 @@
       const { groups } = await fetchImages();
       renderImages(groups);
       
+      // Update filter button states
+      updateFilterButtonStates();
+      
       // Check for painting parameter in URL and scroll to it
       const urlParams = new URLSearchParams(window.location.search);
       const paintingParam = urlParams.get('painting');
       const variantParam = urlParams.get('variant');
       if (paintingParam) {
         // Try to find by gallery_filename first, then fallback to base
+        // Use filtered groups for finding the painting
+        const filteredGroups = filterPaintings(groups);
         let targetElement = null;
         let targetBase = null;
-        for (const g of groups) {
+        for (const g of filteredGroups) {
           if (g.gallery_filename && g.gallery_filename.toLowerCase() === paintingParam.toLowerCase()) {
             targetElement = document.getElementById(`painting-${g.base}`);
             targetBase = g.base;
@@ -1259,9 +1316,253 @@
       return `${mins}m ${secs}s`;
     }
 
+    // Update URL params for filtering
+    function updateFilterParams(statusFilter, textFilter) {
+      const url = new URL(window.location);
+      if (statusFilter && statusFilter !== 'all') {
+        url.searchParams.set('filter', statusFilter);
+      } else {
+        url.searchParams.delete('filter');
+      }
+      if (textFilter && textFilter.trim()) {
+        url.searchParams.set('search', textFilter.trim());
+      } else {
+        url.searchParams.delete('search');
+      }
+      window.history.replaceState({}, '', url);
+    }
+
+    // Apply filter and refresh display
+    function applyFilter(statusFilter, textFilter) {
+      updateFilterParams(statusFilter, textFilter);
+      refresh();
+    }
+
+    // Update filter button states
+    function updateFilterButtonStates() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentFilter = urlParams.get('filter') || 'all';
+      
+      const allBtn = document.getElementById('filter-all-btn');
+      const liveBtn = document.getElementById('filter-live-btn');
+      const draftBtn = document.getElementById('filter-draft-btn');
+      
+      [allBtn, liveBtn, draftBtn].forEach(btn => {
+        if (btn) {
+          btn.style.background = '#fff';
+          btn.style.fontWeight = 'normal';
+        }
+      });
+      
+      if (currentFilter === 'all' && allBtn) {
+        allBtn.style.background = '#f0f0f0';
+        allBtn.style.fontWeight = '600';
+      } else if (currentFilter === 'live' && liveBtn) {
+        liveBtn.style.background = '#f0f0f0';
+        liveBtn.style.fontWeight = '600';
+      } else if (currentFilter === 'draft' && draftBtn) {
+        draftBtn.style.background = '#f0f0f0';
+        draftBtn.style.fontWeight = '600';
+      }
+    }
+
+    // Burger menu toggle
+    function setupBurgerMenu() {
+      const paintingCount = document.getElementById('painting-count');
+      const burgerMenu = document.getElementById('burger-menu');
+      const burgerMenuContainer = document.querySelector('.burger-menu-container');
+      
+      if (!paintingCount || !burgerMenu || !burgerMenuContainer) return;
+      
+      let menuClickHandled = false;
+      
+      paintingCount.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuClickHandled = true;
+        const isVisible = burgerMenu.style.display === 'block';
+        if (isVisible) {
+          burgerMenu.style.display = 'none';
+        } else {
+          burgerMenu.style.display = 'block';
+          updateFilterButtonStates();
+        }
+        // Reset flag after a short delay
+        setTimeout(() => {
+          menuClickHandled = false;
+        }, 100);
+      });
+      
+      // Close menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (menuClickHandled) return;
+        if (!burgerMenuContainer.contains(e.target)) {
+          burgerMenu.style.display = 'none';
+        }
+      });
+      
+      // Setup filter buttons
+      const filterAllBtn = document.getElementById('filter-all-btn');
+      const filterLiveBtn = document.getElementById('filter-live-btn');
+      const filterDraftBtn = document.getElementById('filter-draft-btn');
+      
+      if (filterAllBtn) {
+        filterAllBtn.addEventListener('click', () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const textFilter = urlParams.get('search') || '';
+          applyFilter('all', textFilter);
+        });
+      }
+      
+      if (filterLiveBtn) {
+        filterLiveBtn.addEventListener('click', () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const textFilter = urlParams.get('search') || '';
+          applyFilter('live', textFilter);
+        });
+      }
+      
+      if (filterDraftBtn) {
+        filterDraftBtn.addEventListener('click', () => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const textFilter = urlParams.get('search') || '';
+          applyFilter('draft', textFilter);
+        });
+      }
+      
+      // Setup text filter input
+      const filterTextInput = document.getElementById('filter-text-input');
+      if (filterTextInput) {
+        // Load current search value from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentSearch = urlParams.get('search') || '';
+        filterTextInput.value = currentSearch;
+        
+        // Debounce input
+        let inputTimeout = null;
+        filterTextInput.addEventListener('input', (e) => {
+          clearTimeout(inputTimeout);
+          inputTimeout = setTimeout(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const statusFilter = urlParams.get('filter') || 'all';
+            applyFilter(statusFilter, e.target.value);
+          }, 300);
+        });
+        
+        // Allow Enter key to apply immediately
+        filterTextInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            clearTimeout(inputTimeout);
+            const urlParams = new URLSearchParams(window.location.search);
+            const statusFilter = urlParams.get('filter') || 'all';
+            applyFilter(statusFilter, e.target.value);
+          }
+        });
+      }
+    }
+
+    // Set all paintings to draft
+    async function setAllPaintingsToDraft() {
+      const { groups } = await fetchImages();
+      const livePaintings = groups.filter(g => g.in_gallery);
+      
+      if (livePaintings.length === 0) {
+        showToast('Keine live Gemälde vorhanden', 'info');
+        return;
+      }
+      
+      const burgerMenu = document.getElementById('burger-menu');
+      if (burgerMenu) burgerMenu.style.display = 'none';
+      
+      showToast(`${livePaintings.length} Gemälde werden auf Entwurf gesetzt...`, 'info');
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const g of livePaintings) {
+        const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+        if (!originalVariant) continue;
+        
+        try {
+          await removeFromGallery(originalVariant.name, {});
+          successCount++;
+        } catch (error) {
+          console.error(`Error setting ${g.base} to draft:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (errorCount === 0) {
+        showToast(`Alle ${successCount} Gemälde erfolgreich auf Entwurf gesetzt`, 'success');
+      } else {
+        showToast(`${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      }
+      
+      await refresh();
+    }
+
+    // Set all paintings to live
+    async function setAllPaintingsToLive() {
+      const { groups } = await fetchImages();
+      const draftPaintings = groups.filter(g => !g.in_gallery);
+      
+      if (draftPaintings.length === 0) {
+        showToast('Keine Entwurf-Gemälde vorhanden', 'info');
+        return;
+      }
+      
+      const burgerMenu = document.getElementById('burger-menu');
+      if (burgerMenu) burgerMenu.style.display = 'none';
+      
+      showToast(`${draftPaintings.length} Gemälde werden auf Live gesetzt...`, 'info');
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const g of draftPaintings) {
+        const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+        if (!originalVariant) continue;
+        
+        try {
+          await copyToGallery(originalVariant.name, {});
+          successCount++;
+        } catch (error) {
+          console.error(`Error setting ${g.base} to live:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (errorCount === 0) {
+        showToast(`Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
+      } else {
+        showToast(`${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      }
+      
+      await refresh();
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       // showFlashFromQuery(); // Function not defined, commented out
+      
+      // Setup burger menu (before refresh so filter buttons are ready)
+      setupBurgerMenu();
+      
       refresh();
+      
+      // Setup burger menu buttons
+      const setAllDraftBtn = document.getElementById('set-all-draft-btn');
+      const setAllLiveBtn = document.getElementById('set-all-live-btn');
+      
+      if (setAllDraftBtn) {
+        setAllDraftBtn.addEventListener('click', () => {
+          setAllPaintingsToDraft();
+        });
+      }
+      
+      if (setAllLiveBtn) {
+        setAllLiveBtn.addEventListener('click', () => {
+          setAllPaintingsToLive();
+        });
+      }
       
       const fileInput = document.getElementById('fileInput');
       const uploadArea = document.getElementById('uploadArea');
@@ -1738,7 +2039,33 @@
 
   <div class="">
     <div class="toolbar">
-      <h2>Gemälde</h2>
+      <div class="painting-toolbar">
+        <div class="burger-menu-container">
+          <h2 id="painting-count" class="painting-count clickable" style="margin: 0; cursor: pointer;">0 Gemälde</h2>
+          <div id="burger-menu" class="burger-menu">
+            <div class="burger-menu-search-container">
+              <input type="text" id="filter-text-input" class="burger-menu-search-input" placeholder="Suchen...">
+            </div>
+            <button id="filter-all-btn" class="burger-menu-item">
+              Alle anzeigen
+            </button>
+            <button id="filter-live-btn" class="burger-menu-item">
+              Zeige nur Live
+            </button>
+            <button id="filter-draft-btn" class="burger-menu-item">
+              Zeige nur Entwurf
+            </button>
+            <div style="border-top: 1px solid #eee; margin-top: 4px; padding-top: 4px;">
+              <button id="set-all-draft-btn" class="burger-menu-item">
+                Alle auf Entwurf
+              </button>
+              <button id="set-all-live-btn" class="burger-menu-item">
+                Alle auf Live
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="images" class="list"></div>
   </div>
