@@ -77,7 +77,6 @@ h1 .site-title {
   box-shadow: none;
   transform-origin: center center;
   cursor: pointer;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .header-heart {
@@ -190,6 +189,7 @@ h1 .site-title {
   margin-bottom: 20px;
   transform-origin: center center;
   cursor: pointer;
+  color: rgba(var(--color-primary-rgb), 1);
 }
 
 /* Pulse animation triggered on click for modal title */
@@ -361,11 +361,9 @@ h1 {
   margin-bottom: 20px;
   overflow: visible;
   min-height: auto;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .author-short p {
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .author-short img {
@@ -410,11 +408,11 @@ h1 {
   border-top: 1px solid rgba(255, 255, 255, 0.2);
   overflow: visible;
   min-height: auto;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .author-bio p {
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .author-bio img {
@@ -441,7 +439,7 @@ h1 {
   list-style-position: inside;
   padding-left: 0;
   margin-left: 0;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .author-bio ol,
@@ -456,7 +454,7 @@ h1 {
   list-style-position: inside;
   padding-left: 0;
   margin-left: 0;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .author-toggle {
@@ -473,7 +471,7 @@ h1 {
   transition: opacity 0.2s ease;
   text-decoration: underline;
   text-underline-offset: 2px;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .author-toggle:hover {
@@ -1687,7 +1685,7 @@ footer {
   cursor: pointer;
   text-decoration: none;
   transition: opacity 0.3s;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .footer-vita:hover {
@@ -1711,7 +1709,7 @@ footer {
   font-weight: 500;
   position: relative;
   padding: 0 10px;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 1px 3px rgba(0, 0, 0, 0.6);
+  
 }
 
 .footer-links a::before {
@@ -1846,7 +1844,7 @@ h1 {
     cursor: pointer;
     background: transparent;
     padding: 0;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 1px 4px rgba(0, 0, 0, 0.6);
+    
   }
   
   /* Pulse animation triggered on click for mobile */

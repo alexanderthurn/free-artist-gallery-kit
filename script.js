@@ -273,31 +273,52 @@ function initAuthorVariantReveal() {
   if (!variantLayer || !variantImgSharp || !variantImgBlurred || !revealMask) return;
   
   // Alternative portrait images management
-  // Dynamically detect available alternative images (check up to 10)
+  // Only check for alternatives 1 and 2
   let NUM_ALTERNATIVE_IMAGES = 0;
   
-  // Detect available alternative images asynchronously
-  (async function detectAlternativeImages() {
-    const checkImage = (index) => {
+  // Preloaded image URLs (to avoid reloading)
+  const preloadedImageUrls = {};
+  
+  // Track which alternative image is currently loaded (to avoid reloads)
+  let currentlyLoadedAlternativeIndex = null;
+  
+  // Detect and preload available alternative images (only 1 and 2) on page load
+  (async function detectAndPreloadAlternativeImages() {
+    const checkAndPreloadImage = (index) => {
       return new Promise((resolve) => {
         const img = new Image();
-        img.onload = () => resolve(true);
+        img.onload = () => {
+          // Store the thumbnail URL for reuse
+          const imageUrl = `img/upload/artist-alternative-${index}.jpg`;
+          const thumbUrl = getThumbnailUrl(imageUrl);
+          preloadedImageUrls[index] = thumbUrl;
+          resolve(true);
+        };
         img.onerror = () => resolve(false);
-        // Use thumbnail for checking (faster)
-        img.src = getThumbnailUrl(`img/upload/artist-alternative-${index}.jpg`);
+        // Use thumbnail for checking and preloading (faster)
+        const imageUrl = `img/upload/artist-alternative-${index}.jpg`;
+        const thumbUrl = getThumbnailUrl(imageUrl);
+        img.src = thumbUrl;
         // Timeout after 1 second
         setTimeout(() => resolve(false), 1000);
       });
     };
     
-    // Check images sequentially up to 10
-    for (let i = 1; i <= 10; i++) {
-      const exists = await checkImage(i);
+    // Check and preload only alternatives 1 and 2
+    for (let i = 1; i <= 2; i++) {
+      const exists = await checkAndPreloadImage(i);
       if (exists) {
         NUM_ALTERNATIVE_IMAGES = i;
       } else {
         break;
       }
+    }
+    
+    // Preload the first alternative image into the variant images if available
+    if (NUM_ALTERNATIVE_IMAGES > 0 && preloadedImageUrls[1]) {
+      variantImgSharp.src = preloadedImageUrls[1];
+      variantImgBlurred.src = preloadedImageUrls[1];
+      currentlyLoadedAlternativeIndex = 1;
     }
   })();
   
@@ -320,14 +341,16 @@ function initAuthorVariantReveal() {
     }
   }
   
-  // Load a specific alternative image
+  // Load a specific alternative image (only if not already loaded)
   function loadAlternativeImage(index) {
-    // index is 1-based (1, 2, 3, ...)
-    const imageUrl = `img/upload/artist-alternative-${index}.jpg`;
-    // Use thumbnails for variant reveal effect (list view)
-    const thumbUrl = getThumbnailUrl(imageUrl);
-    variantImgSharp.src = thumbUrl;
-    variantImgBlurred.src = thumbUrl;
+    // index is 1-based (1, 2)
+    // Only load if we have a preloaded URL and the image isn't already loaded
+    if (preloadedImageUrls[index] && currentlyLoadedAlternativeIndex !== index) {
+      const thumbUrl = preloadedImageUrls[index];
+      variantImgSharp.src = thumbUrl;
+      variantImgBlurred.src = thumbUrl;
+      currentlyLoadedAlternativeIndex = index;
+    }
   }
   
   // Rotate to next image
@@ -355,6 +378,7 @@ function initAuthorVariantReveal() {
     if (currentAlternativeIndex === 0) {
       // Show standard image (hide variant layer)
       showVariantLayer(false);
+      currentlyLoadedAlternativeIndex = null;
     } else {
       // Show variant image (currentAlternativeIndex is 1-based for variants)
       loadAlternativeImage(currentAlternativeIndex);
@@ -373,10 +397,10 @@ function initAuthorVariantReveal() {
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   
   // Initialize: Show standard image (hide variant layer)
+  // Images are preloaded in detectAndPreloadAlternativeImages() above
+  // So we just need to hide the variant layer initially
   if (NUM_ALTERNATIVE_IMAGES > 0) {
-    // Preload first variant image
-    loadAlternativeImage(1);
-    // But start with standard image hidden
+    // Start with standard image visible (variant layer hidden)
     showVariantLayer(false);
   } else {
     variantLayer.style.display = 'none';
@@ -466,8 +490,13 @@ function initAuthorVariantReveal() {
     
     // Load the first variant image if we're showing standard image (index 0)
     // This ensures hover effect always shows a variant, regardless of click state
-    if (currentAlternativeIndex === 0) {
-      loadAlternativeImage(1);
+    // Only load if we haven't already loaded it (using flag to avoid reloads)
+    if (currentAlternativeIndex === 0 && NUM_ALTERNATIVE_IMAGES > 0 && currentlyLoadedAlternativeIndex !== 1) {
+      if (preloadedImageUrls[1]) {
+        variantImgSharp.src = preloadedImageUrls[1];
+        variantImgBlurred.src = preloadedImageUrls[1];
+        currentlyLoadedAlternativeIndex = 1;
+      }
     }
     
     // Calculate position relative to wrapper (can be negative or > 100% if outside)
