@@ -91,8 +91,11 @@ if (empty($meta)) {
     $meta = load_meta($originalImageFile, $imagesDir);
 }
 
-// Set form status to wanted using update_task_status
+// Clear old ai_form data before starting new generation
 $metaPath = get_meta_path($originalImageFile, $imagesDir);
+update_json_file($metaPath, ['ai_form' => []], false);
+
+// Set form status to wanted using update_task_status
 update_task_status($metaPath, 'ai_form', 'wanted');
 
 echo json_encode([

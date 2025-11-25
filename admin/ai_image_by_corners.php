@@ -91,12 +91,15 @@ function process_ai_image_by_corners(string $imagePath, float $offsetPercent = 1
         $corners = $cornersUsed;
         // Skip to image processing - corners are already available
     } else {
-        // Step 2: Update status to in_progress (only if not already completed)
+        // Step 2: Clear old ai_corners data before starting new generation
+        update_json_file($metaPath, ['ai_corners' => []], false);
+        
+        // Step 3: Update status to in_progress (only if not already completed)
         if ($cornersStatus !== 'completed') {
             update_task_status($metaPath, 'ai_corners', 'in_progress');
         }
         
-        // Step 3: Call calculate_corners function directly
+        // Step 4: Call calculate_corners function directly
         require_once __DIR__ . '/ai_calc_corners.php';
         
         $cornersData = calculate_corners($imagePath, $offsetPercent);

@@ -150,6 +150,9 @@ function process_ai_painting_variants(string $imageBaseName, ?array $variantName
             $aiPaintingVariants['active_variants'][] = $variantName;
         }
         
+        // Clear old replicate data for this variant before starting new generation
+        unset($variants[$variantName]);
+        
         // Build prompt with dimensions info
         $dimensionsInfo = '';
         if ($width !== null && $height !== null && $width !== '' && $height !== '') {
