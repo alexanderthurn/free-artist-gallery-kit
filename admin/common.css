@@ -334,7 +334,7 @@
 }
 
 .details-content {
-  display: none;
+  /* Display controlled by .hidden class */
 }
 
 .details-section {
