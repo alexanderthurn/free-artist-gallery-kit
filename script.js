@@ -1461,6 +1461,11 @@ function initFlyingHearts() {
     
     const photoRect = authorPhoto.getBoundingClientRect();
     
+    // Size - 5x bigger (300-500px)
+    const size = 300 + Math.random() * 200; // 300-500px
+    heart.style.width = size + 'px';
+    heart.style.height = size + 'px';
+    
     // Start from further up and left in the profile picture
     const startX = photoRect.left + photoRect.width / 4; // Left side (1/4 from left)
     const startY = photoRect.top + photoRect.height / 5; // Upper 1/5 of the image (further up)
@@ -1469,13 +1474,9 @@ function initFlyingHearts() {
     const randomOffsetX = (Math.random() - 0.5) * 15; // ±7.5px horizontal variation
     const randomOffsetY = (Math.random() - 0.5) * 15; // ±7.5px vertical variation
     
-    heart.style.left = (startX + randomOffsetX) + 'px';
-    heart.style.top = (startY + randomOffsetY) + 'px';
-    
-    // Size - double size (60-100px)
-    const size = 60 + Math.random() * 40; // 60-100px
-    heart.style.width = size + 'px';
-    heart.style.height = size + 'px';
+    // Position heart so its center starts at the calculated point (offset by half size)
+    heart.style.left = (startX + randomOffsetX - size / 2) + 'px';
+    heart.style.top = (startY + randomOffsetY - size / 2) + 'px';
     
     // Animation duration - slower (5-7 seconds)
     const duration = 5 + Math.random() * 2; // 5-7 seconds
@@ -1483,7 +1484,7 @@ function initFlyingHearts() {
     // Create unique animation name for this heart
     const animationId = 'fly-heart-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     
-    // Create custom keyframes for this heart - flying more up and right, growing larger
+    // Create custom keyframes for this heart - flying in random direction
     const styleSheet = document.getElementById('flying-hearts-styles') || (() => {
       const style = document.createElement('style');
       style.id = 'flying-hearts-styles';
@@ -1491,9 +1492,14 @@ function initFlyingHearts() {
       return style;
     })();
     
-    // Calculate end position: more up and right (stronger vertical movement)
-    const endX = window.innerWidth + 100; // End off-screen right
-    const endY = -window.innerHeight * 0.8; // End much higher up (80% of screen height above)
+    // Calculate end position: random angle (0-360 degrees) and distance
+    const randomAngle = Math.random() * 360; // Random angle in degrees
+    const distance = Math.max(window.innerWidth, window.innerHeight) * 1.5; // Enough distance to go off-screen
+    const angleRad = (randomAngle * Math.PI) / 180; // Convert to radians
+    
+    // Calculate end position using polar coordinates
+    const endX = startX + randomOffsetX + Math.cos(angleRad) * distance;
+    const endY = startY + randomOffsetY + Math.sin(angleRad) * distance;
     const horizontalDistance = endX - (startX + randomOffsetX);
     const verticalDistance = endY - (startY + randomOffsetY);
     
@@ -1501,23 +1507,23 @@ function initFlyingHearts() {
       @keyframes ${animationId} {
         0% {
           opacity: 0;
-          transform: translate(0, 0) scale(0.3) rotate(0deg);
+          transform: translate(0, 0) scale(0.3) rotate(${randomAngle}deg);
         }
         15% {
           opacity: 1;
-          transform: translate(${horizontalDistance * 0.1}px, ${verticalDistance * 0.15}px) scale(0.6) rotate(90deg);
+          transform: translate(${horizontalDistance * 0.1}px, ${verticalDistance * 0.15}px) scale(0.6) rotate(${randomAngle + 90}deg);
         }
         50% {
           opacity: 1;
-          transform: translate(${horizontalDistance * 0.5}px, ${verticalDistance * 0.6}px) scale(1.0) rotate(180deg);
+          transform: translate(${horizontalDistance * 0.5}px, ${verticalDistance * 0.6}px) scale(1.0) rotate(${randomAngle + 180}deg);
         }
         85% {
           opacity: 0.9;
-          transform: translate(${horizontalDistance * 0.85}px, ${verticalDistance * 0.9}px) scale(1.4) rotate(315deg);
+          transform: translate(${horizontalDistance * 0.85}px, ${verticalDistance * 0.9}px) scale(1.4) rotate(${randomAngle + 315}deg);
         }
         100% {
           opacity: 0;
-          transform: translate(${horizontalDistance}px, ${verticalDistance}px) scale(1.6) rotate(360deg);
+          transform: translate(${horizontalDistance}px, ${verticalDistance}px) scale(1.6) rotate(${randomAngle + 360}deg);
         }
       }
     `;
