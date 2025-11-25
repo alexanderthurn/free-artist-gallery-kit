@@ -188,7 +188,6 @@
         }
         
         // If ANY AI generation is active for this painting, update the ENTIRE painting
-        // Also update if there are active_variants (variants being tracked, even if completed)
         // This ensures all images (main image, variants), and forms are updated together
         // The painting-level check means if ANY variant/form/corners is active, update everything
         if (hasActiveCorners || hasActiveForm || hasActiveVariantRegen || hasActiveVariants || hasActiveVariantsList) {
