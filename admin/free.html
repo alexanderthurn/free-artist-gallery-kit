@@ -560,15 +560,27 @@
         zoomCtx.stroke();
       }
       
-      // Draw center crosshair
-      zoomCtx.strokeStyle = '#ff0000';
-      zoomCtx.lineWidth = 1;
-      zoomCtx.beginPath();
-      zoomCtx.moveTo(centerX - 10, centerY);
-      zoomCtx.lineTo(centerX + 10, centerY);
-      zoomCtx.moveTo(centerX, centerY - 10);
-      zoomCtx.lineTo(centerX, centerY + 10);
-      zoomCtx.stroke();
+      // Calculate actual mouse position in zoom canvas coordinates
+      // The zoom shows region from (sourceX - sourceRadius) to (sourceX + sourceRadius)
+      // Mouse is at mouseX, mouseY (may be clamped to sourceX, sourceY)
+      // Calculate offset from center and convert to zoom canvas pixels
+      const mouseOffsetX = mouseX - sourceX;
+      const mouseOffsetY = mouseY - sourceY;
+      const crosshairX = centerX + mouseOffsetX * pixelSize;
+      const crosshairY = centerY + mouseOffsetY * pixelSize;
+      
+      // Only draw crosshair if it's within the zoom canvas bounds
+      if (crosshairX >= 0 && crosshairX <= zoomSize && crosshairY >= 0 && crosshairY <= zoomSize) {
+        // Draw crosshair at actual mouse position
+        zoomCtx.strokeStyle = '#ff0000';
+        zoomCtx.lineWidth = 1;
+        zoomCtx.beginPath();
+        zoomCtx.moveTo(crosshairX - 10, crosshairY);
+        zoomCtx.lineTo(crosshairX + 10, crosshairY);
+        zoomCtx.moveTo(crosshairX, crosshairY - 10);
+        zoomCtx.lineTo(crosshairX, crosshairY + 10);
+        zoomCtx.stroke();
+      }
       
       // Draw border
       zoomCtx.strokeStyle = '#333';
@@ -576,26 +588,36 @@
       zoomCtx.strokeRect(0, 0, zoomSize, zoomSize);
       
       // Position zoom canvas near mouse cursor
-      const canvasX = rect.left + (sourceX / (previewCanvas.width / rect.width)) - zoomRadius;
-      const canvasY = rect.top + (sourceY / (previewCanvas.height / rect.height)) - zoomRadius;
+      // Convert canvas coordinates to displayed pixel coordinates
+      const scaleX = rect.width / previewCanvas.width;
+      const scaleY = rect.height / previewCanvas.height;
+      const displayX = sourceX * scaleX;
+      const displayY = sourceY * scaleY;
       
-      // Adjust position to keep it within viewport
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      let finalX = canvasX;
-      let finalY = canvasY;
+      // Position relative to the preview canvas container (which has pos-relative)
+      // Offset to the right of the cursor, centered vertically
+      const offsetX = 20; // Offset to the right of cursor
+      const offsetY = -zoomRadius; // Center vertically on cursor
       
-      if (finalX + zoomSize > viewportWidth) {
-        finalX = viewportWidth - zoomSize - 10;
+      let finalX = displayX + offsetX;
+      let finalY = displayY + offsetY;
+      
+      // Adjust position to keep it within the container bounds
+      // If zoom would go outside right edge, position to the left instead
+      if (finalX + zoomSize > rect.width) {
+        finalX = displayX - zoomSize - offsetX;
       }
+      // Keep within left edge
       if (finalX < 0) {
         finalX = 10;
       }
-      if (finalY + zoomSize > viewportHeight) {
-        finalY = viewportHeight - zoomSize - 10;
-      }
+      // Keep within top edge
       if (finalY < 0) {
         finalY = 10;
+      }
+      // Keep within bottom edge
+      if (finalY + zoomSize > rect.height) {
+        finalY = rect.height - zoomSize - 10;
       }
       
       zoomCanvas.style.left = finalX + 'px';
