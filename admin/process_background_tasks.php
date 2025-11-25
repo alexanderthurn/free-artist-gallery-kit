@@ -1443,6 +1443,10 @@ error_log('[Background Tasks]   - Errors: ' . $results['summary']['error_count']
 error_log('[Background Tasks]   - AI Tasks: ' . $results['summary']['ai_tasks']['processed'] . ' processed, ' . $results['summary']['ai_tasks']['errors'] . ' errors, ' . $results['summary']['ai_tasks']['skipped'] . ' skipped');
 error_log('[Background Tasks]   - Images affected: ' . count($results['summary']['images_affected']) . ' (' . implode(', ', $results['summary']['images_affected']) . ')');
 
-echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+// Only output JSON if this is NOT an async processing run (async=0)
+// Async runs are fire-and-forget and should not return output
+if (!$isAsyncProcessing) {
+    echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+}
 
 
