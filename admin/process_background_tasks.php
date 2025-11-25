@@ -148,8 +148,15 @@ function check_ai_generation_needed(array $meta): array {
     // Check corners status
     if ($cornersStatus === 'wanted') {
         $needs['corners'] = true;
-    } elseif ($cornersStatus === 'in_progress' && !is_task_in_progress($meta, 'ai_corners')) {
-        $needs['corners'] = true; // Stale, retry
+    } elseif ($cornersStatus === 'in_progress') {
+        // Check if there's a prediction URL - if so, we need to poll it
+        $hasPredictionUrl = isset($aiCorners['prediction_url']) && 
+                          is_string($aiCorners['prediction_url']);
+        if ($hasPredictionUrl) {
+            $needs['corners'] = true; // Has prediction URL, needs polling
+        } elseif (!is_task_in_progress($meta, 'ai_corners')) {
+            $needs['corners'] = true; // Stale, retry
+        }
     }
     
     // Check form status
