@@ -26,7 +26,27 @@
     try {
       const res = await fetch('process_background_tasks.php?preview=1');
       if (!res.ok) return null;
-      return await res.json();
+      
+      // Check Content-Type to ensure it's JSON
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn('Preview response is not JSON, Content-Type:', contentType);
+        return null;
+      }
+      
+      const text = await res.text();
+      // Check if response is HTML (error page)
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        console.warn('Preview response is HTML, not JSON');
+        return null;
+      }
+      
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        console.error('Failed to parse preview JSON:', parseError, 'Response:', text.substring(0, 200));
+        return null;
+      }
     } catch (error) {
       console.error('Preview error:', error);
       return null;

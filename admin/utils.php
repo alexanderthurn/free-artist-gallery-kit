@@ -1390,6 +1390,17 @@ function async_http_post(string $url, array $data = []): void {
         $url = $baseUrl . '/' . ltrim($url, '/');
     }
     
+    // Get Basic Auth credentials from current request if available
+    $authUser = $_SERVER['PHP_AUTH_USER'] ?? null;
+    $authPw = $_SERVER['PHP_AUTH_PW'] ?? null;
+    $headers = ['Content-Type: application/x-www-form-urlencoded'];
+    
+    // Add Basic Auth header if credentials are available
+    if ($authUser !== null && $authPw !== null) {
+        $auth = base64_encode($authUser . ':' . $authPw);
+        $headers[] = 'Authorization: Basic ' . $auth;
+    }
+    
     // Try PHP curl extension first (most reliable)
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
@@ -1399,7 +1410,7 @@ function async_http_post(string $url, array $data = []): void {
             CURLOPT_RETURNTRANSFER => false, // Don't return response
             CURLOPT_TIMEOUT => 2, // Very short timeout for async behavior
             CURLOPT_CONNECTTIMEOUT => 1,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+            CURLOPT_HTTPHEADER => $headers,
             CURLOPT_NOSIGNAL => 1, // Allow timeout to work properly
         ]);
         // Execute without waiting for response (fire and forget)
@@ -1412,9 +1423,14 @@ function async_http_post(string $url, array $data = []): void {
     // Fallback: Use exec to spawn background curl process (non-blocking)
     // This is more reliable for true fire-and-forget
     if (function_exists('exec')) {
+        $authFlag = '';
+        if ($authUser !== null && $authPw !== null) {
+            $authFlag = sprintf('--user %s:%s ', escapeshellarg($authUser), escapeshellarg($authPw));
+        }
         $cmd = sprintf(
-            'curl -X POST -d %s %s --max-time 600 > /dev/null 2>&1 &',
+            'curl -X POST -d %s %s%s --max-time 600 > /dev/null 2>&1 &',
             escapeshellarg($postData),
+            $authFlag,
             escapeshellarg($url)
         );
         @exec($cmd);
@@ -1422,10 +1438,11 @@ function async_http_post(string $url, array $data = []): void {
     }
     
     // Last resort: use file_get_contents with very short timeout
+    $headerString = implode("\r\n", $headers);
     $context = stream_context_create([
         'http' => [
             'method' => 'POST',
-            'header' => 'Content-Type: application/x-www-form-urlencoded',
+            'header' => $headerString,
             'content' => $postData,
             'timeout' => 1, // Increased timeout slightly for reliability
             'ignore_errors' => true
