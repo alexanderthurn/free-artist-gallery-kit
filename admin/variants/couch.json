@@ -1,0 +1,51 @@
+{
+    "variant_name": "couch",
+    "status": "completed",
+    "started_at": "2025-11-21T09:57:12+00:00",
+    "prediction_url": "https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper",
+    "prediction_id": "5ze1g6ndb9rm80ctmqca3ncper",
+    "prediction_status": "succeeded",
+    "timestamp": "2025-11-21T09:57:56+00:00",
+    "prompt": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Ensure the painting is properly scaled and positioned realistically.\n- The painting should be centered or positioned appropriately on the wall.\n- Maintain natural lighting and shadows.",
+    "prompt_final": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Ensure the painting is properly scaled and positioned realistically.\n- The painting should be centered or positioned appropriately on the wall.\n- Maintain natural lighting and shadows.\n",
+    "target_path": "/Users/alexanderthurn/Documents/projects/herzfabrik/admin/images/IMG_2106_2_variant_couch.jpg",
+    "variant_template_path": "/Users/alexanderthurn/Documents/projects/herzfabrik/admin/variants/couch.jpg",
+    "final_image_path": "/Users/alexanderthurn/Documents/projects/herzfabrik/admin/images/IMG_2106_2_final.jpg",
+    "width": "",
+    "height": "",
+    "replicate_response_raw": "{\n    \"id\": \"5ze1g6ndb9rm80ctmqca3ncper\",\n    \"model\": \"google/nano-banana\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"aspect_ratio\": \"1:1\",\n        \"image_input\": [\n            \"data:image/jpeg;base64,...\",\n            \"data:image/jpeg;base64,...\"\n        ],\n        \"output_format\": \"jpg\",\n        \"prompt\": \"You are an image editor.\\n\\nTask:\\n- Place the painting into the free space on the wall.\\n- Ensure the painting is properly scaled and positioned realistically.\\n- The painting should be centered or positioned appropriately on the wall.\\n- Maintain natural lighting and shadows.\\n\"\n    },\n    \"logs\": \"Generating image with Gemini Flash...\\nGenerated image in 9.35 seconds\\n\",\n    \"output\": \"https://replicate.delivery/xezq/7BPlmZNHhdbyOhGGPQege3LuU5hofh2xJAcIj7Hfv5DPY6tWB/tmptf34ccjl.jpeg\",\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-21T09:57:12.154Z\",\n    \"started_at\": \"2025-11-21T09:57:13.699891934Z\",\n    \"completed_at\": \"2025-11-21T09:57:23.538076602Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper\",\n        \"stream\": \"https://stream.replicate.com/v1/files/bcwr-tkxeqbvr3pcpmqttlbpwmftmz26wc2rmffpzexnvng4tfik6cx6a\",\n        \"web\": \"https://replicate.com/p/5ze1g6ndb9rm80ctmqca3ncper\"\n    },\n    \"metrics\": {\n        \"predict_time\": 9.838184667,\n        \"total_time\": 11.384076602\n    }\n}",
+    "replicate_response": {
+        "id": "5ze1g6ndb9rm80ctmqca3ncper",
+        "model": "google/nano-banana",
+        "version": "hidden",
+        "input": {
+            "aspect_ratio": "1:1",
+            "image_input": [
+                "data:image/jpeg;base64,...",
+                "data:image/jpeg;base64,..."
+            ],
+            "output_format": "jpg",
+            "prompt": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Ensure the painting is properly scaled and positioned realistically.\n- The painting should be centered or positioned appropriately on the wall.\n- Maintain natural lighting and shadows.\n"
+        },
+        "logs": "Generating image with Gemini Flash...\nGenerated image in 9.35 seconds\n",
+        "output": "https://replicate.delivery/xezq/7BPlmZNHhdbyOhGGPQege3LuU5hofh2xJAcIj7Hfv5DPY6tWB/tmptf34ccjl.jpeg",
+        "data_removed": false,
+        "error": null,
+        "source": "api",
+        "status": "succeeded",
+        "created_at": "2025-11-21T09:57:12.154Z",
+        "started_at": "2025-11-21T09:57:13.699891934Z",
+        "completed_at": "2025-11-21T09:57:23.538076602Z",
+        "urls": {
+            "cancel": "https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper/cancel",
+            "get": "https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper",
+            "stream": "https://stream.replicate.com/v1/files/bcwr-tkxeqbvr3pcpmqttlbpwmftmz26wc2rmffpzexnvng4tfik6cx6a",
+            "web": "https://replicate.com/p/5ze1g6ndb9rm80ctmqca3ncper"
+        },
+        "metrics": {
+            "predict_time": 9.838184667,
+            "total_time": 11.384076602
+        }
+    },
+    "completed_at": "2025-11-21T09:57:56+00:00"
+}
