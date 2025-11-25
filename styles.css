@@ -29,20 +29,6 @@ body {
   overflow-x: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  z-index: -1;
-  pointer-events: none;
-}
-
 
 
 
@@ -69,7 +55,7 @@ h1 .site-title {
 .site-title {
   display: inline-block;
   font-size: 4rem;
-  color: var(--color-text-on-background);
+  color: var(--color-contrast);
   font-weight: 400;
   letter-spacing: 0.08em;
   font-family: 'Georgia', 'Times New Roman', serif;
@@ -189,7 +175,6 @@ h1 .site-title {
 }
 
 .site-title:hover {
-  color: var(--color-text-on-background);
   opacity: 0.9;
   transform: rotate(-0.3deg) translateY(-2px);
   letter-spacing: 0.1em;
@@ -482,8 +467,8 @@ h1 {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--color-text-on-background);
-  font-size: 0.9rem;
+  color: var(--color-contrast);
+  font-size: 1.2rem;
   font-weight: 500;
   transition: opacity 0.2s ease;
   text-decoration: underline;
@@ -1692,7 +1677,7 @@ footer {
 }
 
 .footer-vita {
-  color: var(--color-text-on-background);
+  color: var(--color-contrast);
   font-size: 0.95rem;
   font-weight: 500;
   padding: 0 10px;
@@ -1719,7 +1704,7 @@ footer {
 }
 
 .footer-links a {
-  color: var(--color-text-on-background);
+  color: var(--color-contrast);
   text-decoration: none;
   font-size: 0.95rem;
   transition: opacity 0.3s;
