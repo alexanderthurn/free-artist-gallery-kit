@@ -658,6 +658,14 @@
                     ${aiFillForm.started_at ? `<small class="details-text-small">Gestartet: ${new Date(aiFillForm.started_at).toLocaleString('de-DE')}</small>` : ''}
                     ${aiFillForm.completed_at ? `<small class="details-text-small">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
                   </div>
+                  <div>
+                    <label class="details-label-sm">AI Workflow Chain:</label>
+                    <select id="ai-workflow-chain-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_workflow_chain', this.value, '${g.base}')" class="select-field-sm">
+                      <option value="" ${!meta.ai_workflow_chain ? 'selected' : ''}>- (deaktiviert)</option>
+                      <option value="1" ${meta.ai_workflow_chain ? 'selected' : ''}>aktiviert</option>
+                    </select>
+                    <small class="details-text-small">Automatisches Chaining: Corners → Form → Variants</small>
+                  </div>
                 </div>
                 ${aiPaintingVariants.variants && Object.keys(aiPaintingVariants.variants).length > 0 ? `
                 <div class="details-section-divider">

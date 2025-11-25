@@ -247,10 +247,11 @@ for ($i = 0; $i < $count; $i++) {
         $metaData['image_dimensions'] = $imageDimensions;
     }
     
-    // For AI uploads, set AI generation status to 'wanted' (both corners and form)
+    // For AI uploads, set AI generation status to 'wanted' (only corners initially)
     if ($isAIUpload) {
         $metaData['ai_corners'] = ['status' => 'wanted'];
-        $metaData['ai_fill_form'] = ['status' => 'wanted'];
+        $metaData['ai_workflow_chain'] = true;  // Flag auf oberster Ebene für automatisches Chaining
+        // Don't set ai_fill_form here - it will be set automatically when ai_corners completes
     }
     
     // Save metadata using meta.php function

@@ -286,6 +286,22 @@ function process_ai_corners(string $baseName, string $jsonPath): array {
             $result = process_ai_image_by_corners($imagePath, 1.0);
             
             if ($result['ok']) {
+                // Check if this was part of an AI upload workflow chain
+                $meta = load_meta($imageFilename, $imagesDir);
+                $shouldChain = $meta['ai_workflow_chain'] ?? false;
+                
+                if ($shouldChain) {
+                    // AI corners completed - now trigger AI form fill
+                    $aiFillForm = $meta['ai_fill_form'] ?? [];
+                    $formStatus = $aiFillForm['status'] ?? null;
+                    
+                    // Only set to 'wanted' if not already in progress or completed
+                    if ($formStatus !== 'in_progress' && $formStatus !== 'completed') {
+                        update_task_status($jsonPath, 'ai_form', 'wanted');
+                        // Flag bleibt bestehen für nächsten Schritt
+                    }
+                }
+                
                 return ['ok' => true, 'result' => $result];
             } else {
                 return ['ok' => false, 'error' => $result['error'] ?? 'Unknown error'];
@@ -347,6 +363,23 @@ function process_ai_corners(string $baseName, string $jsonPath): array {
                 $aiCorners['image_generation_needed'] = false;
                 $aiCorners['status'] = 'completed';
                 update_json_file($jsonPath, ['ai_corners' => $aiCorners], false);
+                
+                // Check if this was part of an AI upload workflow chain
+                $meta = load_meta($imageFilename, $imagesDir);
+                $shouldChain = $meta['ai_workflow_chain'] ?? false;
+                
+                if ($shouldChain) {
+                    // AI corners completed - now trigger AI form fill
+                    $aiFillForm = $meta['ai_fill_form'] ?? [];
+                    $formStatus = $aiFillForm['status'] ?? null;
+                    
+                    // Only set to 'wanted' if not already in progress or completed
+                    if ($formStatus !== 'in_progress' && $formStatus !== 'completed') {
+                        update_task_status($jsonPath, 'ai_form', 'wanted');
+                        // Flag bleibt bestehen für nächsten Schritt
+                    }
+                }
+                
                 return ['ok' => true, 'result' => $result, 'message' => 'Final image regenerated'];
             } else {
                 return ['ok' => false, 'error' => $result['error'] ?? 'Unknown error'];
@@ -429,6 +462,17 @@ function process_ai_form(string $baseName, string $jsonPath): array {
         
         if (isset($pollResult['completed']) && $pollResult['completed']) {
             // Prediction completed - form data already saved by poll_form_prediction
+            
+            // Check if this was part of an AI upload workflow chain
+            $meta = load_meta($imageFilename, $imagesDir);
+            $shouldChain = $meta['ai_workflow_chain'] ?? false;
+            
+            if ($shouldChain) {
+                // AI form completed - variant generation will happen automatically in Phase 3
+                // Flag bleibt bestehen - wird manuell über UI gelöscht oder automatisch nach Variants
+                // (Optional: Hier könnte man es auch automatisch löschen, wenn alle Variants fertig sind)
+            }
+            
             return ['ok' => true, 'result' => $pollResult, 'completed' => true];
         }
         
