@@ -2364,19 +2364,80 @@
         modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 20px;';
         
         const content = document.createElement('div');
-        content.style.cssText = 'background: #fff; border-radius: 8px; padding: 20px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+        content.style.cssText = 'background: #fff; border-radius: 8px; padding: 20px; max-width: 90%; max-height: 90%; display: flex; flex-direction: column; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
         
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
-        closeBtn.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #dc3545; color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 20px; cursor: pointer; line-height: 1;';
+        closeBtn.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #dc3545; color: #fff; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 20px; cursor: pointer; line-height: 1; z-index: 1;';
         closeBtn.onclick = () => modal.remove();
         
-        const pre = document.createElement('pre');
-        pre.style.cssText = 'font-family: monospace; font-size: 12px; margin: 0; white-space: pre-wrap; word-wrap: break-word;';
-        pre.textContent = jsonString;
+        const textarea = document.createElement('textarea');
+        textarea.style.cssText = 'font-family: monospace; font-size: 12px; width: 100%; min-width: 600px; min-height: 400px; padding: 12px; border: 1px solid #ccc; border-radius: 4px; resize: both; margin-bottom: 12px; box-sizing: border-box;';
+        textarea.value = jsonString;
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = 'display: flex; justify-content: flex-end; gap: 8px;';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Speichern';
+        saveBtn.style.cssText = 'padding: 8px 16px; background: #28a745; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 600;';
+        
+        saveBtn.onclick = async () => {
+          try {
+            const jsonContent = textarea.value;
+            // Validate JSON before saving
+            JSON.parse(jsonContent);
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Speichere...';
+            
+            const formData = new FormData();
+            formData.set('filename', imageOriginalName + '.json');
+            formData.set('content', jsonContent);
+            
+            const saveRes = await fetch('save_json.php', {
+              method: 'POST',
+              body: formData
+            });
+            
+            if (!saveRes.ok) {
+              const errorData = await saveRes.json().catch(() => ({ error: 'Unknown error' }));
+              throw new Error(errorData.error || 'Failed to save');
+            }
+            
+            const result = await saveRes.json();
+            if (result.ok) {
+              showToast('JSON erfolgreich gespeichert', 'success');
+              // Reload the page data to reflect changes
+              if (typeof window.refresh === 'function') {
+                setTimeout(() => window.refresh(), 500);
+              }
+            } else {
+              throw new Error(result.error || 'Failed to save');
+            }
+          } catch (error) {
+            if (error instanceof SyntaxError) {
+              showToast('Ungültiges JSON Format', 'error');
+            } else {
+              showToast('Fehler beim Speichern: ' + error.message, 'error');
+            }
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Speichern';
+          }
+        };
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Abbrechen';
+        cancelBtn.style.cssText = 'padding: 8px 16px; background: #6c757d; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 600;';
+        cancelBtn.onclick = () => modal.remove();
+        
+        buttonContainer.appendChild(cancelBtn);
+        buttonContainer.appendChild(saveBtn);
         
         content.appendChild(closeBtn);
-        content.appendChild(pre);
+        content.appendChild(textarea);
+        content.appendChild(buttonContainer);
         modal.appendChild(content);
         document.body.appendChild(modal);
         
@@ -2384,6 +2445,9 @@
         modal.onclick = (e) => {
           if (e.target === modal) modal.remove();
         };
+        
+        // Focus textarea
+        textarea.focus();
       } catch (error) {
         console.error('Error showing JSON:', error);
         showToast('Fehler beim Laden des JSON', 'error');
