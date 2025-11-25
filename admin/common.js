@@ -460,3 +460,79 @@
   });
 })();
 
+/**
+ * Common utility functions for admin pages
+ */
+
+// Escape HTML to prevent XSS
+if (typeof window.escapeHtml === 'undefined') {
+  window.escapeHtml = function(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[c]));
+  };
+}
+
+// Show toast notification (enhanced version)
+if (typeof window.showToast === 'undefined') {
+  window.showToast = function(message, type = 'info', duration = 3000) {
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toastContainer';
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    // Limit duration to maximum 20 seconds
+    const maxDuration = 20000;
+    const actualDuration = Math.min(duration, maxDuration);
+
+    setTimeout(() => {
+      toast.classList.add('hiding');
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }, actualDuration);
+  };
+}
+
+// Update site domain link in header (common function)
+if (typeof window.updateSiteDomainLink === 'undefined') {
+  window.updateSiteDomainLink = async function() {
+    try {
+      const res = await fetch('get_artist_content.php');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.ok && data.domain) {
+        const domainLink = document.getElementById('site-domain-link');
+        if (domainLink) {
+          // Capitalize first letter
+          const domainText = data.domain.charAt(0).toUpperCase() + data.domain.slice(1);
+          domainLink.textContent = domainText;
+        }
+      }
+    } catch (error) {
+      // Silently fail - keep default "Herzfabrik"
+    }
+  };
+  
+  // Auto-update on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.updateSiteDomainLink);
+  } else {
+    window.updateSiteDomainLink();
+  }
+}
+

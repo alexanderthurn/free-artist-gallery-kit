@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" style="color-scheme: light only;">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -454,23 +454,23 @@
       
       const aiStatusBadge = hasPendingAI 
         ? `<div class="ai-pending-badge" title="KI-Verarbeitung ausstehend - wird im Hintergrund verarbeitet">
-            <span style="font-size: 16px;">⭐</span> KI ausstehend
+            <span class="text-2xl">⭐</span> KI ausstehend
           </div>`
         : '';
       
       row.innerHTML = `
         <div class="image-container">
-          <div class="main-image-wrapper ${showSegmentedButton}" style="position: relative;">
+          <div class="main-image-wrapper ${showSegmentedButton} pos-relative">
             ${g.in_gallery ? `<div class="live-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Zurück auf Entwurf">Live</div>` : `<div class="draft-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Live schalten">Entwurf</div>`}
-            <div class="admin-frame-preview frame-${frameType}" id="frame-preview-${g.base}" style="position: relative;">
-              ${hasPendingAIForFinalImage ? `<div class="ai-pending-badge" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; z-index: 120;" title="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI Formular ausfüllen ausstehend' : 'KI Ecken-Erkennung ausstehend'} - wird im Hintergrund verarbeitet">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);">
-                  <span style="font-size: 20px;">⭐</span> KI ausstehend
+            <div class="admin-frame-preview frame-${frameType} pos-relative" id="frame-preview-${g.base}">
+              ${hasPendingAIForFinalImage ? `<div class="ai-pending-overlay" title="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI Formular ausfüllen ausstehend' : 'KI Ecken-Erkennung ausstehend'} - wird im Hintergrund verarbeitet">
+                <div class="ai-pending-badge-content">
+                  <span class="text-3xl">⭐</span> KI ausstehend
                 </div>
               </div>` : ''}
               ${finalVariant ? `
-                <img class="${imageClass}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final" style="${hasPendingAIForFinalImage ? 'opacity: 0.3;' : ''}">
-              ` : '<div class="main-image" style="aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; color: #999;">Kein Final-Bild</div>'}
+                <img class="${imageClass} ${hasPendingAIForFinalImage ? 'opacity-30' : ''}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final">
+              ` : '<div class="main-image main-image-placeholder">Kein Final-Bild</div>'}
             </div>
             ${finalVariant ? `
             <div class="image-controls">
@@ -496,11 +496,11 @@
                   // Extract variant name from variant type (e.g., "variant_kommode" -> "kommode")
                   const variantName = v.variant ? v.variant.replace(/^variant_/, '') : v.name.replace(/^.*_variant_/, '').replace(/\.jpg$/i, '');
                   return `
-                  <div class="variant-thumb-wrapper" style="position: relative;">
-                    <div style="width: 80px; height: 80px; border-radius: 6px; position: relative; overflow: hidden; box-sizing: border-box;">
-                      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);">
-                        <span style="font-size: 16px; color: #fff;">⭐</span>
-                        <span style="font-size: 10px; color: #fff; font-weight: 600; text-align: center; line-height: 1.2;">${variantName}</span>
+                  <div class="variant-thumb-wrapper pos-relative">
+                    <div class="variant-pending-wrapper pos-relative">
+                      <div class="variant-pending-content">
+                        <span class="text-2xl text-white">⭐</span>
+                        <span class="text-sm text-white font-semibold text-center leading-tight">${variantName}</span>
                       </div>
                     </div>
                     ${v.variant && v.variant.startsWith('variant_') ? `
@@ -547,21 +547,21 @@
                      alt="${escapeHtml(v.name)}"
                      title="${escapeHtml(v.name)}"
                      onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
-              `).join('') : '<span class="muted" style="font-size: 11px;">Keine Varianten verfügbar</span>'}
+              `).join('') : '<span class="muted muted-text-sm">Keine Varianten verfügbar</span>'}
             </div>
           </div>
         </div>
-        <div class="form-container" style="padding-right: 8px; position: relative;">
-          <button class="delete-icon" style="position: absolute; top: 0; right: 0; z-index: 130;" onclick="event.stopPropagation(); deleteCompletely('${escapeHtml(originalVariant.name)}', this)" title="Vollständig löschen">×</button>
-          <div style="position: relative;">
-            ${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? `<div class="ai-pending-badge" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; z-index: 120; background: rgba(255, 255, 255, 0.95);" title="KI Formular ausfüllen ausstehend - wird im Hintergrund verarbeitet">
-              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5); text-align: center; max-width: 90%;">
-                <span style="font-size: 20px;">⭐</span> 
+        <div class="form-container form-container-padded">
+          <button class="delete-icon delete-icon-positioned" onclick="event.stopPropagation(); deleteCompletely('${escapeHtml(originalVariant.name)}', this)" title="Vollständig löschen">×</button>
+          <div class="pos-relative">
+            ${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? `<div class="ai-pending-overlay bg-white-95" title="KI Formular ausfüllen ausstehend - wird im Hintergrund verarbeitet">
+              <div class="ai-pending-badge-content-sm">
+                <span class="text-3xl">⭐</span> 
                 <span>KI Formular ausfüllen ausstehend</span>
               </div>
             </div>` : ''}
-            <div style="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'opacity: 0.3; pointer-events: none;' : ''}">
-              <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+            <div class="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'form-disabled' : ''}">
+              <div class="flex gap-8 mb-16 items-center">
                 <button type="button" class="ai-fill-button ${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'pending' : ''}" 
                         onclick='fillFormWithAI("${escapeHtml(originalVariant.name)}", this)' 
                         title="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI Formular ausfüllen ausstehend - wird im Hintergrund verarbeitet' : 'KI Formular ausfüllen lassen'}"
@@ -579,16 +579,16 @@
                 <label>Beschreibung</label>
                 <textarea name="description" rows="3" data-ai-field="true">${escapeHtml(meta.description || '')}</textarea>
               </div>
-              <div style="display: grid; grid-template-columns: auto auto auto; gap: 8px; align-items: end;">
-                <div class="field" style="max-width: 100px;">
+              <div class="field-grid">
+                <div class="field field-max-w-100">
                   <label>Breite (cm)</label>
                   <input type="text" name="width" value="${escapeHtml(meta.width || '')}" data-ai-field="true">
                 </div>
-                <div class="field" style="max-width: 100px;">
+                <div class="field field-max-w-100">
                   <label>Höhe (cm)</label>
                   <input type="text" name="height" value="${escapeHtml(meta.height || '')}" data-ai-field="true">
                 </div>
-                <div class="field" style="max-width: 120px;">
+                <div class="field field-max-w-120">
                   <label>Datum (dd.mm.yyyy)</label>
                   <input type="text" name="date" value="${escapeHtml(meta.date || '')}" data-ai-field="true">
                 </div>
@@ -598,14 +598,14 @@
                 <input type="text" name="tags" value="${escapeHtml(meta.tags || '')}" data-ai-field="true">
               </div>
               <div class="field">
-                <label style="display: flex; align-items: center; gap: 8px;">
-                  <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} style="width: auto; margin: 0;">
+                <label class="checkbox-field">
+                  <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} class="checkbox-input">
                   Verkauft
                 </label>
               </div>
               <div class="field">
                 <label>Rahmen</label>
-                <select name="frame_type" id="frame-type-${g.base}" onchange="updateFramePreview('${g.base}', this.value)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; background: #fff;">
+                <select name="frame_type" id="frame-type-${g.base}" onchange="updateFramePreview('${g.base}', this.value)" class="select-field">
                   <option value="white" ${frameType === 'white' ? 'selected' : ''}>Weiß</option>
                   <option value="black" ${frameType === 'black' ? 'selected' : ''}>Schwarz</option>
                   <option value="wood" ${frameType === 'wood' ? 'selected' : ''}>Holz (Mittel)</option>
@@ -619,64 +619,60 @@
                 </select>
                 
               </div>
-              <div ${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'style="display: none;"' : ''}>
-                <button type="button" class="primary" onclick='saveMeta("${escapeHtml(originalVariant.name)}", this)' 
-                        style="padding: 10px 16px; font-size: 13px; font-weight: 600;">
+              <div class="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'hidden' : ''}">
+                <button type="button" class="primary button-primary" onclick='saveMeta("${escapeHtml(originalVariant.name)}", this)'>
                   Speichern
                 </button>
               </div>
             </div>
           </div>
-          <div class="field" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-            <button type="button" id="toggle-details-${g.base}" onclick="const content = document.getElementById('details-content-${g.base}'); const btn = this; content.style.display = content.style.display === 'none' ? 'block' : 'none'; btn.textContent = content.style.display === 'none' ? '▶ Weitere Informationen' : '▼ Weitere Informationen';" 
-                    style="background: none; border: none; padding: 0; margin: 0 0 8px 0; font-size: 11px; color: #666; cursor: pointer; text-align: left; font-weight: 600;">
+          <div class="field field-divider">
+            <button type="button" id="toggle-details-${g.base}" class="details-toggle" onclick="const content = document.getElementById('details-content-${g.base}'); const btn = this; content.classList.toggle('hidden'); btn.textContent = content.classList.contains('hidden') ? '▶ Weitere Informationen' : '▼ Weitere Informationen';">
               ▶ Weitere Informationen
             </button>
-            <div id="details-content-${g.base}" style="display: none;">
-              <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
-                <label style="font-size: 11px; color: #666; margin-bottom: 8px; display: block; font-weight: 600;">KI Status:</label>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+            <div id="details-content-${g.base}" class="details-content">
+              <div class="details-section">
+                <label class="details-label">KI Status:</label>
+                <div class="details-grid">
                   <div>
-                    <label style="font-size: 10px; color: #888; display: block; margin-bottom: 4px;">KI Corners Status:</label>
-                    <select id="ai-corners-status-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_corners_status', this.value, '${g.base}')" 
-                            style="width: 100%; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; background: #fff;">
+                    <label class="details-label-sm">KI Corners Status:</label>
+                    <select id="ai-corners-status-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_corners_status', this.value, '${g.base}')" class="select-field-sm">
                       <option value="" ${!cornersStatus ? 'selected' : ''}>-</option>
                       <option value="wanted" ${cornersStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                       <option value="in_progress" ${cornersStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
                       <option value="completed" ${cornersStatus === 'completed' ? 'selected' : ''}>completed</option>
                       <option value="error" ${cornersStatus === 'error' ? 'selected' : ''}>error</option>
                     </select>
-                    ${aiCorners.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(aiCorners.started_at).toLocaleString('de-DE')}</small>` : ''}
-                    ${aiCorners.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(aiCorners.completed_at).toLocaleString('de-DE')}</small>` : ''}
+                    ${aiCorners.started_at ? `<small class="details-text-small">Gestartet: ${new Date(aiCorners.started_at).toLocaleString('de-DE')}</small>` : ''}
+                    ${aiCorners.completed_at ? `<small class="details-text-small">Abgeschlossen: ${new Date(aiCorners.completed_at).toLocaleString('de-DE')}</small>` : ''}
                   </div>
                   <div>
-                    <label style="font-size: 10px; color: #888; display: block; margin-bottom: 4px;">KI Form Status:</label>
-                    <select id="ai-form-status-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_form_status', this.value, '${g.base}')" 
-                            style="width: 100%; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; background: #fff;">
+                    <label class="details-label-sm">KI Form Status:</label>
+                    <select id="ai-form-status-${g.base}" onchange="updateAIStatus('${escapeHtml(originalVariant.name)}', 'ai_form_status', this.value, '${g.base}')" class="select-field-sm">
                       <option value="" ${!formStatus ? 'selected' : ''}>-</option>
                       <option value="wanted" ${formStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                       <option value="in_progress" ${formStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
                       <option value="completed" ${formStatus === 'completed' ? 'selected' : ''}>completed</option>
                       <option value="error" ${formStatus === 'error' ? 'selected' : ''}>error</option>
                     </select>
-                    ${aiFillForm.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(aiFillForm.started_at).toLocaleString('de-DE')}</small>` : ''}
-                    ${aiFillForm.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
+                    ${aiFillForm.started_at ? `<small class="details-text-small">Gestartet: ${new Date(aiFillForm.started_at).toLocaleString('de-DE')}</small>` : ''}
+                    ${aiFillForm.completed_at ? `<small class="details-text-small">Abgeschlossen: ${new Date(aiFillForm.completed_at).toLocaleString('de-DE')}</small>` : ''}
                   </div>
                 </div>
                 ${aiPaintingVariants.variants && Object.keys(aiPaintingVariants.variants).length > 0 ? `
-                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #dee2e6;">
-                  <label style="font-size: 11px; color: #666; margin-bottom: 8px; display: block; font-weight: 600;">KI Painting Variants:</label>
-                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="details-section-divider">
+                  <label class="details-section-label">KI Painting Variants:</label>
+                  <div class="details-variants-list">
                     ${Object.entries(aiPaintingVariants.variants).map(([variantKey, variant]) => {
                       const variantStatus = variant.status || null;
                       const predictionStatus = variant.prediction_status || null;
                       return `
-                        <div style="padding: 8px; background: #fff; border: 1px solid #dee2e6; border-radius: 4px;">
-                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <label style="font-size: 10px; color: #888; font-weight: 600;">${escapeHtml(variant.variant_name || variantKey)}:</label>
+                        <div class="details-variant-item">
+                          <div class="details-variant-header">
+                            <label class="details-variant-label">${escapeHtml(variant.variant_name || variantKey)}:</label>
                             <select id="ai-painting-variant-status-${g.base}-${variantKey}" 
                                     onchange="updateAIPaintingVariantStatus('${escapeHtml(originalVariant.name)}', '${variantKey}', this.value, '${g.base}')" 
-                                    style="padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px; background: #fff;">
+                                    class="select-field-sm">
                               <option value="" ${!variantStatus ? 'selected' : ''}>-</option>
                               <option value="wanted" ${variantStatus === 'wanted' ? 'selected' : ''}>wanted</option>
                               <option value="in_progress" ${variantStatus === 'in_progress' ? 'selected' : ''}>in_progress</option>
@@ -684,27 +680,26 @@
                               <option value="error" ${variantStatus === 'error' ? 'selected' : ''}>error</option>
                             </select>
                           </div>
-                          ${predictionStatus ? `<small style="color: #999; font-size: 9px; display: block; margin-bottom: 4px;">Prediction Status: ${escapeHtml(predictionStatus)}</small>` : ''}
-                          ${variant.started_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Gestartet: ${new Date(variant.started_at).toLocaleString('de-DE')}</small>` : ''}
-                          ${variant.completed_at ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Abgeschlossen: ${new Date(variant.completed_at).toLocaleString('de-DE')}</small>` : ''}
-                          ${variant.prediction_id ? `<small style="color: #999; font-size: 9px; display: block; margin-top: 2px;">Prediction ID: ${escapeHtml(variant.prediction_id)}</small>` : ''}
+                          ${predictionStatus ? `<small class="details-text-small-mb">Prediction Status: ${escapeHtml(predictionStatus)}</small>` : ''}
+                          ${variant.started_at ? `<small class="details-text-small">Gestartet: ${new Date(variant.started_at).toLocaleString('de-DE')}</small>` : ''}
+                          ${variant.completed_at ? `<small class="details-text-small">Abgeschlossen: ${new Date(variant.completed_at).toLocaleString('de-DE')}</small>` : ''}
+                          ${variant.prediction_id ? `<small class="details-text-small">Prediction ID: ${escapeHtml(variant.prediction_id)}</small>` : ''}
                         </div>
                       `;
                     }).join('')}
                   </div>
                 </div>
                 ` : ''}
-                <button type="button" onclick="showFullJSON('${escapeHtml(originalVariant.name)}', '${g.base}')" 
-                        style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: #fff; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600;">
+                <button type="button" onclick="showFullJSON('${escapeHtml(originalVariant.name)}', '${g.base}')" class="button-json">
                   JSON anzeigen
                 </button>
               </div>
               ${(meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4) || aiCornersData ? `
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div class="corners-grid">
                 ${meta.manual_corners && Array.isArray(meta.manual_corners) && meta.manual_corners.length === 4 ? `
                 <div>
-                  <label style="font-size: 11px; color: #666; margin-bottom: 4px; display: block;">Manuelle Ecken-Positionen:</label>
-                  <div style="font-size: 11px; color: #888; font-family: monospace;">
+                  <label class="corners-label">Manuelle Ecken-Positionen:</label>
+                  <div class="corners-text">
                     ${meta.image_dimensions ? `
                       Oben links: (${meta.manual_corners[0][0]}, ${meta.manual_corners[0][1]}) px = (${(meta.manual_corners[0][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[0][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
                       Oben rechts: (${meta.manual_corners[1][0]}, ${meta.manual_corners[1][1]}) px = (${(meta.manual_corners[1][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(meta.manual_corners[1][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
@@ -721,13 +716,13 @@
                 ` : ''}
                 ${aiCornersData ? `
                 <div>
-                  <label style="font-size: 11px; color: #666; margin-bottom: 4px; display: block;">
-                    <span class="star-icon" style="font-size: 12px;">⭐</span> KI-generierte Ecken:
+                  <label class="corners-label">
+                    <span class="star-icon star-icon-sm">⭐</span> KI-generierte Ecken:
                   </label>
-                  <div style="font-size: 11px; color: #888; font-family: monospace;">
+                  <div class="corners-text">
                     ${meta.image_dimensions ? `
-                      <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #ddd;">
-                        <strong style="color: #666;">Raw (vor Offset):</strong><br>
+                      <div class="corners-divider">
+                        <strong class="corners-label-strong">Raw (vor Offset):</strong><br>
                         Oben links: ${aiCornersData.corners[0].x.toFixed(2)}%, ${aiCornersData.corners[0].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[0].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[0].y / 100 * meta.image_dimensions.height)}) px<br>
                         Oben rechts: ${aiCornersData.corners[1].x.toFixed(2)}%, ${aiCornersData.corners[1].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[1].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[1].y / 100 * meta.image_dimensions.height)}) px<br>
                         Unten rechts: ${aiCornersData.corners[2].x.toFixed(2)}%, ${aiCornersData.corners[2].y.toFixed(2)}% = (${Math.round(aiCornersData.corners[2].x / 100 * meta.image_dimensions.width)}, ${Math.round(aiCornersData.corners[2].y / 100 * meta.image_dimensions.height)}) px<br>
@@ -735,7 +730,7 @@
                       </div>
                       ${aiCorners && aiCorners.corners_used && Array.isArray(aiCorners.corners_used) && aiCorners.corners_used.length === 4 ? `
                       <div>
-                        <strong style="color: #666;">Verwendet (nach Offset ${aiCornersData.offset_percent}%):</strong><br>
+                        <strong class="corners-label-strong">Verwendet (nach Offset ${aiCornersData.offset_percent}%):</strong><br>
                         Oben links: (${aiCorners.corners_used[0][0]}, ${aiCorners.corners_used[0][1]}) px = (${(aiCorners.corners_used[0][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(aiCorners.corners_used[0][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
                         Oben rechts: (${aiCorners.corners_used[1][0]}, ${aiCorners.corners_used[1][1]}) px = (${(aiCorners.corners_used[1][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(aiCorners.corners_used[1][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
                         Unten rechts: (${aiCorners.corners_used[2][0]}, ${aiCorners.corners_used[2][1]}) px = (${(aiCorners.corners_used[2][0] / meta.image_dimensions.width * 100).toFixed(2)}%, ${(aiCorners.corners_used[2][1] / meta.image_dimensions.height * 100).toFixed(2)}%)<br>
@@ -748,7 +743,7 @@
                       Unten rechts: x=${aiCornersData.corners[2].x.toFixed(2)}%, y=${aiCornersData.corners[2].y.toFixed(2)}%<br>
                       Unten links: x=${aiCornersData.corners[3].x.toFixed(2)}%, y=${aiCornersData.corners[3].y.toFixed(2)}%
                     `}
-                    <span style="color: #999; font-size: 10px; margin-top: 4px; display: block;">
+                    <span class="corners-meta">
                       Offset: ${aiCornersData.offset_percent}% | Status: ${aiCornersData.status || 'unknown'}
                       ${aiCornersData.timestamp ? ' | ' + new Date(aiCornersData.timestamp).toLocaleString('de-DE') : ''}
                     </span>
@@ -1647,12 +1642,12 @@
   </head>
 <body>
   <div id="toastContainer" class="toast-container"></div>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-    <h1 style="margin: 0;">Administration der <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
-    <div style="display: flex; gap: 12px; align-items: center;">
-      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Gemälde</a>
-      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Raum-Mockups</a>
-      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Künstler</a>
+  <div class="header-container">
+    <h1 class="header-title">Administration der <a href="/index.html" id="site-domain-link" class="site-domain-link">Herzfabrik</a></h1>
+    <div class="nav-container">
+      <a href="index.html" class="nav-link active">Gemälde</a>
+      <a href="variants.html" class="nav-link">Raum-Mockups</a>
+      <a href="artist.html" class="nav-link">Künstler</a>
       <button id="bgTasksBtn" title="Background Tasks">0</button>
     </div>
   </div>
@@ -1660,53 +1655,53 @@
 
   <div class="">
     <h2>Gemälde hochladen</h2>
-    <div class="upload-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+    <div class="upload-sections upload-sections-grid">
       <!-- Regular Upload Section -->
       <div>
-        <h3 style="font-size: 14px; margin-bottom: 12px; color: #555;">Standard Upload</h3>
+        <h3 class="upload-section-title">Standard Upload</h3>
         <form id="uploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
           <div id="uploadArea" class="upload-area">
             <div class="upload-area-text">📷 Bilder hier ablegen oder klicken zum Auswählen</div>
             <div class="upload-area-hint">Sie können mehrere Bilder gleichzeitig hochladen</div>
-            <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="fileInput">
+            <input type="file" name="images[]" accept="image/*" multiple required class="file-input-hidden" id="fileInput">
           </div>
         </form>
-        <div id="regularUploadProgress" style="display: none; margin-top: 12px;">
-          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+        <div id="regularUploadProgress" class="progress-container">
+          <div class="progress-status">
             <span id="regularUploadStatus">Wird hochgeladen...</span>
-            <span id="regularUploadTime" style="margin-left: 8px;"></span>
+            <span id="regularUploadTime" class="progress-status-time"></span>
           </div>
-          <div style="width: 100%; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden;">
-            <div id="regularUploadProgressBar" style="height: 100%; background: #28a745; width: 0%; transition: width 0.3s ease;"></div>
+          <div class="progress-bar-container">
+            <div id="regularUploadProgressBar" class="progress-bar"></div>
           </div>
         </div>
       </div>
       
       <!-- AI Upload Section -->
       <div>
-        <h3 style="font-size: 14px; margin-bottom: 12px; color: #555;">
+        <h3 class="upload-section-title">
           <span class="star-icon">⭐</span> KI Upload (Automatische Verarbeitung)
         </h3>
         <form id="aiUploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
-          <div id="aiUploadArea" class="upload-area" style="background: linear-gradient(135deg, #f8f5ff 0%, #f0ebff 100%); border-color: #667eea;">
+          <div id="aiUploadArea" class="upload-area upload-area-ai">
             <div class="upload-area-text">⭐ KI Bilder hier ablegen oder klicken</div>
             <div class="upload-area-hint">Automatische Verarbeitung: Freistellen → Formular → Variante</div>
-            <input type="file" name="images[]" accept="image/*" multiple required style="display: none;" id="aiFileInput">
+            <input type="file" name="images[]" accept="image/*" multiple required class="file-input-hidden" id="aiFileInput">
           </div>
         </form>
-        <div id="aiUploadProgress" style="display: none; margin-top: 12px;">
-          <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+        <div id="aiUploadProgress" class="progress-container">
+          <div class="progress-status">
             <div id="aiUploadStatus">Wird hochgeladen...</div>
-            <div id="aiUploadTime" style="margin-top: 4px;"></div>
+            <div id="aiUploadTime" class="progress-status-time-mt"></div>
           </div>
-          <div style="width: 100%; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-            <div id="aiUploadProgressBar" style="height: 100%; background: #667eea; width: 0%; transition: width 0.3s ease;"></div>
+          <div class="progress-bar-container-mb">
+            <div id="aiUploadProgressBar" class="progress-bar-ai"></div>
           </div>
-          <div id="aiStepsProgress" style="font-size: 11px; color: #888;">
-            <div id="aiStep1" style="margin-bottom: 4px;">⏳ Warte auf Upload...</div>
-            <div id="aiStep2" style="margin-bottom: 4px; opacity: 0.5;">⏸ KI Bild freistellen lassen</div>
-            <div id="aiStep3" style="margin-bottom: 4px; opacity: 0.5;">⏸ KI Formular ausfüllen lassen</div>
-            <div id="aiStep4" style="opacity: 0.5;">⏸ KI Variante generieren</div>
+          <div id="aiStepsProgress" class="ai-steps-progress">
+            <div id="aiStep1" class="ai-step">⏳ Warte auf Upload...</div>
+            <div id="aiStep2" class="ai-step ai-step-opacity">⏸ KI Bild freistellen lassen</div>
+            <div id="aiStep3" class="ai-step ai-step-opacity">⏸ KI Formular ausfüllen lassen</div>
+            <div id="aiStep4" class="ai-step-last">⏸ KI Variante generieren</div>
           </div>
         </div>
       </div>
@@ -1744,7 +1739,7 @@
           try {
             const details = JSON.parse(errorsDetailRaw);
             if (Array.isArray(details) && details.length) {
-              html += '<div style="margin-top:8px"><strong>Errors:</strong><ul>' +
+              html += '<div class="flash-error-list"><strong>Errors:</strong><ul>' +
                 details.map(d => `<li>${String(d)}</li>`).join('') + '</ul></div>';
             }
           } catch {}
@@ -1755,7 +1750,7 @@
         
         // Show warning if images were resized
         if (r > 0) {
-          html += `<div style="margin-top:8px; padding:8px; background:#fff3cd; border:1px solid #ffc107; border-radius:4px; color:#856404;">
+          html += `<div class="flash-warning">
             <strong>⚠️ Warnung:</strong> ${r} Bild(er) wurden vom Server automatisch verkleinert, da die Originalgröße zu groß war. 
             Die _original Version entspricht nicht mehr dem hochgeladenen Bild.
           </div>`;

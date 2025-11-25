@@ -136,10 +136,10 @@
   <div class="container">
     <h1>Bild von Hand freistellen</h1>
     
-    <div id="error" class="error" style="display: none;"></div>
+    <div id="error" class="error hidden"></div>
     <div id="loading" class="loading">Bild wird geladen...</div>
     
-    <div id="main-content" style="display: none;">
+    <div id="main-content" class="hidden">
       <div class="instructions">
         <h3>Anleitung:</h3>
         <p>Klicken Sie auf das Originalbild, um die 4 Ecken des Gemäldes zu markieren. Die Punkte werden in dieser Reihenfolge gesetzt: oben links, oben rechts, unten rechts, unten links. Sie können die Punkte auch per Drag & Drop verschieben. Die Vorschau zeigt das Ergebnis der Extraktion.</p>
@@ -158,9 +158,9 @@
         </div>
         <div class="canvas-wrapper">
           <h2>Vorschau</h2>
-          <div style="position: relative; display: inline-block;">
+          <div class="pos-relative inline-block">
             <canvas id="previewCanvas"></canvas>
-            <canvas id="zoomCanvas" style="position: absolute; pointer-events: none; display: none; border: 2px solid #333; box-shadow: 0 4px 12px rgba(0,0,0,0.3); background: #fff;"></canvas>
+            <canvas id="zoomCanvas" class="pos-absolute pointer-events-none hidden border-2 border-gray-800 shadow-lg bg-white"></canvas>
           </div>
         </div>
       </div>

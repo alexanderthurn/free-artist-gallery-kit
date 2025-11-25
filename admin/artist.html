@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de" style="color-scheme: light only;">
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -104,93 +104,93 @@
 <body>
   <div id="toastContainer" class="toast-container"></div>
   
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-    <h1 style="margin: 0;">Künstler Editor - <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
-    <div style="display: flex; gap: 12px; align-items: center;">
-      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Gemälde</a>
-      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Raum-Mockups</a>
-      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Künstler</a>
+  <div class="header-container">
+    <h1 class="header-title">Künstler Editor - <a href="/index.html" id="site-domain-link" class="site-domain-link">Herzfabrik</a></h1>
+    <div class="nav-container">
+      <a href="index.html" class="nav-link">Gemälde</a>
+      <a href="variants.html" class="nav-link">Raum-Mockups</a>
+      <a href="artist.html" class="nav-link active">Künstler</a>
       <button id="bgTasksBtn" title="Background Tasks">0</button>
     </div>
   </div>
 
   <div>
     <form id="artistForm">
-      <div class="button-group" style="margin-bottom: 24px;">
+      <div class="button-group mb-24">
         <button type="submit" class="primary">Speichern</button>
         <a href="/index.html" class="primary">Hauptseite anzeigen</a>
         <a href="/imprint.html" class="primary advanced-mode-hidden">Impressum anzeigen</a>
         <button type="button" id="advancedToggle" class="advanced-toggle" onclick="toggleAdvancedMode()">Erweitert</button>
         <button type="button" id="optimize-btn" class="primary advanced-mode-hidden" onclick="optimizeImages()">Bilder optimieren</button>
-        <button type="button" id="force-optimize-btn" class="primary advanced-mode-hidden" onclick="optimizeImages(true)" style="background: #d97706; border-color: #d97706;">Bilder neu generieren</button>
+        <button type="button" id="force-optimize-btn" class="primary advanced-mode-hidden btn-warning" onclick="optimizeImages(true)">Bilder neu generieren</button>
       </div>
-      <div id="optimize-log" class="advanced-mode-hidden" style="display: none; margin-bottom: 24px; padding: 16px; background: #f5f5f5; border-radius: 8px; border: 1px solid #ddd; max-height: 400px; overflow-y: auto;"></div>
+      <div id="optimize-log" class="advanced-mode-hidden hidden mb-24 p-16 bg-gray-50 border-radius-8 border-gray max-h-400 overflow-y-auto"></div>
       
       <div class="field advanced-mode-hidden">
         <label>Seitentitel</label>
-        <input type="text" id="pageTitle" name="pageTitle" placeholder="z.B. Herzfabrik - Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
-        <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Der Titel, der im Browser-Tab angezeigt wird</small>
+        <input type="text" id="pageTitle" name="pageTitle" placeholder="z.B. Herzfabrik - Annegret Thurn" class="input-field">
+        <small class="input-hint">Der Titel, der im Browser-Tab angezeigt wird</small>
       </div>
       
       <div class="field advanced-mode-hidden">
         <label>Künstlername</label>
-        <input type="text" id="name" name="name" placeholder="z.B. Annegret Thurn" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="text" id="name" name="name" placeholder="z.B. Annegret Thurn" class="input-field">
       </div>
       
       <div class="field advanced-mode-hidden">
         <label>E-Mail-Adresse</label>
-        <input type="email" id="email" name="email" placeholder="z.B. anne@herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="email" id="email" name="email" placeholder="z.B. anne@herzfabrik.com" class="input-field">
       </div>
       
       <div class="field advanced-mode-hidden">
         <label>Domain</label>
-        <input type="text" id="domain" name="domain" placeholder="z.B. herzfabrik.com" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
-        <small style="display: block; margin-top: 4px; color: #666; font-size: 12px;">Domain ohne https:// (z.B. herzfabrik.com)</small>
+        <input type="text" id="domain" name="domain" placeholder="z.B. herzfabrik.com" class="input-field">
+        <small class="input-hint">Domain ohne https:// (z.B. herzfabrik.com)</small>
       </div>
       
       <div class="field advanced-mode-hidden">
         <label>Impressum - Adresse</label>
-        <input type="text" id="imprintAddress" name="imprintAddress" placeholder="z.B. Musterstraße 123" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="text" id="imprintAddress" name="imprintAddress" placeholder="z.B. Musterstraße 123" class="input-field">
       </div>
       
-      <div class="advanced-mode-hidden" style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+      <div class="advanced-mode-hidden grid grid-cols-2 grid-gap-12">
         <div class="field">
           <label>PLZ</label>
-          <input type="text" id="imprintPostalCode" name="imprintPostalCode" placeholder="z.B. 12345" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          <input type="text" id="imprintPostalCode" name="imprintPostalCode" placeholder="z.B. 12345" class="input-field">
         </div>
         <div class="field">
           <label>Ort</label>
-          <input type="text" id="imprintCity" name="imprintCity" placeholder="z.B. Berlin" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+          <input type="text" id="imprintCity" name="imprintCity" placeholder="z.B. Berlin" class="input-field">
         </div>
       </div>
       
       <div class="field advanced-mode-hidden">
         <label>Telefonnummer</label>
-        <input type="text" id="imprintPhone" name="imprintPhone" placeholder="z.B. +49 123 456789" style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+        <input type="text" id="imprintPhone" name="imprintPhone" placeholder="z.B. +49 123 456789" class="input-field">
       </div>
       
-      <div class="field advanced-mode-hidden" style="background: #f9f9f9; padding: 16px; border-radius: 6px; margin-bottom: 24px; border: 1px solid #ddd;">
-        <label style="font-weight: 500; margin-bottom: 12px;">Farben (CSS-Variablen)</label>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field advanced-mode-hidden bg-gray-100 p-16 border-radius-6 mb-24 border-gray">
+        <label class="label-semibold mb-12">Farben (CSS-Variablen)</label>
+        <div class="grid grid-cols-2 grid-gap-12">
           <div>
-            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Primärfarbe</label>
-            <input type="color" id="colorPrimary" name="colorPrimary" value="#7A3A45" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
-            <input type="text" id="colorPrimaryText" placeholder="#7A3A45" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorPrimary').value = this.value">
+            <label class="label-sm">Primärfarbe</label>
+            <input type="color" id="colorPrimary" name="colorPrimary" value="#7A3A45" class="color-input">
+            <input type="text" id="colorPrimaryText" placeholder="#7A3A45" class="color-text-input" onchange="document.getElementById('colorPrimary').value = this.value">
           </div>
           <div>
-            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Primärfarbe Hover</label>
-            <input type="color" id="colorPrimaryHover" name="colorPrimaryHover" value="#8B4A55" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
-            <input type="text" id="colorPrimaryHoverText" placeholder="#8B4A55" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorPrimaryHover').value = this.value">
+            <label class="label-sm">Primärfarbe Hover</label>
+            <input type="color" id="colorPrimaryHover" name="colorPrimaryHover" value="#8B4A55" class="color-input">
+            <input type="text" id="colorPrimaryHoverText" placeholder="#8B4A55" class="color-text-input" onchange="document.getElementById('colorPrimaryHover').value = this.value">
           </div>
           <div>
-            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">Kontrastfarbe</label>
-            <input type="color" id="colorContrast" name="colorContrast" value="#F3D9B1" style="width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
-            <input type="text" id="colorContrastText" placeholder="#F3D9B1" style="width: 100%; margin-top: 4px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;" onchange="document.getElementById('colorContrast').value = this.value">
+            <label class="label-sm">Kontrastfarbe</label>
+            <input type="color" id="colorContrast" name="colorContrast" value="#F3D9B1" class="color-input">
+            <input type="text" id="colorContrastText" placeholder="#F3D9B1" class="color-text-input" onchange="document.getElementById('colorContrast').value = this.value">
           </div>
           <div>
-            <label style="display: block; font-size: 12px; margin-bottom: 4px; color: #666;">RGB-Werte (Primärfarbe)</label>
-            <input type="text" id="colorPrimaryRgb" name="colorPrimaryRgb" placeholder="122, 58, 69" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-family: monospace;">
-            <small style="display: block; margin-top: 4px; color: #666; font-size: 11px;">Format: R, G, B (z.B. 122, 58, 69)</small>
+            <label class="label-sm">RGB-Werte (Primärfarbe)</label>
+            <input type="text" id="colorPrimaryRgb" name="colorPrimaryRgb" placeholder="122, 58, 69" class="color-text-input">
+            <small class="input-hint-sm">Format: R, G, B (z.B. 122, 58, 69)</small>
           </div>
         </div>
       </div>
@@ -199,7 +199,7 @@
       
       <div class="field">
         <div class="editor-toolbar">
-          <label style="margin: 0;">Kurztext (author-short)</label>
+          <label class="label-no-margin">Kurztext (author-short)</label>
           <button type="button" class="mode-toggle" data-field="short" data-mode="text">Plaintext</button>
         </div>
         <div class="editor-container">
@@ -220,7 +220,7 @@
 
       <div class="field">
         <div class="editor-toolbar">
-          <label style="margin: 0;">Langtext (author-bio)</label>
+          <label class="label-no-margin">Langtext (author-bio)</label>
           <button type="button" class="mode-toggle" data-field="bio" data-mode="text">Plaintext</button>
         </div>
         <div class="editor-container">
@@ -239,7 +239,7 @@
         </div>
       </div>
       
-      <div class="button-group" style="margin-top: 24px;">
+      <div class="button-group mt-24">
         <button type="submit" class="primary">Speichern</button>
         <a href="/index.html" class="primary">Hauptseite anzeigen</a>
         <a href="/imprint.html" class="primary advanced-mode-hidden">Impressum anzeigen</a>
@@ -250,7 +250,7 @@
   <div class="backups-section advanced-mode-hidden">
     <h2>Sicherheitskopien</h2>
     <div id="backupsLoading" class="loading">Lade Sicherheitskopien...</div>
-    <div id="backupsList" class="backup-list" style="display: none;"></div>
+    <div id="backupsList" class="backup-list hidden"></div>
   </div>
 
 
@@ -263,18 +263,18 @@
       <input type="file" id="fileInput" name="file" multiple>
     </div>
     <div id="uploadsLoading" class="loading">Lade Dateien...</div>
-    <div id="uploadsList" class="file-list" style="display: none;"></div>
+    <div id="uploadsList" class="file-list hidden"></div>
   </div>
 
-  <div class="field advanced-mode-hidden" style="background: #f5f5f5; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-    <label style="font-weight: 500; margin-bottom: 8px;">Portrait und favicon.ico</label>
-    <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;">
+  <div class="field advanced-mode-hidden bg-gray-50 p-16 border-radius-6 mb-24">
+    <label class="label-semibold mb-8">Portrait und favicon.ico</label>
+    <p class="text-sm text-gray-600 leading-normal">
       Laden Sie Portrait-Dateien hoch. Benennen Sie die Dateien genau wie angegeben:<br>
       • <strong>artist.jpg</strong> (Hauptportrait)<br>
       • <strong>artist-alternative-1.jpg</strong>, <strong>artist-alternative-2.jpg</strong>, etc. (Alternative Portraits)<br>
       • <strong>favicon.ico</strong>
     </p>
-    <p id="portrait-info" style="margin: 8px 0 0; font-size: 12px; color: #888; font-style: italic;"></p>
+    <p id="portrait-info" class="text-xs text-gray-700 italic mt-8"></p>
 
 
 

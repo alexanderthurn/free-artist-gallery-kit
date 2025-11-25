@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" style="color-scheme: light only;">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -677,12 +677,12 @@
     </div>
   </div>
 
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-    <h1 style="margin: 0;">Varianten Verwaltung - <a href="/index.html" id="site-domain-link" style="color: #DC143C; text-decoration: none;">Herzfabrik</a></h1>
-    <div style="display: flex; gap: 12px; align-items: center;">
-      <a href="index.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Gemälde</a>
-      <a href="variants.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #f5f5f5;">Raum-Mockups</a>
-      <a href="artist.html" style="color: #555; text-decoration: none; font-size: 14px; padding: 6px 12px; border: 1px solid #888; border-radius: 6px;">Künstler</a>
+  <div class="header-container">
+    <h1 class="header-title">Varianten Verwaltung - <a href="/index.html" id="site-domain-link" class="site-domain-link">Herzfabrik</a></h1>
+    <div class="nav-container">
+      <a href="index.html" class="nav-link">Gemälde</a>
+      <a href="variants.html" class="nav-link active">Raum-Mockups</a>
+      <a href="artist.html" class="nav-link">Künstler</a>
       <button id="bgTasksBtn" title="Background Tasks">0</button>
     </div>
   </div>
@@ -712,7 +712,7 @@
       <div id="uploadArea" class="upload-area">
         <div class="upload-area-text">📷 Bild hier ablegen oder klicken zum Auswählen</div>
         <div class="upload-area-hint">PNG, JPG, WEBP werden unterstützt und automatisch zu JPG konvertiert</div>
-        <input type="file" name="image" accept="image/*" style="display: none;" id="fileInput">
+        <input type="file" name="image" accept="image/*" class="file-input-hidden" id="fileInput">
       </div>
     </form>
   </div>
