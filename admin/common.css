@@ -281,6 +281,10 @@
   gap: 8px;
 }
 
+.checkbox-field-left {
+  justify-content: flex-start;
+}
+
 .checkbox-input {
   width: auto;
   margin: 0;
@@ -861,6 +865,6 @@
   padding: 4px 8px;
   text-align: center;
   font-family: monospace;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 

@@ -462,6 +462,7 @@
         <div class="image-container">
           <div class="main-image-wrapper ${showSegmentedButton} pos-relative">
             ${g.in_gallery ? `<div class="live-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Zurück auf Entwurf">Live</div>` : `<div class="draft-badge clickable" onclick="event.stopPropagation(); event.preventDefault(); ${badgeClickHandler}" title="Live schalten">Entwurf</div>`}
+            ${finalVariant ? `<div class="image-name-label">${escapeHtml(g.base)}</div>` : ''}
             <div class="admin-frame-preview frame-${frameType} pos-relative" id="frame-preview-${g.base}">
               ${hasPendingAIForFinalImage ? `<div class="ai-pending-overlay" title="${formStatus && ['wanted', 'in_progress'].includes(formStatus) ? 'KI Formular ausfüllen ausstehend' : 'KI Ecken-Erkennung ausstehend'} - wird im Hintergrund verarbeitet">
                 <div class="ai-pending-badge-content">
@@ -469,7 +470,6 @@
                 </div>
               </div>` : ''}
               ${finalVariant ? `
-                <div class="image-name-label">${escapeHtml(g.base)}</div>
                 <img class="${imageClass} ${hasPendingAIForFinalImage ? 'opacity-30' : ''}" id="main-img-${g.base}" loading="lazy" src="${getThumbnailUrl(finalVariant.url)}${cacheBuster}" alt="${finalVariant.name}" ${imageClickHandler} data-variant="final">
               ` : '<div class="main-image main-image-placeholder">Kein Final-Bild</div>'}
             </div>
@@ -599,7 +599,7 @@
                 <input type="text" name="tags" value="${escapeHtml(meta.tags || '')}" data-ai-field="true">
               </div>
               <div class="field">
-                <label class="checkbox-field">
+                <label class="checkbox-field checkbox-field-left">
                   <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} class="checkbox-input">
                   Verkauft
                 </label>
@@ -2133,6 +2133,10 @@
       body.set('date', item.querySelector('input[name=\"date\"]').value);
       const soldCheckbox = item.querySelector('input[name=\"sold\"]');
       body.set('sold', soldCheckbox && soldCheckbox.checked ? '1' : '0');
+      const frameTypeSelect = item.querySelector('select[name=\"frame_type\"]');
+      if (frameTypeSelect) {
+        body.set('frame_type', frameTypeSelect.value);
+      }
       btn.disabled = true;
       const res = await fetch('meta.php', { method: 'POST', body });
       btn.disabled = false;
