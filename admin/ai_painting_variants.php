@@ -230,16 +230,30 @@ PROMPT;
             continue;
         }
         
-        $variantB64 = base64_encode(file_get_contents($variantTemplatePath));
-        $finalB64 = base64_encode(file_get_contents($finalImage));
+        // Upload images to Replicate file API (100MB limit for nano-banana-pro)
+        try {
+            $variantUrl = replicate_upload_file($TOKEN, $variantTemplatePath, 100 * 1024 * 1024); // 100MB limit
+            $finalUrl = replicate_upload_file($TOKEN, $finalImage, 100 * 1024 * 1024); // 100MB limit
+            error_log('AI Painting Variants: Images uploaded to Replicate - variant: ' . $variantUrl . ', final: ' . $finalUrl);
+        } catch (Throwable $e) {
+            error_log('AI Painting Variants: Failed to upload images to Replicate: ' . $e->getMessage());
+            $variants[$variantName]['status'] = 'wanted';
+            $variants[$variantName]['error'] = 'upload_failed';
+            $variants[$variantName]['error_detail'] = $e->getMessage();
+            $aiPaintingVariants['variants'] = $variants;
+            update_json_file($jsonPath, ['ai_painting_variants' => $aiPaintingVariants], false);
+            $errors[] = [
+                'variant' => $variantName,
+                'error' => 'upload_failed',
+                'detail' => $e->getMessage()
+            ];
+            continue;
+        }
         
         $payload = [
             'input' => [
                 'prompt' => $promptFinal,
-                'image_input' => [
-                    "data:$variantMime;base64,$variantB64",
-                    "data:$finalMime;base64,$finalB64"
-                ],
+                'image_input' => [$variantUrl, $finalUrl],
                 'aspect_ratio' => '1:1',
                 'output_format' => 'jpg'
             ]

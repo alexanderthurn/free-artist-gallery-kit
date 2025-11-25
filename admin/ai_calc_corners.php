@@ -380,6 +380,10 @@ function process_completed_corner_prediction(string $jsonPath, array $resp, floa
     $aiCorners['completed_at'] = date('c');
     update_json_file($jsonPath, ['ai_corners' => $aiCorners], false);
     
+    // Also update task status to ensure consistency
+    require_once __DIR__ . '/meta.php';
+    update_task_status($jsonPath, 'ai_corners', 'completed');
+    
     return [
         'ok' => true,
         'completed' => true,
@@ -422,7 +426,6 @@ function calculate_corners(string $imagePath, float $offsetPercent = 1.0): array
     if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
         return ['ok' => false, 'error' => 'unsupported image type', 'mime' => $mime];
     }
-    $imgB64 = base64_encode(file_get_contents($abs));
 
     // ---- Check for cached Replicate response ----
     $imageFilename = basename($abs);
@@ -477,10 +480,23 @@ The coordinates should be percentages (0-100) where:
 Return ONLY valid JSON, no other text.
 PROMPT;
 
+    // ---- Upload image to Replicate file API (7MB limit for gemini-3-pro) ----
+    try {
+        $imageUrl = replicate_upload_file($TOKEN, $abs, 7 * 1024 * 1024); // 7MB limit
+        error_log('AI Calc Corners: Image uploaded to Replicate, URL: ' . $imageUrl);
+    } catch (Throwable $e) {
+        error_log('AI Calc Corners: Failed to upload image to Replicate: ' . $e->getMessage());
+        return [
+            'ok' => false,
+            'error' => 'upload_failed',
+            'detail' => $e->getMessage()
+        ];
+    }
+
     // ---- Replicate API Call (Google Gemini 3 Pro) ----
     $payload = [
         'input' => [
-            'images' => ["data:$mime;base64,$imgB64"],
+            'images' => [$imageUrl],
             'max_output_tokens' => 65535,
             'prompt' => $prompt,
             'temperature' => 1,
