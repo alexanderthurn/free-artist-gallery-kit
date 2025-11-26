@@ -124,6 +124,9 @@
     .selectable-variants { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; display: none; }
     .selectable-variants.visible { display: block; }
     .selectable-variants-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .selectable-variant-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .selectable-variant-group-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .selectable-variant-group-items { display: flex; flex-direction: row; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
     .selectable-variant-thumb:active { transform: scale(0.95); }
     .add-variant-btn { width: 80px; height: 80px; border: 2px dashed #ccc; border-radius: 6px; background: #fafafa; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999; transition: all 0.2s; flex-shrink: 0; }
     .add-variant-btn:hover { border-color: #888; color: #666; background: #f0f0f0; }
@@ -421,6 +424,66 @@
         const variantName = v.name.replace(/\.(jpg|jpeg)$/i, '');
         return !addedVariantNames.has(variantName);
       });
+      
+      // Group and sort selectable variants
+      const groupedSelectableVariants = (() => {
+        // Group variants by name prefix (everything before last underscore)
+        const groups = {};
+        selectableVariants.forEach(variant => {
+          const nameWithoutExt = (variant.name || '').replace(/\.(jpg|jpeg)$/i, '');
+          const lastUnderscoreIndex = nameWithoutExt.lastIndexOf('_');
+          const groupName = lastUnderscoreIndex >= 0 
+            ? nameWithoutExt.substring(0, lastUnderscoreIndex)
+            : nameWithoutExt;
+          
+          if (!groups[groupName]) {
+            groups[groupName] = [];
+          }
+          groups[groupName].push(variant);
+        });
+        
+        // Sort groups alphabetically
+        const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+          return a.toLowerCase().localeCompare(b.toLowerCase());
+        });
+        
+        // Sort variants within each group: _klein, _mittel, _gross, then others alphabetically
+        sortedGroupNames.forEach(groupName => {
+          groups[groupName].sort((a, b) => {
+            const nameA = (a.name || '').toLowerCase();
+            const nameB = (b.name || '').toLowerCase();
+            
+            // Get suffix after last underscore
+            const getSuffix = (name) => {
+              const nameWithoutExt = name.replace(/\.(jpg|jpeg)$/i, '');
+              const lastUnderscore = nameWithoutExt.lastIndexOf('_');
+              return lastUnderscore >= 0 ? nameWithoutExt.substring(lastUnderscore + 1) : '';
+            };
+            
+            const suffixA = getSuffix(nameA);
+            const suffixB = getSuffix(nameB);
+            
+            // Define order: klein, mittel, gross
+            const order = { 'klein': 1, 'mittel': 2, 'gross': 3 };
+            const orderA = order[suffixA] || 999;
+            const orderB = order[suffixB] || 999;
+            
+            // First sort by order
+            if (orderA !== orderB) {
+              return orderA - orderB;
+            }
+            
+            // If same order (both 999 or same value), sort alphabetically
+            return nameA.localeCompare(nameB);
+          });
+        });
+        
+        return sortedGroupNames.map(groupName => ({
+          name: groupName,
+          variants: groups[groupName]
+        }));
+      })();
+      
       // Combine: final first, then variants
       const allVariants = [];
       if (finalVariant) {
@@ -541,13 +604,20 @@
           `}
           <div class="selectable-variants" id="selectable-variants-${g.base}">
             <div class="selectable-variants-title"><span class="star-icon">⭐</span>KI Varianten</div>
-            <div class="selectable-variants-grid" id="variants-${g.base}">
-              ${selectableVariants.length > 0 ? selectableVariants.map(v => `
-                <img class="selectable-variant-thumb" 
-                     src="${escapeHtml(v.url)}" 
-                     alt="${escapeHtml(v.name)}"
-                     title="${escapeHtml(v.name)}"
-                     onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
+            <div id="variants-${g.base}">
+              ${groupedSelectableVariants.length > 0 ? groupedSelectableVariants.map(group => `
+                <div class="selectable-variant-group">
+                  <div class="selectable-variant-group-title">${escapeHtml(group.name.charAt(0).toUpperCase() + group.name.slice(1))}</div>
+                  <div class="selectable-variant-group-items">
+                    ${group.variants.map(v => `
+                      <img class="selectable-variant-thumb" 
+                           src="${escapeHtml(v.url)}" 
+                           alt="${escapeHtml(v.name)}"
+                           title="${escapeHtml(v.name)}"
+                           onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
+                    `).join('')}
+                  </div>
+                </div>
               `).join('') : '<span class="muted muted-text-sm">Keine Varianten verfügbar</span>'}
             </div>
           </div>
