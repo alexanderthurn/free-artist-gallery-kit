@@ -25,4 +25,5 @@ jobs:
           admin/images/**
           admin/variants/**
           misc/**
+          **/.*
 
