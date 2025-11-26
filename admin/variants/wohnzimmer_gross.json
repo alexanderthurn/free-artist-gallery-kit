@@ -1,5 +1,5 @@
 {
-    "variant_name": "wohnzimmer",
+    "variant_name": "wohnzimmer_gross",
     "status": "completed",
     "started_at": "2025-11-21T10:53:34+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/40jr3wa8q9rma0ctmr693p1yjr",
@@ -9,7 +9,7 @@
     "prompt": "Ein Wohnzimmer",
     "prompt_final": "  Erzeuge ein neues, fotorealistisches Bild eines Raumes. \n  Der Raum soll neutral gestaltet sein, die Deckenhöhe soll 2,5m sein. Der Raum soll genügend freie glatte Wandfläche bieten. Es darf kein Bild irgendwo hängen.\n  Achte auf natürliche Beleuchtung und klare Linien.\n  \n  Raumbeschreibung des Nutzers:\n  Ein Wohnzimmer",
     "target_path": "/Users/alexanderthurn/Documents/projects/herzfabrik/admin/variants/wohnzimmer.jpg",
-    "filename": "wohnzimmer.jpg",
+    "filename": "wohnzimmer_gross.jpg",
     "type": "template",
     "created_at": "2025-11-21T10:53:34+00:00",
     "replicate_response_raw": "{\n    \"id\": \"40jr3wa8q9rma0ctmr693p1yjr\",\n    \"model\": \"google/nano-banana-pro\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"output_format\": \"jpg\",\n        \"prompt\": \"  Erzeuge ein neues, fotorealistisches Bild eines Raumes. \\n  Der Raum soll neutral gestaltet sein, die Deckenhöhe soll 2,5m sein. Der Raum soll genügend freie glatte Wandfläche bieten. Es darf kein Bild irgendwo hängen.\\n  Achte auf natürliche Beleuchtung und klare Linien.\\n  \\n  Raumbeschreibung des Nutzers:\\n  Ein Wohnzimmer\"\n    },\n    \"logs\": \"Warning: 'match_input_image' aspect ratio selected but no input images provided. Falling back to 1:1 aspect ratio.\\nGenerating image...\\nGenerated image in 28.80 seconds\\n\",\n    \"output\": \"https://replicate.delivery/xezq/6fy8cMvRwDQxUaEbvHKC2fU7Nt6JckESwKfI3Gdrfljts9tWB/tmp1b749vz9.jpeg\",\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-21T10:53:34.266Z\",\n    \"started_at\": \"2025-11-21T10:53:34.272452296Z\",\n    \"completed_at\": \"2025-11-21T10:54:03.3561502Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/40jr3wa8q9rma0ctmr693p1yjr/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/40jr3wa8q9rma0ctmr693p1yjr\",\n        \"stream\": \"https://stream.replicate.com/v1/files/bcwr-em3bnqbyrebrpbz6ijcmfcgdyydhasdjgx6hqvmuz7r2t7nww4vq\",\n        \"web\": \"https://replicate.com/p/40jr3wa8q9rma0ctmr693p1yjr\"\n    },\n    \"metrics\": {\n        \"predict_time\": 29.0836979,\n        \"total_time\": 29.0901502\n    }\n}",

@@ -1,5 +1,5 @@
 {
-    "variant_name": "schlafzimmer",
+    "variant_name": "schlafzimmer_gross",
     "status": "completed",
     "started_at": "2025-11-21T09:57:24+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/990wqzyv9hrmc0ctmqc83rkak8",
@@ -47,5 +47,6 @@
             "total_time": 10.823421158
         }
     },
-    "completed_at": "2025-11-21T09:57:57+00:00"
+    "completed_at": "2025-11-21T09:57:57+00:00",
+    "filename": "schlafzimmer_gross.jpg"
 }

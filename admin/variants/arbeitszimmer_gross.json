@@ -1,5 +1,5 @@
 {
-    "variant_name": "arbeitszimmer",
+    "variant_name": "arbeitszimmer_gross",
     "status": "completed",
     "started_at": "2025-11-21T09:57:08+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/7xben2wx1srme0ctmqca8jv6s8",
@@ -47,5 +47,6 @@
             "total_time": 11.434893842
         }
     },
-    "completed_at": "2025-11-21T09:57:56+00:00"
+    "completed_at": "2025-11-21T09:57:56+00:00",
+    "filename": "arbeitszimmer_gross.jpg"
 }

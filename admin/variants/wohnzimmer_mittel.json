@@ -1,5 +1,5 @@
 {
-    "variant_name": "couch",
+    "variant_name": "wohnzimmer_mittel",
     "status": "completed",
     "started_at": "2025-11-21T09:57:12+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/5ze1g6ndb9rm80ctmqca3ncper",
@@ -47,5 +47,6 @@
             "total_time": 11.384076602
         }
     },
-    "completed_at": "2025-11-21T09:57:56+00:00"
+    "completed_at": "2025-11-21T09:57:56+00:00",
+    "filename": "wohnzimmer_mittel.jpg"
 }

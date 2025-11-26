@@ -1,5 +1,5 @@
 {
-    "variant_name": "kommode",
+    "variant_name": "kommode_gross",
     "status": "completed",
     "started_at": "2025-11-21T09:57:20+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/rzgt5yyas1rma0ctmqc86bg1y8",
@@ -47,5 +47,6 @@
             "total_time": 10.367422536
         }
     },
-    "completed_at": "2025-11-21T09:57:57+00:00"
+    "completed_at": "2025-11-21T09:57:57+00:00",
+    "filename": "kommode_gross.jpg"
 }

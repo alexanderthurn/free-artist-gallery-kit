@@ -1,0 +1,45 @@
+{
+    "variant_name": "flur_mittel",
+    "status": "completed",
+    "started_at": "2025-11-26T08:09:42+00:00",
+    "prediction_url": "https://api.replicate.com/v1/predictions/3p8td5rfydrm80ctqwvb0frrgw",
+    "prediction_id": "3p8td5rfydrm80ctqwvb0frrgw",
+    "prediction_status": "succeeded",
+    "timestamp": "2025-11-26T08:11:17+00:00",
+    "prompt": "Ein Flur",
+    "prompt_final": "  Erzeuge ein neues, fotorealistisches Bild eines Raumes. \n  Der Raum soll neutral gestaltet sein. Es darf kein Bild irgendwo hängen.\n  Achte auf natürliche Beleuchtung und klare Linien.\n  \n  Raumbeschreibung des Nutzers:\n  Ein Flur",
+    "target_path": "/Users/alexanderthurn/Documents/projects/herzfabrik/admin/variants/flur.jpg",
+    "filename": "flur_mittel.jpg",
+    "type": "template",
+    "created_at": "2025-11-26T08:09:42+00:00",
+    "replicate_response_raw": "{\n    \"id\": \"3p8td5rfydrm80ctqwvb0frrgw\",\n    \"model\": \"google/nano-banana-pro\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"output_format\": \"jpg\",\n        \"prompt\": \"  Erzeuge ein neues, fotorealistisches Bild eines Raumes. \\n  Der Raum soll neutral gestaltet sein. Es darf kein Bild irgendwo hängen.\\n  Achte auf natürliche Beleuchtung und klare Linien.\\n  \\n  Raumbeschreibung des Nutzers:\\n  Ein Flur\"\n    },\n    \"logs\": \"Warning: 'match_input_image' aspect ratio selected but no input images provided. Falling back to 1:1 aspect ratio.\\nGenerating image...\\nGenerated image in 46.14 seconds\\n\",\n    \"output\": \"https://replicate.delivery/xezq/AuHG7FfekalRgESWvclCF4xKyfUbG245wOUmhf6odTfmenRbF/tmp4_utg_2e.jpeg\",\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-26T08:09:42.643Z\",\n    \"started_at\": \"2025-11-26T08:09:42.649224467Z\",\n    \"completed_at\": \"2025-11-26T08:10:28.987463351Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/3p8td5rfydrm80ctqwvb0frrgw/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/3p8td5rfydrm80ctqwvb0frrgw\",\n        \"stream\": \"https://stream.replicate.com/v1/files/bcwr-k5hb4u3bhobagl4suoptspl4munblialebk3rm23lgyt23mvxxwq\",\n        \"web\": \"https://replicate.com/p/3p8td5rfydrm80ctqwvb0frrgw\"\n    },\n    \"metrics\": {\n        \"predict_time\": 46.338238885,\n        \"total_time\": 46.344463351\n    }\n}",
+    "replicate_response": {
+        "id": "3p8td5rfydrm80ctqwvb0frrgw",
+        "model": "google/nano-banana-pro",
+        "version": "hidden",
+        "input": {
+            "output_format": "jpg",
+            "prompt": "  Erzeuge ein neues, fotorealistisches Bild eines Raumes. \n  Der Raum soll neutral gestaltet sein. Es darf kein Bild irgendwo hängen.\n  Achte auf natürliche Beleuchtung und klare Linien.\n  \n  Raumbeschreibung des Nutzers:\n  Ein Flur"
+        },
+        "logs": "Warning: 'match_input_image' aspect ratio selected but no input images provided. Falling back to 1:1 aspect ratio.\nGenerating image...\nGenerated image in 46.14 seconds\n",
+        "output": "https://replicate.delivery/xezq/AuHG7FfekalRgESWvclCF4xKyfUbG245wOUmhf6odTfmenRbF/tmp4_utg_2e.jpeg",
+        "data_removed": false,
+        "error": null,
+        "source": "api",
+        "status": "succeeded",
+        "created_at": "2025-11-26T08:09:42.643Z",
+        "started_at": "2025-11-26T08:09:42.649224467Z",
+        "completed_at": "2025-11-26T08:10:28.987463351Z",
+        "urls": {
+            "cancel": "https://api.replicate.com/v1/predictions/3p8td5rfydrm80ctqwvb0frrgw/cancel",
+            "get": "https://api.replicate.com/v1/predictions/3p8td5rfydrm80ctqwvb0frrgw",
+            "stream": "https://stream.replicate.com/v1/files/bcwr-k5hb4u3bhobagl4suoptspl4munblialebk3rm23lgyt23mvxxwq",
+            "web": "https://replicate.com/p/3p8td5rfydrm80ctqwvb0frrgw"
+        },
+        "metrics": {
+            "predict_time": 46.338238885,
+            "total_time": 46.344463351
+        }
+    },
+    "completed_at": "2025-11-26T08:11:18+00:00"
+}

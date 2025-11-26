@@ -1,5 +1,5 @@
 {
-    "variant_name": "flur",
+    "variant_name": "flur_gross",
     "status": "completed",
     "started_at": "2025-11-21T09:57:15+00:00",
     "prediction_url": "https://api.replicate.com/v1/predictions/d898xxdtbhrma0ctmqcbg026p0",
@@ -47,5 +47,6 @@
             "total_time": 10.902459811
         }
     },
-    "completed_at": "2025-11-21T09:57:56+00:00"
+    "completed_at": "2025-11-21T09:57:56+00:00",
+    "filename": "flur_gross.jpg"
 }

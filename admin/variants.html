@@ -59,9 +59,20 @@
       100% { transform: rotate(360deg); }
     }
     .toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+    .variant-group { display: flex; flex-direction: row; gap: 16px; margin-bottom: 24px; align-items: flex-start; }
+    .variant-group-title { font-size: 18px; font-weight: 600; color: #333; flex: 0 0 180px; padding-top: 12px; }
+    .variant-group-items { display: flex; flex-direction: row; gap: 16px; flex: 1; overflow-x: auto; padding-bottom: 8px; }
+    .variant-group-items .variant-item { flex: 0 0 auto; min-width: 180px; max-width: 180px; padding: 8px; }
+    .variant-group-items .variant-item .variant-name-display { font-size: 10px; margin-bottom: 4px; }
+    .variant-group-items .variant-item .muted { font-size: 9px; margin-bottom: 4px; }
+    .variant-group-items .variant-item .variant-actions button { font-size: 10px; padding: 4px 6px; }
     @media (max-width: 768px) {
       body { margin: 12px; }
       .list { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+      .variant-group-title { flex: 0 0 120px; font-size: 16px; }
+      .variant-group-items .variant-item { min-width: 150px; max-width: 150px; }
+      .variant-group-items { gap: 12px; }
+      .variant-group { gap: 12px; }
     }
   </style>
   <link rel="stylesheet" href="common.css">
@@ -88,7 +99,74 @@
         return;
       }
 
+      // Group variants by name prefix (everything before last underscore)
+      const groups = {};
       variants.forEach(variant => {
+        const nameWithoutExt = (variant.name || '').replace(/\.[^/.]+$/, '');
+        const lastUnderscoreIndex = nameWithoutExt.lastIndexOf('_');
+        const groupName = lastUnderscoreIndex >= 0 
+          ? nameWithoutExt.substring(0, lastUnderscoreIndex)
+          : nameWithoutExt;
+        
+        if (!groups[groupName]) {
+          groups[groupName] = [];
+        }
+        groups[groupName].push(variant);
+      });
+
+      // Sort groups alphabetically
+      const sortedGroupNames = Object.keys(groups).sort((a, b) => {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+
+      // Render each group
+      sortedGroupNames.forEach(groupName => {
+        const groupVariants = groups[groupName];
+        
+        // Sort variants within group: _klein, _mittel, _gross, then others alphabetically
+        groupVariants.sort((a, b) => {
+          const nameA = (a.name || '').toLowerCase();
+          const nameB = (b.name || '').toLowerCase();
+          
+          // Get suffix after last underscore
+          const getSuffix = (name) => {
+            const lastUnderscore = name.lastIndexOf('_');
+            return lastUnderscore >= 0 ? name.substring(lastUnderscore + 1).replace(/\.[^/.]+$/, '') : '';
+          };
+          
+          const suffixA = getSuffix(nameA);
+          const suffixB = getSuffix(nameB);
+          
+          // Define order: klein, mittel, gross
+          const order = { 'klein': 1, 'mittel': 2, 'gross': 3 };
+          const orderA = order[suffixA] || 999;
+          const orderB = order[suffixB] || 999;
+          
+          // First sort by order
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+          
+          // If same order (both 999 or same value), sort alphabetically
+          return nameA.localeCompare(nameB);
+        });
+
+        // Create group container
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'variant-group';
+        
+        // Group title (capitalize first letter)
+        const groupTitle = document.createElement('h3');
+        groupTitle.className = 'variant-group-title';
+        const capitalizedGroupName = groupName.charAt(0).toUpperCase() + groupName.slice(1);
+        groupTitle.textContent = capitalizedGroupName;
+        groupDiv.appendChild(groupTitle);
+        
+        // Group items container
+        const groupItemsDiv = document.createElement('div');
+        groupItemsDiv.className = 'variant-group-items';
+        
+        groupVariants.forEach(variant => {
         const item = document.createElement('div');
         item.className = 'variant-item';
         item.id = `variant-${escapeHtml(variant.name)}`;
@@ -156,7 +234,14 @@
         }
         
         item.innerHTML = itemContent;
-        container.appendChild(item);
+        groupItemsDiv.appendChild(item);
+        });
+        
+        // Add group items to group container
+        groupDiv.appendChild(groupItemsDiv);
+        
+        // Add group to main container
+        container.appendChild(groupDiv);
       });
     }
 
@@ -696,6 +781,21 @@
       </div>
       <div class="field">
         <label>Prompt</label>
+        <div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin-bottom: 12px; font-size: 12px;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #333;">Beispiele für verschiedene Größen:</div>
+          <div style="margin-bottom: 12px;">
+            <strong style="color: #666;">_klein:</strong><br>
+            <span style="color: #555; font-style: italic;">Ein Wand in einem Hauseingang in extrem naher Nahaufname, 20cm entfernt. Es gibt nur wenig Platz für ein einziges kleines Bild.</span>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <strong style="color: #666;">_mittel:</strong><br>
+            <span style="color: #555; font-style: italic;">Eine Wand über einem Schreibtisch in einem Arbeitszimmer in sehr naher Nahaufname, 50cm entfernt. Es gibt nur wenig Platz für ein kleines Bild.</span>
+          </div>
+          <div>
+            <strong style="color: #666;">_gross:</strong><br>
+            <span style="color: #555; font-style: italic;">Ein Arbeitszimmer</span>
+          </div>
+        </div>
         <textarea id="prompt" name="prompt" required></textarea>
       </div>
       <button type="submit" id="generateBtn" class="primary">Variante generieren</button>
@@ -722,7 +822,7 @@
       <h2>Verfügbare Varianten</h2>
       <button type="button" onclick="refresh()">Aktualisieren</button>
     </div>
-    <div id="variants" class="list"></div>
+    <div id="variants"></div>
   </div>
   
   <script>

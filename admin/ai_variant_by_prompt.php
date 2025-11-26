@@ -222,7 +222,7 @@ function generate_variant_template_async(
     
     $promptFinal = <<<PROMPT
   Erzeuge ein neues, fotorealistisches Bild eines Raumes. 
-  Der Raum soll neutral gestaltet sein, die Deckenhöhe soll 2,5m sein. Der Raum soll genügend freie glatte Wandfläche bieten. Es darf kein Bild irgendwo hängen.
+  Der Raum soll neutral gestaltet sein. Es darf kein Bild irgendwo hängen.
   Achte auf natürliche Beleuchtung und klare Linien.
   
   Raumbeschreibung des Nutzers:
