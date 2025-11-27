@@ -48,6 +48,9 @@ if (!is_file($originalPath)) {
 
 try {
     if ($action === 'restore') {
+        // Set to draft if currently live (image changes require review)
+        set_to_draft_if_live($originalName, $imagesDir);
+        
         // Replace _final with _original (or create _final if it doesn't exist)
         $finalName = $base.'_final'.($ext ? '.'.$ext : '');
         $finalPath = $imagesDir.$finalName;

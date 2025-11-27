@@ -116,6 +116,46 @@ function save_meta(string $imageFilename, array $updates, ?string $imagesDir = n
     return ['ok' => true];
 }
 
+/**
+ * Set image status to draft (live => false) if it's currently live
+ * This is called when image changes are made that require review before going live
+ * 
+ * @param string $imageFilename The image filename (e.g., "IMG_2111_2_original.jpg")
+ * @param string|null $imagesDir Optional images directory, defaults to __DIR__.'/images/'
+ * @return array Result array with 'ok' (bool), 'was_live' (bool), and optional 'error' (string)
+ */
+function set_to_draft_if_live(string $imageFilename, ?string $imagesDir = null): array {
+    if ($imagesDir === null) {
+        $imagesDir = __DIR__.'/images/';
+    }
+    
+    // Ensure trailing slash
+    if (substr($imagesDir, -1) !== '/') {
+        $imagesDir .= '/';
+    }
+    
+    $metaPath = get_meta_path($imageFilename, $imagesDir);
+    
+    // Load existing metadata
+    $existingMeta = load_meta($imageFilename, $imagesDir);
+    
+    // Check if image is currently live
+    $isLive = isset($existingMeta['live']) && $existingMeta['live'] === true;
+    
+    if (!$isLive) {
+        // Not live, nothing to do
+        return ['ok' => true, 'was_live' => false];
+    }
+    
+    // Set to draft (live => false)
+    $ok = update_json_file($metaPath, ['live' => false], false);
+    if (!$ok) {
+        return ['ok' => false, 'error' => 'Failed to update metadata', 'was_live' => true];
+    }
+    
+    return ['ok' => true, 'was_live' => true];
+}
+
 // HTTP endpoint functionality (only runs when accessed directly)
 if (basename($_SERVER['SCRIPT_FILENAME']) === basename(__FILE__)) {
     header('Content-Type: application/json; charset=utf-8');
