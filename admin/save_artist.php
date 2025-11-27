@@ -33,7 +33,21 @@ $colorPrimaryRgb = isset($_POST['colorPrimaryRgb']) ? trim($_POST['colorPrimaryR
 $indexPath = dirname(__DIR__) . '/index.html';
 $backupDir = __DIR__ . '/backups';
 
-// Prepare current data for comparison
+// Read current index.html first (needed for update)
+if (!file_exists($indexPath)) {
+    http_response_code(404);
+    echo json_encode(['ok' => false, 'error' => 'index.html not found']);
+    exit;
+}
+
+$indexContent = file_get_contents($indexPath);
+if ($indexContent === false) {
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Failed to read index.html']);
+    exit;
+}
+
+// Prepare current data for comparison (before updating index.html)
 $currentData = [
     'short' => trim($shortContent),
     'bio' => trim($bioContent),
@@ -51,7 +65,8 @@ $currentData = [
     'colorPrimaryRgb' => $colorPrimaryRgb
 ];
 
-// Check if content is identical to last backup (JSON format)
+// Check if content is identical to last backup (before updating index.html)
+$shouldCreateBackup = true;
 $backupFiles = [];
 if (is_dir($backupDir)) {
     $files = scandir($backupDir) ?: [];
@@ -96,117 +111,12 @@ if (!empty($backupFiles)) {
                         break;
                     }
                 }
-                // Also check pageTitle if it exists in backup but not in current (for backward compatibility)
-                if ($isUnchanged && isset($backupData['pageTitle']) && empty($pageTitle)) {
-                    // If backup has pageTitle but current doesn't, check if title matches
-                    $backupTitle = $backupData['pageTitle'];
-                    $patternTitle = '/<title>(.*?)<\/title>/s';
-                    if (preg_match($patternTitle, $indexContent, $matches)) {
-                        $currentTitle = trim($matches[1]);
-                        if ($currentTitle !== $backupTitle) {
-                            $isUnchanged = false;
-                        }
-                    }
-                }
                 
                 if ($isUnchanged) {
-                    echo json_encode([
-                        'ok' => true,
-                        'unchanged' => true,
-                        'message' => 'Keine Änderungen erkannt. Inhalt ist identisch zum letzten Backup.'
-                    ]);
-                    exit;
+                    $shouldCreateBackup = false;
                 }
             }
         }
-    } else {
-        // Old HTML format - for backward compatibility, skip comparison
-        // (We'll migrate to JSON on next save)
-    }
-}
-
-// Ensure backup directory exists
-if (!is_dir($backupDir)) {
-    if (!mkdir($backupDir, 0755, true)) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Failed to create backup directory']);
-        exit;
-    }
-}
-
-// Read current index.html
-if (!file_exists($indexPath)) {
-    http_response_code(404);
-    echo json_encode(['ok' => false, 'error' => 'index.html not found']);
-    exit;
-}
-
-$indexContent = file_get_contents($indexPath);
-if ($indexContent === false) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Failed to read index.html']);
-    exit;
-}
-
-// Create JSON backup before modifying
-$timestamp = time();
-$backupFilename = 'artist_' . $timestamp . '.json';
-$backupPath = $backupDir . '/' . $backupFilename;
-
-// Create backup data structure
-$backupData = [
-    'timestamp' => $timestamp,
-    'short' => trim($shortContent),
-    'bio' => trim($bioContent),
-    'pageTitle' => $pageTitle,
-    'name' => $artistName,
-    'email' => $artistEmail,
-    'domain' => $siteDomain,
-    'imprintAddress' => $imprintAddress,
-    'imprintPostalCode' => $imprintPostalCode,
-    'imprintCity' => $imprintCity,
-    'imprintPhone' => $imprintPhone,
-    'colorPrimary' => $colorPrimary,
-    'colorPrimaryHover' => $colorPrimaryHover,
-    'colorContrast' => $colorContrast,
-    'colorPrimaryRgb' => $colorPrimaryRgb
-];
-
-$backupJson = json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-if (!file_put_contents($backupPath, $backupJson)) {
-    http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Failed to create backup']);
-    exit;
-}
-
-// Clean up old backups (keep only 100 most recent)
-$backupFiles = [];
-if (is_dir($backupDir)) {
-    $files = scandir($backupDir) ?: [];
-    foreach ($files as $file) {
-        if ($file === '.' || $file === '..') continue;
-        if (strpos($file, 'index_') === 0 && pathinfo($file, PATHINFO_EXTENSION) === 'html') {
-            $filePath = $backupDir . '/' . $file;
-            $backupFiles[] = [
-                'filename' => $file,
-                'path' => $filePath,
-                'mtime' => filemtime($filePath)
-            ];
-        }
-    }
-}
-
-// Sort by modification time (newest first)
-usort($backupFiles, function($a, $b) {
-    return $b['mtime'] - $a['mtime'];
-});
-
-// Remove backups beyond the 100 limit
-if (count($backupFiles) > 100) {
-    $toRemove = array_slice($backupFiles, 100);
-    foreach ($toRemove as $backup) {
-        @unlink($backup['path']);
     }
 }
 
@@ -592,11 +502,86 @@ if (!empty($siteDomain)) {
     }
 }
 
-// Write updated content back to index.html
+// Write updated content back to index.html (ALWAYS, even if no backup is created)
 if (!file_put_contents($indexPath, $indexContent)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Failed to write index.html']);
     exit;
+}
+
+// Create backup only if content has changed
+$backupFilename = null;
+if ($shouldCreateBackup) {
+    // Ensure backup directory exists
+    if (!is_dir($backupDir)) {
+        if (!mkdir($backupDir, 0755, true)) {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Failed to create backup directory']);
+            exit;
+        }
+    }
+    
+    // Create JSON backup
+    $timestamp = time();
+    $backupFilename = 'artist_' . $timestamp . '.json';
+    $backupPath = $backupDir . '/' . $backupFilename;
+    
+    // Create backup data structure
+    $backupData = [
+        'timestamp' => $timestamp,
+        'short' => trim($shortContent),
+        'bio' => trim($bioContent),
+        'pageTitle' => $pageTitle,
+        'name' => $artistName,
+        'email' => $artistEmail,
+        'domain' => $siteDomain,
+        'imprintAddress' => $imprintAddress,
+        'imprintPostalCode' => $imprintPostalCode,
+        'imprintCity' => $imprintCity,
+        'imprintPhone' => $imprintPhone,
+        'colorPrimary' => $colorPrimary,
+        'colorPrimaryHover' => $colorPrimaryHover,
+        'colorContrast' => $colorContrast,
+        'colorPrimaryRgb' => $colorPrimaryRgb
+    ];
+    
+    $backupJson = json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    
+    if (!file_put_contents($backupPath, $backupJson)) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Failed to create backup']);
+        exit;
+    }
+    
+    // Clean up old backups (keep only 100 most recent JSON backups)
+    $backupFilesToClean = [];
+    if (is_dir($backupDir)) {
+        $files = scandir($backupDir) ?: [];
+        foreach ($files as $file) {
+            if ($file === '.' || $file === '..') continue;
+            if (strpos($file, 'artist_') === 0 && pathinfo($file, PATHINFO_EXTENSION) === 'json') {
+                $filePath = $backupDir . '/' . $file;
+                $backupFilesToClean[] = [
+                    'filename' => $file,
+                    'path' => $filePath,
+                    'mtime' => filemtime($filePath)
+                ];
+            }
+        }
+    }
+    
+    // Sort by modification time (newest first)
+    usort($backupFilesToClean, function($a, $b) {
+        return $b['mtime'] - $a['mtime'];
+    });
+    
+    // Remove backups beyond the 100 limit
+    if (count($backupFilesToClean) > 100) {
+        $toRemove = array_slice($backupFilesToClean, 100);
+        foreach ($toRemove as $backup) {
+            @unlink($backup['path']);
+        }
+    }
 }
 
 // Also update meta tags in imprint.html and dataprivacy.html
@@ -656,9 +641,17 @@ foreach ([$imprintPath, $dataprivacyPath] as $filePath) {
     }
 }
 
-echo json_encode([
-    'ok' => true,
-    'backup' => $backupFilename,
-    'message' => 'Content saved successfully'
-]);
+if ($shouldCreateBackup) {
+    echo json_encode([
+        'ok' => true,
+        'backup' => $backupFilename,
+        'message' => 'Content saved successfully'
+    ]);
+} else {
+    echo json_encode([
+        'ok' => true,
+        'unchanged' => true,
+        'message' => 'Keine Änderungen erkannt. Inhalt ist identisch zum letzten Backup. index.html wurde trotzdem aktualisiert.'
+    ]);
+}
 
