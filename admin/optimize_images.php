@@ -9,26 +9,7 @@ set_error_handler(function($severity, $message, $file, $line) {
     throw new ErrorException($message, 0, $severity, $file, $line);
 });
 
-// Ensure no output before JSON
-ob_start();
-
-try {
-    require_once __DIR__.'/utils.php';
-require_once __DIR__.'/meta.php';
-} catch (Throwable $e) {
-    ob_clean();
-    http_response_code(500);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'ok' => false,
-        'error' => 'Failed to load utils: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
-    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// Configuration parameters
+// Configuration parameters (available when included)
 $GALLERY_MAX_WIDTH = 1536;
 $GALLERY_MAX_HEIGHT = 1536;
 $UPLOAD_MAX_WIDTH = 1536;
@@ -36,88 +17,128 @@ $UPLOAD_MAX_HEIGHT = 1536;
 $THUMBNAIL_MAX_WIDTH = 512;
 $THUMBNAIL_MAX_HEIGHT = 1024;
 
-header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
+// Only execute main script logic if this file is called directly (not included)
+// Check both PHP_SELF and SCRIPT_NAME to handle different server configurations
+$isDirectCall = false;
+if (isset($_SERVER['PHP_SELF']) && basename($_SERVER['PHP_SELF']) === 'optimize_images.php') {
+    $isDirectCall = true;
+} elseif (isset($_SERVER['SCRIPT_NAME']) && basename($_SERVER['SCRIPT_NAME']) === 'optimize_images.php') {
+    $isDirectCall = true;
+} elseif (isset($_SERVER['REQUEST_URI']) && basename(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)) === 'optimize_images.php') {
+    $isDirectCall = true;
+}
 
-// Allow both GET and POST requests (GET for testing, POST for production)
-// Merge parameters: POST takes precedence over GET
-$params = array_merge($_GET, $_POST);
+if ($isDirectCall) {
+    
+    // Ensure no output before JSON
+    ob_start();
 
-// Get action parameter
-$action = $params['action'] ?? 'both';
-$preview = isset($params['preview']) && $params['preview'] === '1';
-$force = isset($params['force']) && $params['force'] === '1';
-
-// If preview mode, return what will be processed
-if ($preview) {
     try {
-        $previewData = preview_processing($action, $force);
-        if (ob_get_level() > 0) {
-            ob_clean(); // Ensure no extra output
-        }
-        $jsonOutput = json_encode([
-            'ok' => true,
-            'preview' => true,
-            'data' => $previewData
-        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        
-        if ($jsonOutput === false) {
-            throw new RuntimeException('JSON encoding failed: ' . json_last_error_msg());
-        }
-        
-        echo $jsonOutput;
+        require_once __DIR__.'/utils.php';
+        require_once __DIR__.'/meta.php';
     } catch (Throwable $e) {
-        if (ob_get_level() > 0) {
-            ob_clean();
-        }
-        // Log full error details
-        error_log('Preview error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL . $e->getTraceAsString());
-        
+        ob_clean();
         http_response_code(500);
-        $errorJson = json_encode([
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
             'ok' => false,
-            'error' => 'Preview failed: ' . $e->getMessage(),
+            'error' => 'Failed to load utils: ' . $e->getMessage(),
             'file' => basename($e->getFile()),
             'line' => $e->getLine()
         ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        
-        if ($errorJson === false) {
-            // Fallback if JSON encoding fails
-            echo '{"ok":false,"error":"Preview failed: ' . addslashes($e->getMessage()) . '"}';
-        } else {
-            echo $errorJson;
+        exit;
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+
+    // Allow both GET and POST requests (GET for testing, POST for production)
+    // Merge parameters: POST takes precedence over GET
+    $params = array_merge($_GET, $_POST);
+
+    // Get action parameter
+    $action = $params['action'] ?? 'both';
+    $preview = isset($params['preview']) && $params['preview'] === '1';
+    $force = isset($params['force']) && $params['force'] === '1';
+
+    // If preview mode, return what will be processed
+    if ($preview) {
+        try {
+            $previewData = preview_processing($action, $force);
+            if (ob_get_level() > 0) {
+                ob_clean(); // Ensure no extra output
+            }
+            $jsonOutput = json_encode([
+                'ok' => true,
+                'preview' => true,
+                'data' => $previewData
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            
+            if ($jsonOutput === false) {
+                throw new RuntimeException('JSON encoding failed: ' . json_last_error_msg());
+            }
+            
+            echo $jsonOutput;
+        } catch (Throwable $e) {
+            if (ob_get_level() > 0) {
+                ob_clean();
+            }
+            // Log full error details
+            error_log('Preview error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . PHP_EOL . $e->getTraceAsString());
+            
+            http_response_code(500);
+            $errorJson = json_encode([
+                'ok' => false,
+                'error' => 'Preview failed: ' . $e->getMessage(),
+                'file' => basename($e->getFile()),
+                'line' => $e->getLine()
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            
+            if ($errorJson === false) {
+                // Fallback if JSON encoding fails
+                echo '{"ok":false,"error":"Preview failed: ' . addslashes($e->getMessage()) . '"}';
+            } else {
+                echo $errorJson;
+            }
         }
+        exit;
+    }
+
+    // Return immediately and process in background
+    try {
+        if (ob_get_level() > 0) {
+            ob_clean(); // Ensure no extra output
+        }
+        echo json_encode(['ok' => true, 'message' => 'Processing started in background'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        // Flush output to client
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } else {
+            // Fallback: close connection and continue processing
+            if (ob_get_level()) {
+                ob_end_flush();
+            }
+            flush();
+            if (function_exists('apache_setenv')) {
+                @apache_setenv('no-gzip', 1);
+            }
+            @ini_set('zlib.output_compression', 0);
+        }
+
+        // Start background processing
+        process_images($action, $force);
+    } catch (Throwable $e) {
+        // Log error but don't send to client (connection already closed)
+        error_log('optimize_images.php error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     }
     exit;
 }
 
-// Return immediately and process in background
-try {
-    if (ob_get_level() > 0) {
-        ob_clean(); // Ensure no extra output
-    }
-    echo json_encode(['ok' => true, 'message' => 'Processing started in background'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-    // Flush output to client
-    if (function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
-    } else {
-        // Fallback: close connection and continue processing
-        if (ob_get_level()) {
-            ob_end_flush();
-        }
-        flush();
-        if (function_exists('apache_setenv')) {
-            @apache_setenv('no-gzip', 1);
-        }
-        @ini_set('zlib.output_compression', 0);
-    }
-
-    // Start background processing
-    process_images($action, $force);
-} catch (Throwable $e) {
-    // Log error but don't send to client (connection already closed)
-    error_log('optimize_images.php error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+// When included, ensure utils and meta are loaded
+if (!function_exists('load_meta')) {
+    require_once __DIR__.'/utils.php';
+    require_once __DIR__.'/meta.php';
 }
 
 /**
@@ -197,17 +218,16 @@ function preview_processing(string $action, bool $force = false): array {
                     if ($jsonFile && is_file($imagesDir.$jsonFile)) {
                         $meta = load_meta($jsonFile, $imagesDir);
                         if (is_array($meta) && !empty($meta)) {
-                                // Check multiple ways to determine if live
-                                $jsonStem = pathinfo($jsonFile, PATHINFO_FILENAME);
-                                $jsonBase = preg_replace('/_(original|color|final)$/', '', $jsonStem);
-                                
-                                if (isset($livePaintings[$base])) {
-                                    $isLive = true;
-                                } elseif (isset($livePaintingsByJson[$jsonBase])) {
-                                    $isLive = true;
-                                } elseif (isset($meta['live']) && $meta['live'] === true) {
-                                    $isLive = true;
-                                }
+                            // Check multiple ways to determine if live
+                            $jsonStem = pathinfo($jsonFile, PATHINFO_FILENAME);
+                            $jsonBase = preg_replace('/_(original|color|final)$/', '', $jsonStem);
+                            
+                            if (isset($livePaintings[$base])) {
+                                $isLive = true;
+                            } elseif (isset($livePaintingsByJson[$jsonBase])) {
+                                $isLive = true;
+                            } elseif (isset($meta['live']) && $meta['live'] === true) {
+                                $isLive = true;
                             }
                         }
                     }

@@ -48,20 +48,20 @@ if (!is_dir($uploadDir)) {
     }
 }
 
-// Use original filename, but handle conflicts
+// Use original filename, replace if already exists
 $originalFilename = basename($file['name']);
 $filename = $originalFilename;
 $targetPath = $uploadDir . '/' . $filename;
 
-// If file already exists, append a number to make it unique
-$counter = 1;
-while (file_exists($targetPath)) {
-    $pathInfo = pathinfo($originalFilename);
-    $extension = isset($pathInfo['extension']) ? '.' . $pathInfo['extension'] : '';
-    $baseName = $pathInfo['filename'];
-    $filename = $baseName . '_' . $counter . $extension;
-    $targetPath = $uploadDir . '/' . $filename;
-    $counter++;
+// If file already exists, delete it to replace
+if (file_exists($targetPath)) {
+    @unlink($targetPath);
+    // Also delete thumbnail if it exists
+    $pathInfo = pathinfo($targetPath);
+    $thumbPath = $pathInfo['dirname'] . '/' . $pathInfo['filename'] . '_thumb.' . ($pathInfo['extension'] ?? 'jpg');
+    if (file_exists($thumbPath)) {
+        @unlink($thumbPath);
+    }
 }
 
 // Move uploaded file
