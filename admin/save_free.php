@@ -136,9 +136,6 @@ if ($imageData !== null) {
 $originalImageFile = $base . '_original.jpg';
 $meta = load_meta($originalImageFile, $imagesDir);
 
-// Set to draft if currently live (image changes require review)
-set_to_draft_if_live($originalImageFile, $imagesDir);
-
 // Use thread-safe update function to preserve all existing data
 $updates = [];
 

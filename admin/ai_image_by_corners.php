@@ -85,9 +85,6 @@ function process_ai_image_by_corners(string $imagePath, float $offsetPercent = 1
         ];
     }
     
-    // Set to draft if currently live (image changes require review)
-    set_to_draft_if_live($originalImageFile, $imagesDir);
-    
     // If corners are already available (completed status OR image_generation_needed flag set), use them directly
     if (($cornersStatus === 'completed' || $imageGenerationNeeded) && 
         $cornersUsed && is_array($cornersUsed) && count($cornersUsed) === 4) {

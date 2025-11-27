@@ -1199,6 +1199,9 @@
       const variantName = variantFilename.replace(/\.(jpg|jpeg)$/i, '');
       
       try {
+        // Set to draft if currently live (variant changes require review)
+        await setToDraftIfLive(imageBaseName, originalImageName);
+        
         // Add variant to queue (only updates JSON, doesn't create file yet)
         const body = new FormData();
         body.set('image_base_name', imageBaseName);
@@ -1334,6 +1337,30 @@
         await removeFromGallery(imageOriginalName, {});
       } else {
         await copyToGallery(imageOriginalName, {});
+      }
+    }
+
+    /**
+     * Set image to draft (remove from gallery) if it's currently live
+     * @param {string} imageBaseName The base name of the image (e.g., "IMG_2111_2")
+     * @param {string} originalImageName The original image filename (e.g., "IMG_2111_2_original.jpg")
+     * @returns {Promise<boolean>} True if image was live and was set to draft, false otherwise
+     */
+    async function setToDraftIfLive(imageBaseName, originalImageName) {
+      try {
+        // Fetch current image data to check if it's live
+        const { groups } = await fetchImages();
+        const group = groups.find(g => g.base === imageBaseName);
+        
+        if (group && group.in_gallery) {
+          // Image is live, set to draft
+          await removeFromGallery(originalImageName, {});
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error('Error checking/setting draft status:', error);
+        return false;
       }
     }
 
@@ -2387,11 +2414,16 @@
         btn.textContent = 'Wird kopiert…';
       }
       
-      const body = new FormData();
-      body.set('image', image);
-      body.set('action', action);
-      
       try {
+        // Set to draft if currently live (image changes require review)
+        if (action === 'restore') {
+          await setToDraftIfLive(imageBaseName, image);
+        }
+        
+        const body = new FormData();
+        body.set('image', image);
+        body.set('action', action);
+        
         const res = await fetch('action.php', { method: 'POST', body });
         if (!res.ok) {
           const msg = await res.text();
@@ -2505,6 +2537,9 @@
       }
       if (btn.textContent !== undefined) btn.textContent = 'KI…';
       try {
+        // Set to draft if currently live (image changes require review)
+        await setToDraftIfLive(imageBaseName, imageOriginalName);
+        
         const body = new FormData();
         body.set('image_path', 'admin/images/' + imageOriginalName);
         // Optional: allow offset to be passed (defaults to 1.0 in the PHP script)
@@ -2573,9 +2608,13 @@
       }
     }
 
-    function doManualFree(imageOriginalName, btn) {
+    async function doManualFree(imageOriginalName, btn) {
       // Extract base name: remove _original, _color, _final, or _variant_* suffix and extension
       const base = imageOriginalName.replace(/_variant_[^_]+\.(jpg|jpeg|png)$/i, '').replace(/_(original|color|final)\.(jpg|jpeg|png)$/i, '').replace(/\.(jpg|jpeg|png)$/i, '');
+      
+      // Set to draft if currently live (image changes require review)
+      await setToDraftIfLive(base, imageOriginalName);
+      
       window.location.href = `free.html?painting=${encodeURIComponent(base)}`;
     }
 

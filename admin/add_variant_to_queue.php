@@ -37,9 +37,6 @@ $imageFilename = preg_replace('/\.json$/', '', $jsonFile);
 // Load existing metadata
 $meta = load_meta($imageFilename, $imagesDir);
 
-// Set to draft if currently live (variant changes require review)
-set_to_draft_if_live($imageFilename, $imagesDir);
-
 // Check if variant already exists (either in list or as file)
 $variantFile = $imageBaseName . '_variant_' . $variantName . '.jpg';
 $variantPath = $imagesDir . '/' . $variantFile;
