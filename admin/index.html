@@ -689,16 +689,16 @@
                   <label>Datum (dd.mm.yyyy)</label>
                   <input type="text" name="date" value="${escapeHtml(meta.date || '')}" data-ai-field="true">
                 </div>
+                <div class="field">
+                  <label class="checkbox-field checkbox-field-left">
+                    <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} class="checkbox-input">
+                    Verkauft
+                  </label>
+                </div>
               </div>
               <div class="field">
                 <label>Tags</label>
                 <input type="text" name="tags" value="${escapeHtml(meta.tags || '')}" data-ai-field="true">
-              </div>
-              <div class="field">
-                <label class="checkbox-field checkbox-field-left">
-                  <input type="checkbox" name="sold" ${meta.sold ? 'checked' : ''} class="checkbox-input">
-                  Verkauft
-                </label>
               </div>
               <div class="field">
                 <label>Rahmen</label>
@@ -2076,13 +2076,12 @@
 <body>
   <div id="toastContainer" class="toast-container"></div>
   <div class="header-container">
-    <h1 class="header-title">Administration der <a href="/index.html" id="site-domain-link" class="site-domain-link">Herzfabrik</a></h1>
+    <h1 class="header-title">Administration der <a href="/index.html" id="site-domain-link" class="site-domain-link">Herzfabrik</a> <button onclick="logout()" class="logout-btn" title="Abmelden">Logout</button></h1>
     <div class="nav-container">
       <a href="index.html" class="nav-link active">Gemälde</a>
       <a href="variants.html" class="nav-link">Raum-Mockups</a>
       <a href="artist.html" class="nav-link">Künstler</a>
       <button id="bgTasksBtn" title="Background Tasks">0</button>
-      <button onclick="logout()" class="logout-btn" title="Abmelden">Logout</button>
     </div>
   </div>
   <div id="flash" class="flash hidden"></div>
