@@ -868,3 +868,41 @@
   margin-bottom: 8px;
 }
 
+.height-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.height-input-wrapper input {
+  flex: 1;
+}
+
+.calc-height-btn {
+  font-size: 12px;
+  padding: 4px 8px;
+  min-width: 24px;
+  height: 28px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.calc-height-btn:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.calc-height-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

@@ -657,7 +657,10 @@
                 </div>
                 <div class="field field-max-w-100">
                   <label>Höhe (cm)</label>
-                  <input type="text" name="height" value="${escapeHtml(meta.height || '')}" data-ai-field="true">
+                  <div class="height-input-wrapper">
+                    <input type="text" name="height" value="${escapeHtml(meta.height || '')}" data-ai-field="true">
+                    <button type="button" class="calc-height-btn" onclick="calculateHeightFromRatio('${escapeHtml(g.base)}', this)" title="Höhe basierend auf Bildverhältnis berechnen">⚡</button>
+                  </div>
                 </div>
                 <div class="field field-max-w-120">
                   <label>Datum (dd.mm.yyyy)</label>
@@ -2181,6 +2184,108 @@
       box.innerHTML = html;
       // Clean params from URL without reloading
       window.history.replaceState({}, '', url.pathname);
+    }
+
+    async function calculateHeightFromRatio(baseName, btn) {
+      try {
+        btn.disabled = true;
+        btn.textContent = '...';
+        
+        // Find the form container
+        const row = document.getElementById(`painting-${baseName}`);
+        if (!row) {
+          return;
+        }
+        
+        // Get width value from form
+        const widthInput = row.querySelector('input[name="width"]');
+        const heightInput = row.querySelector('input[name="height"]');
+        
+        if (!widthInput || !heightInput) {
+          return;
+        }
+        
+        const widthCm = parseFloat(widthInput.value);
+        if (!widthCm || widthCm <= 0) {
+          return;
+        }
+        
+        // Try to get final image URL from stored variants data
+        let finalImageUrl = null;
+        try {
+          const variantsData = row.dataset.variants;
+          if (variantsData) {
+            const variants = JSON.parse(variantsData);
+            const finalVariant = variants.find(v => v.variant === 'final' || (v.name && v.name.includes('_final')));
+            if (finalVariant && finalVariant.url) {
+              finalImageUrl = finalVariant.url;
+              // Remove _thumb suffix if present to get full-size image
+              finalImageUrl = finalImageUrl.replace(/_thumb\.(jpg|jpeg|png)$/i, '.$1');
+            }
+          }
+        } catch (e) {
+          console.warn('Could not parse variants data:', e);
+        }
+        
+        // Build list of possible image URLs to try
+        const possibleUrls = [];
+        if (finalImageUrl) {
+          // If URL doesn't start with admin/ or /, add admin/ prefix
+          if (!finalImageUrl.startsWith('admin/') && !finalImageUrl.startsWith('/')) {
+            possibleUrls.push(`admin/${finalImageUrl}`);
+          } else {
+            possibleUrls.push(finalImageUrl);
+          }
+        }
+        // Fallback: try standard paths
+        possibleUrls.push(`admin/images/${baseName}_final.jpg`);
+        possibleUrls.push(`admin/images/${baseName}_final.jpeg`);
+        possibleUrls.push(`images/${baseName}_final.jpg`);
+        
+        // Load image to get dimensions - try each URL until one works
+        const img = new Image();
+        let imageLoaded = false;
+        
+        for (const url of possibleUrls) {
+          try {
+            await new Promise((resolve, reject) => {
+              img.onload = () => {
+                imageLoaded = true;
+                resolve();
+              };
+              img.onerror = reject;
+              img.src = url;
+            });
+            break; // Success, exit loop
+          } catch (e) {
+            // Try next URL
+            continue;
+          }
+        }
+        
+        if (!imageLoaded) {
+          throw new Error('Final-Bild konnte nicht geladen werden. Stellen Sie sicher, dass ein _final Bild existiert.');
+        }
+        
+        // Calculate height based on ratio
+        const imageWidth = img.naturalWidth;
+        const imageHeight = img.naturalHeight;
+        
+        if (!imageWidth || !imageHeight) {
+          return;
+        }
+        
+        const ratio = imageHeight / imageWidth;
+        const calculatedHeight = widthCm * ratio;
+        
+        // Set height value (rounded to nearest integer)
+        heightInput.value = Math.round(calculatedHeight);
+      } catch (error) {
+        console.error('Error calculating height:', error);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡';
+      }
     }
 
     async function saveMeta(image, btn) {
