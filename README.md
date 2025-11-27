@@ -1,4 +1,4 @@
-# Free-Artist-Gallery-Kit
+# free-artist-gallery-kit
 
 A modern, feature-rich website template designed specifically for artists to showcase their work. This template provides a beautiful gallery interface, artist biography section, admin panel for content management, and various interactive features. Includes AI-powered features for image processing and content generation.
 
@@ -286,6 +286,13 @@ max_input_vars     = 5000
 - Validate and sanitize all user inputs
 - Set proper file permissions on upload directories
 - Consider adding CSRF protection for admin actions
+
+
+## If you are changing files locally in admin/images or img/upload and dont want them to be tracked, call
+
+git update-index --assume-unchanged admin/images/*
+git update-index --assume-unchanged img/upload/*
+git update-index --assume-unchanged img/gallery/*
 
 ## License
 
