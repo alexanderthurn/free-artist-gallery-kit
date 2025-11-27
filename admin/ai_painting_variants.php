@@ -275,7 +275,7 @@ PROMPT;
         
         // Create prediction (without waiting)
         try {
-            $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana/predictions");
+            $ch = curl_init("https://api.replicate.com/v1/models/google/nano-banana-pro/predictions");
             curl_setopt_array($ch, [
                 CURLOPT_HTTPHEADER => ["Authorization: Token $TOKEN", "Content-Type: application/json"],
                 CURLOPT_POST => true,
