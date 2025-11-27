@@ -284,14 +284,7 @@
         return target.closest('button, input, textarea, a, img.clickable, .variant-thumb, .selectable-variant-thumb, .segmented-button-section, .variant-thumb-delete, .delete-icon, .ai-fill-button, .live-badge, .draft-badge, .add-variant-btn, .selectable-variants-title, label, .field');
       };
       
-      // Add click listener to the entire row to update URL when clicking background areas
-      row.addEventListener('click', (e) => {
-        // Update URL when clicking on background areas (not on interactive elements)
-        // This includes clicking on the image container background, form container background, etc.
-        if (!isInteractiveElement(e.target)) {
-          updatePaintingURL(imageBaseName);
-        }
-      });
+      // Note: Global click handler handles URL updates for all interactions
     }
 
     /**
@@ -1156,6 +1149,9 @@
     }
 
     async function deleteImageVariant(filename, imageBaseName, btn) {
+      // Update URL when interacting with variant deletion
+      updatePaintingURL(imageBaseName);
+      
       if (!confirm('Möchten Sie diese Variante wirklich löschen?')) {
         return;
       }
@@ -1648,6 +1644,18 @@
       
       // Setup burger menu (before refresh so filter buttons are ready)
       setupBurgerMenu();
+      
+      // Global click handler to update painting URL parameter on any interaction
+      document.addEventListener('click', (e) => {
+        // Find the closest painting row (rowItem)
+        const rowItem = e.target.closest('.rowItem');
+        if (rowItem) {
+          const imageBaseName = rowItem.dataset.paintingBase;
+          if (imageBaseName) {
+            updatePaintingURL(imageBaseName);
+          }
+        }
+      }, true); // Use capture phase to catch events before stopPropagation
       
       refresh();
       
@@ -2218,6 +2226,9 @@
     }
 
     async function calculateHeightFromRatio(baseName, btn) {
+      // Update URL when interacting with form calculation
+      updatePaintingURL(baseName);
+      
       try {
         btn.disabled = true;
         btn.textContent = '...';
@@ -2321,6 +2332,13 @@
 
     async function saveMeta(image, btn) {
       const item = btn.closest('.rowItem');
+      const imageBaseName = item ? item.dataset.paintingBase : null;
+      
+      // Update URL when interacting with form save
+      if (imageBaseName) {
+        updatePaintingURL(imageBaseName);
+      }
+      
       const body = new FormData();
       body.set('image', image);
       body.set('title', item.querySelector('input[name=\"title\"]').value);
@@ -2682,6 +2700,15 @@
     }
 
     async function deleteCompletely(imageOriginalName, btn) {
+      // Extract imageBaseName and update URL
+      const row = btn.closest ? btn.closest('.rowItem') : null;
+      const imageBaseName = row ? row.dataset.paintingBase : null;
+      
+      // Update URL when interacting with deletion
+      if (imageBaseName) {
+        updatePaintingURL(imageBaseName);
+      }
+      
       if (!confirm('Möchten Sie wirklich alle Dateien dieses Gemäldes löschen? Dies kann nicht rückgängig gemacht werden.')) {
         return;
       }
@@ -2876,6 +2903,9 @@
     }
     
     async function activateAllAIProcesses(imageOriginalName, imageBaseName) {
+      // Update URL when interacting with AI processes
+      updatePaintingURL(imageBaseName);
+      
       const body = new FormData();
       body.set('image', imageOriginalName);
       
@@ -2933,6 +2963,9 @@
     }
     
     async function showFullJSON(imageOriginalName, imageBaseName) {
+      // Update URL when interacting with JSON view
+      updatePaintingURL(imageBaseName);
+      
       try {
         const res = await fetch(`/admin/images/${imageOriginalName}.json`);
         if (!res.ok) {
