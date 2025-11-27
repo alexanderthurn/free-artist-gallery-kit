@@ -1,8 +1,8 @@
 .DS_Store
 .env
-admin/images/
+admin/images/*
 admin/backups/
-img/gallery/
+img/gallery/*
 misc/
 
 !admin/images/IMG_2104_2*

@@ -1,0 +1,226 @@
+{
+    "title": "Goldene Symbiose im Abendlicht",
+    "description": "Vor einem vibrierenden, haptisch strukturierten Hintergrund in sattem Orange erheben sich zwei in Gold gefasste Silhouetten, die in k\u00f6rperlicher Einheit fast archaisch miteinander verschmelzen. Das reliefartige Impasto f\u00e4ngt das Licht und verleiht dieser intimen Darstellung die kostbare Anmutung eines ausgegrabenen Artefakts voller W\u00e4rme und Zeitlosigkeit.",
+    "width": "30",
+    "height": "40",
+    "tags": "Reliefkunst, Orange, Gold, Symbiose, Liebe, Strukturmalerei, Figurativ",
+    "date": "25.11.2025",
+    "sold": false,
+    "frame_type": "white",
+    "original_filename": "IMG_2104_2",
+    "image_dimensions": {
+        "width": 2048,
+        "height": 2731
+    },
+    "ai_corners": {
+        "status": "completed",
+        "started_at": "2025-11-25T14:29:49+01:00",
+        "prediction_url": "https://api.replicate.com/v1/predictions/c098vap5b9rmc0ctqctby7dzsw",
+        "prediction_id": "c098vap5b9rmc0ctqctby7dzsw",
+        "prediction_status": "succeeded",
+        "timestamp": "2025-11-25T14:31:42+01:00",
+        "replicate_response_raw": "{\n    \"id\": \"c098vap5b9rmc0ctqctby7dzsw\",\n    \"model\": \"google/gemini-3-pro\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"images\": [\n            \"https://api.replicate.com/v1/files/ODY3ODNmNWEtOTFlNi00ZTYzLTllNmMtZDZlOWRkYzFjMzQw\"\n        ],\n        \"max_output_tokens\": 65535,\n        \"prompt\": \"Analyze this image and identify the four corners of the painting canvas (excluding frame, wall, mat, glass, shadows).\\n\\nReturn the coordinates as percentages relative to the image dimensions in JSON format:\\n{\\n  \\\"corners\\\": [\\n    {\\\"x\\\": 10.5, \\\"y\\\": 15.2, \\\"label\\\": \\\"top-left\\\"},\\n    {\\\"x\\\": 89.3, \\\"y\\\": 14.8, \\\"label\\\": \\\"top-right\\\"},\\n    {\\\"x\\\": 88.7, \\\"y\\\": 85.1, \\\"label\\\": \\\"bottom-right\\\"},\\n    {\\\"x\\\": 11.2, \\\"y\\\": 84.9, \\\"label\\\": \\\"bottom-left\\\"}\\n  ]\\n}\\n\\nThe coordinates should be percentages (0-100) where:\\n- x: horizontal position as percentage of image width\\n- y: vertical position as percentage of image height\\n- Order: top-left, top-right, bottom-right, bottom-left\\n\\nReturn ONLY valid JSON, no other text.\",\n        \"temperature\": 1,\n        \"thinking_level\": \"low\",\n        \"top_p\": 0.9499999999999999555910790149937383830547332763671875,\n        \"videos\": []\n    },\n    \"logs\": \"Generating text with gemini-3-pro-preview...\\nProcessing 1 images...\\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\\nText generation completed in 97.90s\\nInput token count: 2390\\nOutput token count: 127\\n\",\n    \"output\": [\n        \"```json\\n{\\n  \\\"corners\\\": [\\n    {\\\"x\\\": 13.9, \\\"y\\\": 9.0, \\\"label\\\": \\\"top-\",\n        \"left\\\"},\\n    {\\\"x\\\": 85.6, \\\"y\\\": 8.2, \\\"label\\\":\",\n        \" \\\"top-right\\\"},\\n    {\\\"x\\\": 86.5, \\\"y\\\": 88.6\",\n        \", \\\"label\\\": \\\"bottom-right\\\"},\\n    {\\\"x\\\": 16.1, \\\"y\\\": \",\n        \"89.0, \\\"label\\\": \\\"bottom-left\\\"}\\n  ]\\n}\\n```\"\n    ],\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-25T13:29:49.146Z\",\n    \"started_at\": \"2025-11-25T13:29:49.509640199Z\",\n    \"completed_at\": \"2025-11-25T13:31:27.431902363Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/c098vap5b9rmc0ctqctby7dzsw/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/c098vap5b9rmc0ctqctby7dzsw\",\n        \"stream\": \"https://stream-b.svc.ric1.c.replicate.net/v1/streams/73rpqw7hhelkgrrfep6xcuygtzm667x4ofuidjiy2jqrlwpfk63q\",\n        \"web\": \"https://replicate.com/p/c098vap5b9rmc0ctqctby7dzsw\"\n    },\n    \"metrics\": {\n        \"predict_time\": 97.92226217699999324395321309566497802734375,\n        \"total_time\": 98.2859023630000052662580856122076511383056640625\n    }\n}",
+        "replicate_response": {
+            "id": "c098vap5b9rmc0ctqctby7dzsw",
+            "model": "google/gemini-3-pro",
+            "version": "hidden",
+            "input": {
+                "images": [
+                    "https://api.replicate.com/v1/files/ODY3ODNmNWEtOTFlNi00ZTYzLTllNmMtZDZlOWRkYzFjMzQw"
+                ],
+                "max_output_tokens": 65535,
+                "prompt": "Analyze this image and identify the four corners of the painting canvas (excluding frame, wall, mat, glass, shadows).\n\nReturn the coordinates as percentages relative to the image dimensions in JSON format:\n{\n  \"corners\": [\n    {\"x\": 10.5, \"y\": 15.2, \"label\": \"top-left\"},\n    {\"x\": 89.3, \"y\": 14.8, \"label\": \"top-right\"},\n    {\"x\": 88.7, \"y\": 85.1, \"label\": \"bottom-right\"},\n    {\"x\": 11.2, \"y\": 84.9, \"label\": \"bottom-left\"}\n  ]\n}\n\nThe coordinates should be percentages (0-100) where:\n- x: horizontal position as percentage of image width\n- y: vertical position as percentage of image height\n- Order: top-left, top-right, bottom-right, bottom-left\n\nReturn ONLY valid JSON, no other text.",
+                "temperature": 1,
+                "thinking_level": "low",
+                "top_p": 0.95,
+                "videos": []
+            },
+            "logs": "Generating text with gemini-3-pro-preview...\nProcessing 1 images...\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\nText generation completed in 97.90s\nInput token count: 2390\nOutput token count: 127\n",
+            "output": [
+                "```json\n{\n  \"corners\": [\n    {\"x\": 13.9, \"y\": 9.0, \"label\": \"top-",
+                "left\"},\n    {\"x\": 85.6, \"y\": 8.2, \"label\":",
+                " \"top-right\"},\n    {\"x\": 86.5, \"y\": 88.6",
+                ", \"label\": \"bottom-right\"},\n    {\"x\": 16.1, \"y\": ",
+                "89.0, \"label\": \"bottom-left\"}\n  ]\n}\n```"
+            ],
+            "data_removed": false,
+            "error": null,
+            "source": "api",
+            "status": "succeeded",
+            "created_at": "2025-11-25T13:29:49.146Z",
+            "started_at": "2025-11-25T13:29:49.509640199Z",
+            "completed_at": "2025-11-25T13:31:27.431902363Z",
+            "urls": {
+                "cancel": "https://api.replicate.com/v1/predictions/c098vap5b9rmc0ctqctby7dzsw/cancel",
+                "get": "https://api.replicate.com/v1/predictions/c098vap5b9rmc0ctqctby7dzsw",
+                "stream": "https://stream-b.svc.ric1.c.replicate.net/v1/streams/73rpqw7hhelkgrrfep6xcuygtzm667x4ofuidjiy2jqrlwpfk63q",
+                "web": "https://replicate.com/p/c098vap5b9rmc0ctqctby7dzsw"
+            },
+            "metrics": {
+                "predict_time": 97.922262177,
+                "total_time": 98.285902363
+            }
+        },
+        "offset_percent": 1,
+        "corners_used": [
+            [
+                300,
+                268
+            ],
+            [
+                1738,
+                246
+            ],
+            [
+                1757,
+                2398
+            ],
+            [
+                345,
+                2409
+            ]
+        ],
+        "completed_at": "2025-11-25T14:31:44+01:00",
+        "image_generation_needed": true
+    },
+    "ai_workflow_chain": true,
+    "ai_painting_variants": {
+        "variants": {
+            "arbeitszimmer": {
+                "variant_name": "arbeitszimmer",
+                "status": "completed",
+                "started_at": "2025-11-25T14:29:41+01:00",
+                "prediction_url": "https://api.replicate.com/v1/predictions/d1ygczxhfdrma0ctqctac3es7m",
+                "prediction_id": "d1ygczxhfdrma0ctqctac3es7m",
+                "prediction_status": "succeeded",
+                "target_path": "/www/htdocs/w020eec3/qa.herzfabrik.com/admin/images/IMG_2104_2_variant_arbeitszimmer.jpg",
+                "variant_template_path": "/www/htdocs/w020eec3/qa.herzfabrik.com/admin/variants/arbeitszimmer.jpg",
+                "final_image_path": "/www/htdocs/w020eec3/qa.herzfabrik.com/admin/images/IMG_2104_2_final.jpg",
+                "prompt": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Make sure that the painting looks exactly like the original image.\n",
+                "prompt_final": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Make sure that the painting looks exactly like the original image.\n",
+                "width": "",
+                "height": "",
+                "replicate_response_raw": "{\n    \"id\": \"d1ygczxhfdrma0ctqctac3es7m\",\n    \"model\": \"google/nano-banana-pro\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"aspect_ratio\": \"1:1\",\n        \"image_input\": [\n            \"https://api.replicate.com/v1/files/MjI3OTU2OWMtMTQzYi00ZjM5LTliZDUtYWIxZTM0ZmMxMWYw\",\n            \"https://api.replicate.com/v1/files/MjRmMzllYWYtODU0Zi00MGI0LTlkOGEtODMzZGQ5ODk0NDQx\"\n        ],\n        \"output_format\": \"jpg\",\n        \"prompt\": \"You are an image editor.\\n\\nTask:\\n- Place the painting into the free space on the wall.\\n- Make sure that the painting looks exactly like the original image.\\n\"\n    },\n    \"logs\": \"Generating image...\\nQueued. Checking again in 6.0 seconds...\\nQueued. Checking again in 9.3 seconds...\\nQueued. Checking again in 22.9 seconds...\\nQueued. Checking again in 35.5 seconds...\\nGenerated image in 477.68 seconds\\n\",\n    \"output\": \"https://replicate.delivery/xezq/5iHngysCEpqNJVzenUZy91sj9ZW4I7TJpH0orKDIJ5VTGb2KA/tmp8q6jeoko.jpeg\",\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-25T13:29:44.059Z\",\n    \"started_at\": \"2025-11-25T13:29:44.696418929Z\",\n    \"completed_at\": \"2025-11-25T13:37:42.640041606Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/d1ygczxhfdrma0ctqctac3es7m/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/d1ygczxhfdrma0ctqctac3es7m\",\n        \"stream\": \"https://stream.replicate.com/v1/files/bcwr-cylh6u2462jwgejgbcctlvxlwuzet2dn3yq4qlzybhf5d74rhfga\",\n        \"web\": \"https://replicate.com/p/d1ygczxhfdrma0ctqctac3es7m\"\n    },\n    \"metrics\": {\n        \"predict_time\": 477.9436226760000181457144208252429962158203125,\n        \"total_time\": 478.5810416059999852222972549498081207275390625\n    }\n}",
+                "replicate_response": {
+                    "id": "d1ygczxhfdrma0ctqctac3es7m",
+                    "model": "google/nano-banana-pro",
+                    "version": "hidden",
+                    "input": {
+                        "aspect_ratio": "1:1",
+                        "image_input": [
+                            "https://api.replicate.com/v1/files/MjI3OTU2OWMtMTQzYi00ZjM5LTliZDUtYWIxZTM0ZmMxMWYw",
+                            "https://api.replicate.com/v1/files/MjRmMzllYWYtODU0Zi00MGI0LTlkOGEtODMzZGQ5ODk0NDQx"
+                        ],
+                        "output_format": "jpg",
+                        "prompt": "You are an image editor.\n\nTask:\n- Place the painting into the free space on the wall.\n- Make sure that the painting looks exactly like the original image.\n"
+                    },
+                    "logs": "Generating image...\nQueued. Checking again in 6.0 seconds...\nQueued. Checking again in 9.3 seconds...\nQueued. Checking again in 22.9 seconds...\nQueued. Checking again in 35.5 seconds...\nGenerated image in 477.68 seconds\n",
+                    "output": "https://replicate.delivery/xezq/5iHngysCEpqNJVzenUZy91sj9ZW4I7TJpH0orKDIJ5VTGb2KA/tmp8q6jeoko.jpeg",
+                    "data_removed": false,
+                    "error": null,
+                    "source": "api",
+                    "status": "succeeded",
+                    "created_at": "2025-11-25T13:29:44.059Z",
+                    "started_at": "2025-11-25T13:29:44.696418929Z",
+                    "completed_at": "2025-11-25T13:37:42.640041606Z",
+                    "urls": {
+                        "cancel": "https://api.replicate.com/v1/predictions/d1ygczxhfdrma0ctqctac3es7m/cancel",
+                        "get": "https://api.replicate.com/v1/predictions/d1ygczxhfdrma0ctqctac3es7m",
+                        "stream": "https://stream.replicate.com/v1/files/bcwr-cylh6u2462jwgejgbcctlvxlwuzet2dn3yq4qlzybhf5d74rhfga",
+                        "web": "https://replicate.com/p/d1ygczxhfdrma0ctqctac3es7m"
+                    },
+                    "metrics": {
+                        "predict_time": 477.943622676,
+                        "total_time": 478.581041606
+                    }
+                },
+                "timestamp": "2025-11-25T14:38:00+01:00",
+                "completed_at": "2025-11-25T14:38:00+01:00"
+            }
+        },
+        "active_variants": [
+            "arbeitszimmer"
+        ],
+        "image_generation_needed": false
+    },
+    "ai_fill_form": {
+        "status": "completed",
+        "started_at": "2025-11-25T14:31:44+01:00",
+        "prediction_url": "https://api.replicate.com/v1/predictions/hqhmccceqdrmc0ctqcv8f96j78",
+        "prediction_id": "hqhmccceqdrmc0ctqcv8f96j78",
+        "prediction_status": "succeeded",
+        "timestamp": "2025-11-25T14:32:30+01:00",
+        "replicate_response_raw": "{\n    \"id\": \"hqhmccceqdrmc0ctqcv8f96j78\",\n    \"model\": \"google/gemini-3-pro\",\n    \"version\": \"hidden\",\n    \"input\": {\n        \"images\": [\n            \"https://api.replicate.com/v1/files/MDNhZGQ5ZDctZmFhZi00OTU3LTlmNTUtMTgzYzU0MjkzNjg1\"\n        ],\n        \"max_output_tokens\": 65535,\n        \"prompt\": \"Du bist ein erfahrener Kunstkurator und Texter f\u00fcr eine hochwertige Online-Galerie. Deine Aufgabe ist es, eine atmosph\u00e4rische und \u00e4sthetisch ansprechende Beschreibung des hochgeladenen Bildes zu verfassen.\\n\\nAnalysiere das Kunstwerk nicht wie eine Datenbank, sondern wie ein Kritiker. Achte besonders auf:\\n1. Stimmung & Atmosph\u00e4re: Welche Emotionen weckt das Bild? (z.B. melancholisch, energiegeladen, ruhig, mysteri\u00f6s)\\n2. Komposition & Technik: Beschreibe den Pinselstrich, die Lichtf\u00fchrung und die Farbpalette.\\n3. Stil: Handelt es sich um Abstraktion, Realismus, Impressionismus etc.?\\n\\nRegeln f\u00fcr die Beschreibung:\\n- WICHTIG: Schreibe lebendig und evozierend. Vermeide Floskeln wie \\\"Das Bild zeigt\\\" oder \\\"Man sieht\\\".\\n- Steige direkt in die Szenerie oder die Stimmung ein.\\n- Nutze Adjektive, die die Sinne ansprechen (z.B. \\\"leuchtend\\\", \\\"d\u00fcster\\\", \\\"texturiert\\\", \\\"sanft\\\").\\n- Interpretiere das Gesehene, statt es nur aufzulisten.\\n- Fasse dich kurz und pr\u00e4zise. Am besten nur 2 S\u00e4tze.\\nGib das Ergebnis ausschlie\u00dflich als valides JSON-Objekt zur\u00fcck:\\n\\n{\\n  \\\"title\\\": \\\"Ein poetischer oder treffender Titel auf Deutsch (2-8 W\u00f6rter)\\\",\\n  \\\"description\\\": \\\"Ein flie\u00dfender Text auf Deutsch (2-3 S\u00e4tze). Beschreibe die Wirkung der Farben, das Lichtspiel und die zentrale Komposition. Verbinde das Motiv mit der k\u00fcnstlerischen Machart.\\\",\\n  \\\"tags\\\": \\\"Stilrichtung, Hauptfarben, Stimmung, zentrale Motive (kommagetrennt)\\\",\\n  \\\"width\\\": \\\"Gesch\u00e4tzte Breite als Zahl (String)\\\",\\n  \\\"height\\\": \\\"Gesch\u00e4tzte H\u00f6he als Zahl (String) - Achte strikt auf das Seitenverh\u00e4ltnis!\\\",\\n  \\\"date\\\": \\\"Datum im Format dd.mm.yyyy (nur falls signiert/sichtbar, sonst leer lassen)\\\"\\n}\",\n        \"temperature\": 1,\n        \"thinking_level\": \"low\",\n        \"top_p\": 0.9499999999999999555910790149937383830547332763671875,\n        \"videos\": []\n    },\n    \"logs\": \"Generating text with gemini-3-pro-preview...\\nProcessing 1 images...\\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\\nText generation completed in 22.21s\\nInput token count: 2623\\nOutput token count: 160\\n\",\n    \"output\": [\n        \"```json\\n{\\n  \\\"title\\\": \\\"Goldene Symbiose im Abendlicht\\\",\\n  \\\"description\\\": \\\"Vor einem vibrierenden, hapt\",\n        \"isch strukturierten Hintergrund in sattem Orange erheben sich zwei in Gold gefasste Silhouetten, die in\",\n        \" k\u00f6rperlicher Einheit fast archaisch miteinander verschmelzen. Das reliefartige Impasto f\u00e4ngt das Licht und verleiht\",\n        \" dieser intimen Darstellung die kostbare Anmutung eines ausgegrabenen Artefakts voller W\u00e4rme und Zeitlosigkeit.\\\",\\n  \\\"\",\n        \"tags\\\": \\\"Reliefkunst, Orange, Gold, Symbiose, Liebe, Strukturmalerei, Figurativ\\\",\",\n        \"\\n  \\\"width\\\": \\\"30\\\",\\n  \\\"height\\\": \\\"40\\\",\\n  \\\"date\\\": \\\"\\\"\",\n        \"\\n}\\n```\"\n    ],\n    \"data_removed\": false,\n    \"error\": null,\n    \"source\": \"api\",\n    \"status\": \"succeeded\",\n    \"created_at\": \"2025-11-25T13:31:46.235Z\",\n    \"started_at\": \"2025-11-25T13:31:46.589368162Z\",\n    \"completed_at\": \"2025-11-25T13:32:08.844509623Z\",\n    \"urls\": {\n        \"cancel\": \"https://api.replicate.com/v1/predictions/hqhmccceqdrmc0ctqcv8f96j78/cancel\",\n        \"get\": \"https://api.replicate.com/v1/predictions/hqhmccceqdrmc0ctqcv8f96j78\",\n        \"stream\": \"https://stream-b.svc.ric1.c.replicate.net/v1/streams/z5aag23vxicx3xx7lkdh44twhcanzpwl6qqam5jvaka7iqafzd2q\",\n        \"web\": \"https://replicate.com/p/hqhmccceqdrmc0ctqcv8f96j78\"\n    },\n    \"metrics\": {\n        \"predict_time\": 22.25514147199999825943450559861958026885986328125,\n        \"total_time\": 22.60950962300000099958197097294032573699951171875\n    }\n}",
+        "replicate_response": {
+            "id": "hqhmccceqdrmc0ctqcv8f96j78",
+            "model": "google/gemini-3-pro",
+            "version": "hidden",
+            "input": {
+                "images": [
+                    "https://api.replicate.com/v1/files/MDNhZGQ5ZDctZmFhZi00OTU3LTlmNTUtMTgzYzU0MjkzNjg1"
+                ],
+                "max_output_tokens": 65535,
+                "prompt": "Du bist ein erfahrener Kunstkurator und Texter f\u00fcr eine hochwertige Online-Galerie. Deine Aufgabe ist es, eine atmosph\u00e4rische und \u00e4sthetisch ansprechende Beschreibung des hochgeladenen Bildes zu verfassen.\n\nAnalysiere das Kunstwerk nicht wie eine Datenbank, sondern wie ein Kritiker. Achte besonders auf:\n1. Stimmung & Atmosph\u00e4re: Welche Emotionen weckt das Bild? (z.B. melancholisch, energiegeladen, ruhig, mysteri\u00f6s)\n2. Komposition & Technik: Beschreibe den Pinselstrich, die Lichtf\u00fchrung und die Farbpalette.\n3. Stil: Handelt es sich um Abstraktion, Realismus, Impressionismus etc.?\n\nRegeln f\u00fcr die Beschreibung:\n- WICHTIG: Schreibe lebendig und evozierend. Vermeide Floskeln wie \"Das Bild zeigt\" oder \"Man sieht\".\n- Steige direkt in die Szenerie oder die Stimmung ein.\n- Nutze Adjektive, die die Sinne ansprechen (z.B. \"leuchtend\", \"d\u00fcster\", \"texturiert\", \"sanft\").\n- Interpretiere das Gesehene, statt es nur aufzulisten.\n- Fasse dich kurz und pr\u00e4zise. Am besten nur 2 S\u00e4tze.\nGib das Ergebnis ausschlie\u00dflich als valides JSON-Objekt zur\u00fcck:\n\n{\n  \"title\": \"Ein poetischer oder treffender Titel auf Deutsch (2-8 W\u00f6rter)\",\n  \"description\": \"Ein flie\u00dfender Text auf Deutsch (2-3 S\u00e4tze). Beschreibe die Wirkung der Farben, das Lichtspiel und die zentrale Komposition. Verbinde das Motiv mit der k\u00fcnstlerischen Machart.\",\n  \"tags\": \"Stilrichtung, Hauptfarben, Stimmung, zentrale Motive (kommagetrennt)\",\n  \"width\": \"Gesch\u00e4tzte Breite als Zahl (String)\",\n  \"height\": \"Gesch\u00e4tzte H\u00f6he als Zahl (String) - Achte strikt auf das Seitenverh\u00e4ltnis!\",\n  \"date\": \"Datum im Format dd.mm.yyyy (nur falls signiert/sichtbar, sonst leer lassen)\"\n}",
+                "temperature": 1,
+                "thinking_level": "low",
+                "top_p": 0.95,
+                "videos": []
+            },
+            "logs": "Generating text with gemini-3-pro-preview...\nProcessing 1 images...\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\nWarning: there are non-text parts in the response: ['thought_signature'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.\nText generation completed in 22.21s\nInput token count: 2623\nOutput token count: 160\n",
+            "output": [
+                "```json\n{\n  \"title\": \"Goldene Symbiose im Abendlicht\",\n  \"description\": \"Vor einem vibrierenden, hapt",
+                "isch strukturierten Hintergrund in sattem Orange erheben sich zwei in Gold gefasste Silhouetten, die in",
+                " k\u00f6rperlicher Einheit fast archaisch miteinander verschmelzen. Das reliefartige Impasto f\u00e4ngt das Licht und verleiht",
+                " dieser intimen Darstellung die kostbare Anmutung eines ausgegrabenen Artefakts voller W\u00e4rme und Zeitlosigkeit.\",\n  \"",
+                "tags\": \"Reliefkunst, Orange, Gold, Symbiose, Liebe, Strukturmalerei, Figurativ\",",
+                "\n  \"width\": \"30\",\n  \"height\": \"40\",\n  \"date\": \"\"",
+                "\n}\n```"
+            ],
+            "data_removed": false,
+            "error": null,
+            "source": "api",
+            "status": "succeeded",
+            "created_at": "2025-11-25T13:31:46.235Z",
+            "started_at": "2025-11-25T13:31:46.589368162Z",
+            "completed_at": "2025-11-25T13:32:08.844509623Z",
+            "urls": {
+                "cancel": "https://api.replicate.com/v1/predictions/hqhmccceqdrmc0ctqcv8f96j78/cancel",
+                "get": "https://api.replicate.com/v1/predictions/hqhmccceqdrmc0ctqcv8f96j78",
+                "stream": "https://stream-b.svc.ric1.c.replicate.net/v1/streams/z5aag23vxicx3xx7lkdh44twhcanzpwl6qqam5jvaka7iqafzd2q",
+                "web": "https://replicate.com/p/hqhmccceqdrmc0ctqcv8f96j78"
+            },
+            "metrics": {
+                "predict_time": 22.255141472,
+                "total_time": 22.609509623
+            }
+        },
+        "extracted_data": {
+            "title": "Goldene Symbiose im Abendlicht",
+            "description": "Vor einem vibrierenden, haptisch strukturierten Hintergrund in sattem Orange erheben sich zwei in Gold gefasste Silhouetten, die in k\u00f6rperlicher Einheit fast archaisch miteinander verschmelzen. Das reliefartige Impasto f\u00e4ngt das Licht und verleiht dieser intimen Darstellung die kostbare Anmutung eines ausgegrabenen Artefakts voller W\u00e4rme und Zeitlosigkeit.",
+            "tags": "Reliefkunst, Orange, Gold, Symbiose, Liebe, Strukturmalerei, Figurativ",
+            "date": "25.11.2025",
+            "width": "30",
+            "height": "40"
+        },
+        "completed_at": "2025-11-25T14:32:30+01:00"
+    },
+    "manual_corners": [
+        [
+            300,
+            268
+        ],
+        [
+            1738,
+            246
+        ],
+        [
+            1757,
+            2398
+        ],
+        [
+            345,
+            2409
+        ]
+    ],
+    "live": true
+}
