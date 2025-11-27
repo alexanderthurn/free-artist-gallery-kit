@@ -4,6 +4,3 @@ admin/images/*
 admin/backups/
 img/gallery/*
 misc/
-
-!admin/images/IMG_2104_2*
-!img/gallery/goldene_symbiose_im_abendlicht*
