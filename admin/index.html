@@ -92,6 +92,8 @@
     .selectable-variants-title .star-icon { font-size: 14px; color: #ffffff; }
     .selectable-variant-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background: #fafafa; cursor: pointer; border: 2px solid #667eea; transition: all 0.2s; }
     .selectable-variant-thumb:hover { border-color: #764ba2; transform: scale(1.05); box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4); }
+    .selectable-variant-thumb.recommended-variant { border: 3px solid #28a745; box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3); }
+    .selectable-variant-thumb.recommended-variant:hover { border-color: #218838; transform: scale(1.05); box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.5), 0 2px 8px rgba(40, 167, 69, 0.4); }
     
     /* Responsive design */
     @media (max-width: 1024px) {
@@ -119,6 +121,8 @@
     .variant-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 6px; background: #fafafa; cursor: pointer; border: 2px solid transparent; display: block; }
     .variant-thumb:hover { border-color: #888; }
     .variant-thumb.active { border-color: #666; }
+    .variant-thumb.recommended-variant { border: 3px solid #28a745; box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3); }
+    .variant-thumb.recommended-variant:hover { border-color: #218838; box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.5); }
     .variant-thumb-delete { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: #dc3545; color: #fff; border: 1px solid #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; line-height: 1; padding: 0; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .variant-thumb-delete:hover { background: #c82333; }
     .selectable-variants { margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee; display: none; }
@@ -404,6 +408,28 @@
       const meta = g.meta || {};
       const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
       
+      // Determine recommended variant size based on width
+      const widthCm = parseFloat(meta.width) || 0;
+      const heightCm = parseFloat(meta.height) || 0;
+      
+      let recommendedSize = null; // 'klein', 'mittel', or 'gross'
+      if (widthCm > 0 && heightCm > 0) {
+        if (widthCm < 50 && heightCm < 50) {
+          recommendedSize = 'klein';
+        } else if (widthCm < 100 && heightCm < 100) {
+          recommendedSize = 'mittel';
+        } else {
+          recommendedSize = 'gross';
+        }
+      }
+      
+      // Helper function to check if variant matches recommended size
+      const isRecommendedVariant = (variantName) => {
+        if (!recommendedSize || !variantName) return false;
+        const nameLower = variantName.toLowerCase();
+        return nameLower.includes(`_${recommendedSize}`);
+      };
+      
       // Extract AI-generated corners
       const aiCornersData = extractAICorners(meta);
       
@@ -578,9 +604,10 @@
                 
                 // Generate thumbnail URL implicitly from image URL
                 const thumbUrl = getThumbnailUrl(v.url);
+                const isRecommended = isRecommendedVariant(v.name);
                 return `
                 <div class="variant-thumb-wrapper">
-                  <img class="variant-thumb ${v.variant === 'final' ? 'active' : ''}" 
+                  <img class="variant-thumb ${v.variant === 'final' ? 'active' : ''} ${isRecommended ? 'recommended-variant' : ''}" 
                        loading="lazy" 
                        src="${thumbUrl}${cacheBuster}" 
                        alt="${v.name}"
@@ -609,13 +636,16 @@
                 <div class="selectable-variant-group">
                   <div class="selectable-variant-group-title">${escapeHtml(group.name.charAt(0).toUpperCase() + group.name.slice(1))}</div>
                   <div class="selectable-variant-group-items">
-                    ${group.variants.map(v => `
-                      <img class="selectable-variant-thumb" 
+                    ${group.variants.map(v => {
+                      const isRecommended = isRecommendedVariant(v.name);
+                      return `
+                      <img class="selectable-variant-thumb ${isRecommended ? 'recommended-variant' : ''}" 
                            src="${escapeHtml(v.url)}" 
                            alt="${escapeHtml(v.name)}"
                            title="${escapeHtml(v.name)}"
                            onclick="copyVariantToImage('${escapeHtml(v.name)}', '${escapeHtml(g.base)}', ${g.in_gallery ? 'true' : 'false'}, '${escapeHtml(originalVariant.name)}', this)">
-                    `).join('')}
+                    `;
+                    }).join('')}
                   </div>
                 </div>
               `).join('') : '<span class="muted muted-text-sm">Keine Varianten verfügbar</span>'}
