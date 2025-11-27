@@ -428,6 +428,170 @@ if (!empty($colorPrimary) || !empty($colorPrimaryHover) || !empty($colorContrast
     }
 }
 
+// Helper function to generate URL from domain (adds https:// if not present)
+function generateUrl($domain, $path = '/') {
+    if (empty($domain)) {
+        return '';
+    }
+    $domain = trim($domain);
+    // Remove trailing slash from domain
+    $domain = rtrim($domain, '/');
+    // Add https:// if not present
+    if (strpos($domain, 'http://') !== 0 && strpos($domain, 'https://') !== 0) {
+        $domain = 'https://' . $domain;
+    }
+    return $domain . $path;
+}
+
+// Helper function to strip HTML tags and limit length
+function stripHtmlAndLimit($html, $maxLength = 160) {
+    // Remove HTML tags
+    $text = strip_tags($html);
+    // Decode HTML entities
+    $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Remove extra whitespace
+    $text = preg_replace('/\s+/', ' ', $text);
+    $text = trim($text);
+    // Limit length
+    if (mb_strlen($text) > $maxLength) {
+        $text = mb_substr($text, 0, $maxLength - 3) . '...';
+    }
+    return $text;
+}
+
+// Generate SEO and social media meta tags from existing fields
+if (!empty($siteDomain)) {
+    $baseUrl = generateUrl($siteDomain, '/');
+    $imageUrl = generateUrl($siteDomain, '/img/upload/artist.jpg');
+    
+    // Generate description from author-short (strip HTML, limit to 160 chars)
+    $metaDescription = '';
+    if (!empty($shortContent)) {
+        $metaDescription = stripHtmlAndLimit($shortContent, 160);
+    }
+    
+    // Update or create description meta tag
+    if (!empty($metaDescription)) {
+        $patternDescription = '/<meta\s+name="description"\s+content="[^"]*"/i';
+        $newDescriptionMeta = '<meta name="description" content="' . htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8') . '">';
+        if (preg_match($patternDescription, $indexContent)) {
+            $indexContent = preg_replace($patternDescription, '<meta name="description" content="' . htmlspecialchars($metaDescription, ENT_QUOTES, 'UTF-8') . '"', $indexContent, 1);
+        } else {
+            // Add after page-title meta tag or after viewport
+            if (preg_match('/(<meta\s+name="page-title"[^>]*>)/i', $indexContent)) {
+                $indexContent = preg_replace('/(<meta\s+name="page-title"[^>]*>)/i', '$1' . "\n  " . $newDescriptionMeta, $indexContent, 1);
+            } else {
+                $indexContent = preg_replace('/(<meta\s+name="viewport"[^>]*>)/i', '$1' . "\n  " . $newDescriptionMeta, $indexContent, 1);
+            }
+        }
+    }
+    
+    // Update or create canonical link
+    $patternCanonical = '/<link\s+rel="canonical"\s+href="[^"]*"/i';
+    $newCanonicalLink = '<link rel="canonical" href="' . htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8') . '">';
+    if (preg_match($patternCanonical, $indexContent)) {
+        $indexContent = preg_replace($patternCanonical, '<link rel="canonical" href="' . htmlspecialchars($baseUrl, ENT_QUOTES, 'UTF-8') . '"', $indexContent, 1);
+    } else {
+        // Add after description meta tag or after page-title
+        if (preg_match('/(<meta\s+name="description"[^>]*>)/i', $indexContent)) {
+            $indexContent = preg_replace('/(<meta\s+name="description"[^>]*>)/i', '$1' . "\n  " . $newCanonicalLink, $indexContent, 1);
+        } elseif (preg_match('/(<meta\s+name="page-title"[^>]*>)/i', $indexContent)) {
+            $indexContent = preg_replace('/(<meta\s+name="page-title"[^>]*>)/i', '$1' . "\n  " . $newCanonicalLink, $indexContent, 1);
+        } else {
+            $indexContent = preg_replace('/(<meta\s+name="viewport"[^>]*>)/i', '$1' . "\n  " . $newCanonicalLink, $indexContent, 1);
+        }
+    }
+    
+    // Open Graph meta tags
+    $ogTags = [];
+    
+    if (!empty($pageTitle)) {
+        $ogTags['og:title'] = $pageTitle;
+    }
+    
+    if (!empty($metaDescription)) {
+        $ogTags['og:description'] = $metaDescription;
+    }
+    
+    if (!empty($baseUrl)) {
+        $ogTags['og:url'] = $baseUrl;
+    }
+    
+    if (!empty($imageUrl)) {
+        $ogTags['og:image'] = $imageUrl;
+    }
+    
+    // og:site_name from domain (without https://)
+    $siteName = $siteDomain;
+    if (strpos($siteName, 'https://') === 0) {
+        $siteName = substr($siteName, 8);
+    } elseif (strpos($siteName, 'http://') === 0) {
+        $siteName = substr($siteName, 7);
+    }
+    $siteName = rtrim($siteName, '/');
+    $ogTags['og:site_name'] = $siteName;
+    
+    $ogTags['og:locale'] = 'de_DE';
+    $ogTags['og:type'] = 'website';
+    
+    // Update or create Open Graph meta tags
+    foreach ($ogTags as $property => $content) {
+        $patternOg = '/<meta\s+property="' . preg_quote($property, '/') . '"\s+content="[^"]*"/i';
+        $newOgMeta = '<meta property="' . htmlspecialchars($property, ENT_QUOTES, 'UTF-8') . '" content="' . htmlspecialchars($content, ENT_QUOTES, 'UTF-8') . '">';
+        if (preg_match($patternOg, $indexContent)) {
+            $indexContent = preg_replace($patternOg, '<meta property="' . htmlspecialchars($property, ENT_QUOTES, 'UTF-8') . '" content="' . htmlspecialchars($content, ENT_QUOTES, 'UTF-8') . '"', $indexContent, 1);
+        } else {
+            // Add after canonical link or after description
+            if (preg_match('/(<link\s+rel="canonical"[^>]*>)/i', $indexContent)) {
+                $indexContent = preg_replace('/(<link\s+rel="canonical"[^>]*>)/i', '$1' . "\n  " . $newOgMeta, $indexContent, 1);
+            } elseif (preg_match('/(<meta\s+name="description"[^>]*>)/i', $indexContent)) {
+                $indexContent = preg_replace('/(<meta\s+name="description"[^>]*>)/i', '$1' . "\n  " . $newOgMeta, $indexContent, 1);
+            } else {
+                $indexContent = preg_replace('/(<meta\s+name="viewport"[^>]*>)/i', '$1' . "\n  " . $newOgMeta, $indexContent, 1);
+            }
+        }
+    }
+    
+    // Twitter Card meta tags
+    $twitterTags = [];
+    
+    if (!empty($pageTitle)) {
+        $twitterTags['twitter:title'] = $pageTitle;
+    }
+    
+    if (!empty($metaDescription)) {
+        $twitterTags['twitter:description'] = $metaDescription;
+    }
+    
+    if (!empty($baseUrl)) {
+        $twitterTags['twitter:url'] = $baseUrl;
+    }
+    
+    if (!empty($imageUrl)) {
+        $twitterTags['twitter:image'] = $imageUrl;
+    }
+    
+    $twitterTags['twitter:card'] = 'summary_large_image';
+    
+    // Update or create Twitter Card meta tags
+    foreach ($twitterTags as $name => $content) {
+        $patternTwitter = '/<meta\s+name="' . preg_quote($name, '/') . '"\s+content="[^"]*"/i';
+        $newTwitterMeta = '<meta name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" content="' . htmlspecialchars($content, ENT_QUOTES, 'UTF-8') . '">';
+        if (preg_match($patternTwitter, $indexContent)) {
+            $indexContent = preg_replace($patternTwitter, '<meta name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" content="' . htmlspecialchars($content, ENT_QUOTES, 'UTF-8') . '"', $indexContent, 1);
+        } else {
+            // Add after last og: tag or after canonical
+            if (preg_match('/(<meta\s+property="og:locale"[^>]*>)/i', $indexContent)) {
+                $indexContent = preg_replace('/(<meta\s+property="og:locale"[^>]*>)/i', '$1' . "\n  " . $newTwitterMeta, $indexContent, 1);
+            } elseif (preg_match('/(<link\s+rel="canonical"[^>]*>)/i', $indexContent)) {
+                $indexContent = preg_replace('/(<link\s+rel="canonical"[^>]*>)/i', '$1' . "\n  " . $newTwitterMeta, $indexContent, 1);
+            } else {
+                $indexContent = preg_replace('/(<meta\s+name="viewport"[^>]*>)/i', '$1' . "\n  " . $newTwitterMeta, $indexContent, 1);
+            }
+        }
+    }
+}
+
 // Write updated content back to index.html
 if (!file_put_contents($indexPath, $indexContent)) {
     http_response_code(500);
