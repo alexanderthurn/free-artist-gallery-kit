@@ -1952,7 +1952,6 @@
         const step1 = document.getElementById('aiStep1');
         const step2 = document.getElementById('aiStep2');
         const step3 = document.getElementById('aiStep3');
-        const step4 = document.getElementById('aiStep4');
         const progressBar = document.getElementById('aiUploadProgressBar');
         const statusText = document.getElementById('aiUploadStatus');
         const timeText = document.getElementById('aiUploadTime');
@@ -1971,7 +1970,7 @@
           // Calculate progress: upload is 25%, each image processing is 75% / (images * steps)
           const baseProgress = 25;
           const progressPerImage = 75 / uploadedImages.length;
-          const progressPerStep = progressPerImage / 4; // 4 steps per image
+          const progressPerStep = progressPerImage / 3; // 3 steps per image
           
           try {
             // Step 1: Upload complete
@@ -1979,7 +1978,6 @@
             step1.style.opacity = '1';
             step2.style.opacity = '0.5';
             step3.style.opacity = '0.5';
-            step4.style.opacity = '0.5';
             const imageProgress = baseProgress + (i * progressPerImage);
             progressBar.style.width = imageProgress + '%';
             statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: Flags werden gesetzt...`;
@@ -1992,12 +1990,7 @@
             // Step 3: AI form fill flag set by upload.php
             step3.textContent = `✅ Flag 2 gesetzt: KI Formular ausfüllen (${i + 1}/${uploadedImages.length})`;
             step3.style.opacity = '1';
-            progressBar.style.width = (imageProgress + progressPerStep * 2) + '%';
-            
-            // Step 4: AI variant flag set by upload.php
-            step4.textContent = `✅ Flag 3 gesetzt: KI Variante generieren (${i + 1}/${uploadedImages.length})`;
-            step4.style.opacity = '1';
-            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: Alle 3 Flags gesetzt`;
+            statusText.textContent = `Bild ${i + 1}/${uploadedImages.length}: Alle 2 Flags gesetzt`;
             progressBar.style.width = (imageProgress + progressPerImage) + '%';
             
           } catch (error) {
@@ -2084,7 +2077,7 @@
         <form id="aiUploadForm" action="/admin/upload.php" method="post" enctype="multipart/form-data">
           <div id="aiUploadArea" class="upload-area upload-area-ai">
             <div class="upload-area-text">⭐ KI Bilder hier ablegen oder klicken</div>
-            <div class="upload-area-hint">Automatische Verarbeitung: Freistellen → Formular → Variante</div>
+            <div class="upload-area-hint">Automatische Verarbeitung: Freistellen → Formular</div>
             <input type="file" name="images[]" accept="image/*" multiple required class="file-input-hidden" id="aiFileInput">
           </div>
         </form>
@@ -2099,8 +2092,7 @@
           <div id="aiStepsProgress" class="ai-steps-progress">
             <div id="aiStep1" class="ai-step">⏳ Warte auf Upload...</div>
             <div id="aiStep2" class="ai-step ai-step-opacity">⏸ KI Bild freistellen lassen</div>
-            <div id="aiStep3" class="ai-step ai-step-opacity">⏸ KI Formular ausfüllen lassen</div>
-            <div id="aiStep4" class="ai-step-last">⏸ KI Variante generieren</div>
+            <div id="aiStep3" class="ai-step-last">⏸ KI Formular ausfüllen lassen</div>
           </div>
         </div>
       </div>
