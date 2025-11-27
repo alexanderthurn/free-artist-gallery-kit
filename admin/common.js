@@ -556,3 +556,15 @@ if (typeof window.updateSiteDomainLink === 'undefined') {
   }
 }
 
+// Logout function
+if (typeof window.logout === 'undefined') {
+  window.logout = function() {
+    // Remove admin flag from localStorage
+    if (typeof Storage !== 'undefined') {
+      localStorage.removeItem('admin');
+    }
+    // Redirect to main page
+    window.location.href = '/index.html';
+  };
+}
+
