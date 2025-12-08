@@ -233,7 +233,7 @@ Each painting can have a JSON metadata file (`paintingname.json`) with:
 For development, you can use PHP's built-in server:
 
 ```bash
-php -S localhost:8000 router.php
+php -S localhost:8000
 
 lsof -t -iTCP:8000 -sTCP:LISTEN | xargs kill -9
 
