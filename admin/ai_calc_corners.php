@@ -484,6 +484,9 @@ PROMPT;
     try {
         $imageUrl = replicate_upload_file($TOKEN, $abs, 7 * 1024 * 1024); // 7MB limit
         error_log('AI Calc Corners: Image uploaded to Replicate, URL: ' . $imageUrl);
+        // Delay after upload to ensure Replicate has processed the file before API call
+        // This prevents errors when multiple KI functions are triggered in quick succession
+        sleep(2);
     } catch (Throwable $e) {
         error_log('AI Calc Corners: Failed to upload image to Replicate: ' . $e->getMessage());
         return [

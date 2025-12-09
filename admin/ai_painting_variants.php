@@ -249,6 +249,9 @@ PROMPT;
             $variantUrl = replicate_upload_file($TOKEN, $variantTemplatePath, 100 * 1024 * 1024); // 100MB limit
             $finalUrl = replicate_upload_file($TOKEN, $finalImage, 100 * 1024 * 1024); // 100MB limit
             error_log('AI Painting Variants: Images uploaded to Replicate - variant: ' . $variantUrl . ', final: ' . $finalUrl);
+            // Delay after uploads to ensure Replicate has processed both files before API call
+            // This prevents errors when multiple KI functions are triggered in quick succession
+            sleep(2);
         } catch (Throwable $e) {
             error_log('AI Painting Variants: Failed to upload images to Replicate: ' . $e->getMessage());
             $variants[$variantName]['status'] = 'wanted';

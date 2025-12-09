@@ -568,6 +568,9 @@ function process_ai_fill_form(string $imageFilename): array {
         try {
             $imageUrl = replicate_upload_file($token, $finalPath, 7 * 1024 * 1024); // 7MB limit
             error_log('AI Fill Form: Image uploaded to Replicate, URL: ' . $imageUrl);
+            // Delay after upload to ensure Replicate has processed the file before API call
+            // This prevents errors when multiple KI functions are triggered in quick succession
+            sleep(2);
         } catch (Throwable $e) {
             $errorMsg = $e->getMessage();
             error_log('AI Fill Form: Failed to upload image to Replicate: ' . $errorMsg);
