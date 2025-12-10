@@ -354,6 +354,103 @@
       }
     }
     
+    // Save cursor position relative to text content
+    function saveCursorPosition(element) {
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return null;
+      
+      const range = selection.getRangeAt(0);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(element);
+      preCaretRange.setEnd(range.startContainer, range.startOffset);
+      
+      // Get text content up to cursor position
+      const textBefore = preCaretRange.toString();
+      return {
+        start: textBefore.length,
+        end: textBefore.length + range.toString().length
+      };
+    }
+    
+    // Restore cursor position relative to text content
+    function restoreCursorPosition(element, savedPos) {
+      if (!savedPos || savedPos.start < 0) return;
+      
+      try {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        
+        // Get total text length to handle positions beyond content
+        const totalLength = element.textContent.length;
+        const safeStart = Math.min(savedPos.start, totalLength);
+        const safeEnd = Math.min(savedPos.end, totalLength);
+        
+        // Walk through text nodes to find the correct position
+        let charCount = 0;
+        let startNode = null;
+        let startOffset = 0;
+        let endNode = null;
+        let endOffset = 0;
+        
+        function walkNodes(node) {
+          if (startNode && endNode) return;
+          
+          if (node.nodeType === Node.TEXT_NODE) {
+            const nodeLength = node.textContent.length;
+            
+            // Find start position
+            if (!startNode && charCount + nodeLength >= safeStart) {
+              startNode = node;
+              startOffset = safeStart - charCount;
+            }
+            
+            // Find end position
+            if (!endNode && charCount + nodeLength >= safeEnd) {
+              endNode = node;
+              endOffset = safeEnd - charCount;
+            }
+            
+            charCount += nodeLength;
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            for (let child = node.firstChild; child; child = child.nextSibling) {
+              walkNodes(child);
+              if (startNode && endNode) break;
+            }
+          }
+        }
+        
+        walkNodes(element);
+        
+        // If we found valid positions, set the range
+        if (startNode) {
+          range.setStart(startNode, Math.max(0, Math.min(startOffset, startNode.textContent.length)));
+          if (endNode && endNode !== startNode) {
+            range.setEnd(endNode, Math.max(0, Math.min(endOffset, endNode.textContent.length)));
+          } else {
+            range.setEnd(startNode, Math.max(0, Math.min(startOffset, startNode.textContent.length)));
+          }
+          
+          selection.removeAllRanges();
+          selection.addRange(range);
+        } else if (element.firstChild) {
+          // Fallback: if no text node found, place cursor at end of first child
+          const firstChild = element.firstChild;
+          if (firstChild.nodeType === Node.TEXT_NODE) {
+            range.setStart(firstChild, Math.min(safeStart, firstChild.textContent.length));
+            range.setEnd(firstChild, Math.min(safeStart, firstChild.textContent.length));
+          } else {
+            range.setStart(element, 0);
+            range.setEnd(element, 0);
+          }
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      } catch (e) {
+        // Ignore cursor restoration errors
+        console.debug('Cursor restoration error:', e);
+      }
+    }
+    
     // Clean HTML: remove all style attributes and only allow specific tags
     function cleanHTML(html) {
       if (!html) return '';
@@ -423,6 +520,9 @@
       const htmlEditor = document.getElementById(field + '-html');
       htmlEditor.focus();
       
+      // Save cursor position before formatting
+      const savedPos = saveCursorPosition(htmlEditor);
+      
       if (command === 'createLink') {
         const url = prompt('URL eingeben:');
         if (url) {
@@ -430,8 +530,20 @@
           // Clean after creating link
           setTimeout(() => {
             const cleaned = cleanHTML(htmlEditor.innerHTML);
-            htmlEditor.innerHTML = cleaned;
+            if (cleaned !== htmlEditor.innerHTML) {
+              htmlEditor.innerHTML = cleaned;
+              // Restore cursor position
+              if (savedPos) {
+                restoreCursorPosition(htmlEditor, savedPos);
+              }
+            }
+            htmlEditor.focus();
           }, 10);
+        } else {
+          // User cancelled, restore cursor position
+          if (savedPos) {
+            restoreCursorPosition(htmlEditor, savedPos);
+          }
         }
       } else {
         // Use execCommand but clean afterwards
@@ -439,11 +551,16 @@
         // Clean immediately after formatting
         setTimeout(() => {
           const cleaned = cleanHTML(htmlEditor.innerHTML);
-          htmlEditor.innerHTML = cleaned;
+          if (cleaned !== htmlEditor.innerHTML) {
+            htmlEditor.innerHTML = cleaned;
+            // Restore cursor position
+            if (savedPos) {
+              restoreCursorPosition(htmlEditor, savedPos);
+            }
+          }
+          htmlEditor.focus();
         }, 10);
       }
-      
-      htmlEditor.focus();
     }
     
     // Get content from active editor (cleaned)
@@ -569,27 +686,24 @@
           // Debounce cleaning to avoid performance issues
           clearTimeout(inputTimeout);
           inputTimeout = setTimeout(() => {
+            // Only clean if content actually changed and editor still has focus
+            if (document.activeElement !== this && !this.contains(document.activeElement)) {
+              return; // Don't clean if editor lost focus
+            }
+            
             const cleaned = cleanHTML(this.innerHTML);
             if (cleaned !== this.innerHTML) {
-              // Save cursor position
-              const selection = window.getSelection();
-              const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-              const startOffset = range ? range.startOffset : 0;
-              const endOffset = range ? range.endOffset : 0;
+              // Save cursor position right before cleaning (not when input fired)
+              const savedPos = saveCursorPosition(this);
               
               this.innerHTML = cleaned;
               
-              // Restore cursor position if possible
-              if (range && this.firstChild) {
-                try {
-                  const newRange = document.createRange();
-                  newRange.setStart(this.firstChild, Math.min(startOffset, this.firstChild.length || 0));
-                  newRange.setEnd(this.firstChild, Math.min(endOffset, this.firstChild.length || 0));
-                  selection.removeAllRanges();
-                  selection.addRange(newRange);
-                } catch (e) {
-                  // Ignore cursor restoration errors
-                }
+              // Restore cursor position after cleaning
+              if (savedPos) {
+                // Use requestAnimationFrame to ensure DOM is updated
+                requestAnimationFrame(() => {
+                  restoreCursorPosition(this, savedPos);
+                });
               }
             }
           }, 300);
