@@ -1713,11 +1713,16 @@
       let successCount = 0;
       let errorCount = 0;
       let skippedCount = 0;
+      const skippedPaintings = [];
       
       for (const g of livePaintings) {
         const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
         if (!originalVariant) {
           skippedCount++;
+          skippedPaintings.push({
+            base: g.base,
+            galleryFilename: g.gallery_filename || null
+          });
           continue;
         }
         
@@ -1749,21 +1754,35 @@
       await refresh();
       
       // Show summary message
-      let message = '';
-      if (successCount > 0) {
-        message = `${successCount} Gemälde erfolgreich auf Entwurf gesetzt`;
-      }
-      if (errorCount > 0) {
-        message += (message ? ', ' : '') + `${errorCount} Fehler`;
-      }
       if (skippedCount > 0) {
-        message += (message ? ', ' : '') + `${skippedCount} übersprungen (kein Originalbild)`;
-      }
-      
-      if (errorCount === 0 && skippedCount === 0) {
-        showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Entwurf gesetzt`, 'success');
+        // Show detailed message with skipped paintings using HTML toast
+        let htmlMessage = `<div style="font-weight: 600; margin-bottom: 8px;">${successCount} erfolgreich, ${skippedCount} übersprungen (kein Originalbild):</div>`;
+        
+        skippedPaintings.forEach((p) => {
+          const identifier = escapeHtml(p.galleryFilename || p.base);
+          htmlMessage += `<div style="padding-left: 12px; color: #666; font-size: 0.9em; margin: 4px 0;">• ${identifier}</div>`;
+        });
+        
+        if (errorCount > 0) {
+          htmlMessage += `<div style="margin-top: 8px; color: #dc3545;">${errorCount} Fehler</div>`;
+        }
+        
+        showToastHTML(htmlMessage, 'error', 15000);
       } else {
-        showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+        // Show simple message if no skipped paintings
+        let message = '';
+        if (successCount > 0) {
+          message = `${successCount} Gemälde erfolgreich auf Entwurf gesetzt`;
+        }
+        if (errorCount > 0) {
+          message += (message ? ', ' : '') + `${errorCount} Fehler`;
+        }
+        
+        if (errorCount === 0) {
+          showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Entwurf gesetzt`, 'success');
+        } else {
+          showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, 'error');
+        }
       }
     }
 
@@ -1785,11 +1804,28 @@
       let successCount = 0;
       let errorCount = 0;
       let skippedCount = 0;
+      const skippedPaintings = [];
       
       for (const g of draftPaintings) {
-        const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
-        if (!originalVariant) {
+        // Check if variants array exists and has items
+        if (!g.variants || !Array.isArray(g.variants) || g.variants.length === 0) {
           skippedCount++;
+          skippedPaintings.push({
+            base: g.base,
+            galleryFilename: g.gallery_filename || null
+          });
+          console.log(`Übersprungen: ${g.base} - Keine Varianten vorhanden. Variants:`, g.variants);
+          continue;
+        }
+        
+        const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+        if (!originalVariant || !originalVariant.name) {
+          skippedCount++;
+          skippedPaintings.push({
+            base: g.base,
+            galleryFilename: g.gallery_filename || null
+          });
+          console.log(`Übersprungen: ${g.base} - Kein gültiges Variant gefunden. Variants:`, g.variants);
           continue;
         }
         
@@ -1820,22 +1856,60 @@
       // Refresh once at the end
       await refresh();
       
-      // Show summary message
-      let message = '';
-      if (successCount > 0) {
-        message = `${successCount} Gemälde erfolgreich auf Live gesetzt`;
-      }
-      if (errorCount > 0) {
-        message += (message ? ', ' : '') + `${errorCount} Fehler`;
-      }
-      if (skippedCount > 0) {
-        message += (message ? ', ' : '') + `${skippedCount} übersprungen (kein Originalbild)`;
-      }
+      // Check if there's a discrepancy (more draft paintings than successful + skipped + errors)
+      const totalProcessed = successCount + skippedCount + errorCount;
+      const discrepancy = draftPaintings.length - totalProcessed;
       
-      if (errorCount === 0 && skippedCount === 0) {
-        showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
+      // Debug logging
+      console.log('Zusammenfassung:', {
+        totalDraftPaintings: draftPaintings.length,
+        successCount,
+        skippedCount,
+        errorCount,
+        totalProcessed,
+        discrepancy,
+        skippedPaintings: skippedPaintings.map(p => p.galleryFilename || p.base)
+      });
+      
+      // Show summary message
+      if (skippedCount > 0 || discrepancy > 0) {
+        // Show detailed message with skipped paintings using HTML toast
+        let htmlMessage = `<div style="font-weight: 600; margin-bottom: 8px;">${successCount} erfolgreich`;
+        if (skippedCount > 0) {
+          htmlMessage += `, ${skippedCount} übersprungen (kein Originalbild)`;
+        }
+        if (discrepancy > 0) {
+          htmlMessage += `, ${discrepancy} nicht verarbeitet`;
+        }
+        htmlMessage += `:</div>`;
+        
+        if (skippedPaintings.length > 0) {
+          skippedPaintings.forEach((p) => {
+            const identifier = escapeHtml(p.galleryFilename || p.base);
+            htmlMessage += `<div style="padding-left: 12px; color: #666; font-size: 0.9em; margin: 4px 0;">• ${identifier}</div>`;
+          });
+        }
+        
+        if (errorCount > 0) {
+          htmlMessage += `<div style="margin-top: 8px; color: #dc3545;">${errorCount} Fehler</div>`;
+        }
+        
+        showToastHTML(htmlMessage, skippedCount > 0 || discrepancy > 0 ? 'error' : 'success', 15000);
       } else {
-        showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+        // Show simple message if no skipped paintings
+        let message = '';
+        if (successCount > 0) {
+          message = `${successCount} Gemälde erfolgreich auf Live gesetzt`;
+        }
+        if (errorCount > 0) {
+          message += (message ? ', ' : '') + `${errorCount} Fehler`;
+        }
+        
+        if (errorCount === 0) {
+          showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
+        } else {
+          showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, 'error');
+        }
       }
     }
 
