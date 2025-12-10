@@ -390,8 +390,6 @@ function initAktuellesVariantReveal() {
     
     if (!withinRadius) {
       variantLayer.style.opacity = '0';
-      variantImgSharp.style.maskImage = '';
-      variantImgSharp.style.webkitMaskImage = '';
       variantImgBlurred.style.maskImage = '';
       variantImgBlurred.style.webkitMaskImage = '';
       variantImgBlurred.style.opacity = '0';
@@ -402,10 +400,10 @@ function initAktuellesVariantReveal() {
       return;
     }
     
+    // Ensure variant layer is visible for hover effect
     variantLayer.style.display = 'block';
-    variantLayer.style.opacity = '1';
     
-    // Calculate position relative to wrapper
+    // Calculate position relative to wrapper (can be negative or > 100% if outside)
     const relativeX = mouseX - rect.left;
     const relativeY = mouseY - rect.top;
     
@@ -413,27 +411,28 @@ function initAktuellesVariantReveal() {
     const percentX = (relativeX / rect.width) * 100;
     const percentY = (relativeY / rect.height) * 100;
     
-    // Create masks for both layers with smooth transitions
+    // Create masks for both layers
     const radius = rect.width * 1.0; // 100% of displayed image width
     
     // Sharp center mask: opaque in center, smoothly fades to transparent
     const sharpRadiusPercent = 50; // 50% of the radius is fully opaque (crystal clear)
     const sharpMaskGradient = `radial-gradient(circle ${radius}px at ${percentX}% ${percentY}%, rgba(255,255,255,1) 0%, rgba(255,255,255,1) ${sharpRadiusPercent}%, rgba(255,255,255,0.9) ${sharpRadiusPercent + 5}%, rgba(255,255,255,0.7) ${sharpRadiusPercent + 10}%, rgba(255,255,255,0.5) ${sharpRadiusPercent + 15}%, rgba(255,255,255,0.3) ${sharpRadiusPercent + 20}%, rgba(255,255,255,0.1) ${sharpRadiusPercent + 30}%, rgba(255,255,255,0) ${sharpRadiusPercent + 50}%)`;
     
-    // Apply mask: sharp image shows center, smoothly transitions to blurred image
+    // Apply mask: sharp image shows center, smoothly transitions to original image
     variantImgSharp.style.maskImage = sharpMaskGradient;
     variantImgSharp.style.webkitMaskImage = sharpMaskGradient;
     variantImgSharp.style.maskSize = 'cover';
     variantImgSharp.style.webkitMaskSize = 'cover';
+    variantImgSharp.style.maskMode = 'alpha';
+    variantImgSharp.style.webkitMaskMode = 'alpha';
+    variantImgSharp.style.filter = 'none'; // No blur on sharp image - crystal clear
     
-    // Blurred background mask: transparent in center (where sharp shows), opaque at edges
-    const blurredMaskGradient = `radial-gradient(circle ${radius}px at ${percentX}% ${percentY}%, rgba(255,255,255,0) 0%, rgba(255,255,255,0) ${sharpRadiusPercent}%, rgba(255,255,255,0.1) ${sharpRadiusPercent + 5}%, rgba(255,255,255,0.3) ${sharpRadiusPercent + 10}%, rgba(255,255,255,0.5) ${sharpRadiusPercent + 15}%, rgba(255,255,255,0.7) ${sharpRadiusPercent + 20}%, rgba(255,255,255,0.9) ${sharpRadiusPercent + 30}%, rgba(255,255,255,1) ${sharpRadiusPercent + 50}%)`;
+    // Hide the blurred layer - we only want the sharp center transitioning to original
+    variantImgBlurred.style.maskImage = 'none';
+    variantImgBlurred.style.webkitMaskImage = 'none';
+    variantImgBlurred.style.opacity = '0';
     
-    variantImgBlurred.style.maskImage = blurredMaskGradient;
-    variantImgBlurred.style.webkitMaskImage = blurredMaskGradient;
-    variantImgBlurred.style.maskSize = 'cover';
-    variantImgBlurred.style.webkitMaskSize = 'cover';
-    variantImgBlurred.style.opacity = '1';
+    variantLayer.style.opacity = '1';
     
     animationFrame = requestAnimationFrame(updateRevealMask);
   }
