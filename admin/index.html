@@ -2365,9 +2365,37 @@
         updatePaintingURL(imageBaseName);
       }
       
+      const titleInput = item.querySelector('input[name=\"title\"]');
+      const newTitle = titleInput ? titleInput.value.trim() : '';
+      
+      // Check for duplicate titles before saving
+      if (newTitle) {
+        try {
+          const { groups } = await fetchImages();
+          if (groups && Array.isArray(groups)) {
+            for (const group of groups) {
+              // Skip the current painting
+              if (group.base === imageBaseName) {
+                continue;
+              }
+              
+              // Check if this painting has the same title
+              const existingTitle = group.meta?.title;
+              if (existingTitle && existingTitle.trim() === newTitle) {
+                showToast('Achtung: Titel ist bereits bei einem anderen Gemälde vergeben. Jeder Titel darf nur einmal vorkommen', 'error');
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error checking for duplicate titles:', error);
+          // Continue with save even if check fails
+        }
+      }
+      
       const body = new FormData();
       body.set('image', image);
-      body.set('title', item.querySelector('input[name=\"title\"]').value);
+      body.set('title', newTitle);
       body.set('description', item.querySelector('textarea[name=\"description\"]').value);
       body.set('width', item.querySelector('input[name=\"width\"]').value);
       body.set('height', item.querySelector('input[name=\"height\"]').value);
