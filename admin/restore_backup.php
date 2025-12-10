@@ -75,20 +75,33 @@ if ($isJson) {
         $indexContent = preg_replace($patternBio, '<div class="author-bio">' . ($backupData['bio'] ?? '') . '</div>', $indexContent, 1);
     }
     
-    // Update aktuelles content (now in author-aktuelles-wrapper with container, outside header)
-    $patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+    // Update aktuelles content (now in author-aktuelles-wrapper with container and layout, outside header)
+    $aktuellesImageHtml = '<div class="author-aktuelles-image-wrapper"><div class="author-aktuelles-image-container"><img src="img/upload/aktuelles.jpg" alt="Aktuelles" class="author-aktuelles-photo" id="author-aktuelles-photo"><div class="author-aktuelles-variant-reveal"><img src="" alt="Alternative Aktuelles" class="author-aktuelles-variant-image-sharp" loading="lazy" id="author-aktuelles-variant-sharp"><img src="" alt="Alternative Aktuelles" class="author-aktuelles-variant-image-blurred" loading="lazy" id="author-aktuelles-variant-blurred"><div class="author-aktuelles-reveal-mask"></div></div></div></div>';
+    $patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles-layout">\s*<div\s+class="author-aktuelles-image-wrapper">.*?<\/div>\s*<div\s+class="author-aktuelles-text-wrapper">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/s';
     if (preg_match($patternAktuelles, $indexContent)) {
-        $indexContent = preg_replace($patternAktuelles, '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div>', $indexContent, 1);
+        $indexContent = preg_replace($patternAktuelles, '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles-layout">' . $aktuellesImageHtml . '<div class="author-aktuelles-text-wrapper"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div></div></div>', $indexContent, 1);
     } else {
-        // Insert author-aktuelles-wrapper after </header> if it doesn't exist
-        $patternHeaderEnd = '/<\/header>\s*(?=<)/s';
-        if (preg_match($patternHeaderEnd, $indexContent) && !empty($backupData['aktuelles'])) {
-            $indexContent = preg_replace(
-                $patternHeaderEnd,
-                '</header>' . "\n  \n  " . '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div>',
-                $indexContent,
-                1
-            );
+        // Try pattern without text-wrapper (for backwards compatibility)
+        $patternAktuellesOld = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles-layout">\s*<div\s+class="author-aktuelles-image-wrapper">.*?<\/div>\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/s';
+        if (preg_match($patternAktuellesOld, $indexContent)) {
+            $indexContent = preg_replace($patternAktuellesOld, '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles-layout">' . $aktuellesImageHtml . '<div class="author-aktuelles-text-wrapper"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div></div></div>', $indexContent, 1);
+        } else {
+            // Try simpler pattern without layout wrapper (for backwards compatibility)
+            $patternAktuellesSimple = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+            if (preg_match($patternAktuellesSimple, $indexContent)) {
+                $indexContent = preg_replace($patternAktuellesSimple, '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles-layout">' . $aktuellesImageHtml . '<div class="author-aktuelles-text-wrapper"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div></div></div>', $indexContent, 1);
+            } else {
+                // Insert author-aktuelles-wrapper after </header> if it doesn't exist
+                $patternHeaderEnd = '/<\/header>\s*(?=<)/s';
+                if (preg_match($patternHeaderEnd, $indexContent) && !empty($backupData['aktuelles'])) {
+                    $indexContent = preg_replace(
+                        $patternHeaderEnd,
+                        '</header>' . "\n  \n  " . '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles-layout">' . $aktuellesImageHtml . '<div class="author-aktuelles-text-wrapper"><div class="author-aktuelles">' . ($backupData['aktuelles'] ?? '') . '</div></div></div></div></div>',
+                        $indexContent,
+                        1
+                    );
+                }
+            }
         }
     }
     

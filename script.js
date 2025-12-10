@@ -258,6 +258,205 @@ function initAuthorSection() {
       authorSection.classList.toggle('expanded');
     });
   }
+  
+  // Initialize aktuelles variant reveal effect
+  initAktuellesVariantReveal();
+  
+  // Initialize aktuelles collapse/expand
+  initAktuellesCollapse();
+}
+
+// Aktuelles Section Collapse/Expand
+function initAktuellesCollapse() {
+  const aktuellesSection = document.querySelector('.author-aktuelles');
+  const textWrapper = document.querySelector('.author-aktuelles-text-wrapper');
+  if (!aktuellesSection || !textWrapper) return;
+  
+  // Check if content is too long (more than 200px height)
+  const checkHeight = () => {
+    // Temporarily remove collapsed class to measure full height
+    aktuellesSection.classList.remove('collapsed');
+    const fullHeight = aktuellesSection.scrollHeight;
+    
+    if (fullHeight > 200) {
+      // Content is too long, add collapsed class and show toggle button
+      aktuellesSection.classList.add('collapsed');
+      
+      // Check if toggle button already exists
+      let toggleButton = textWrapper.querySelector('.author-aktuelles-toggle');
+      if (!toggleButton) {
+        // Create toggle button
+        toggleButton = document.createElement('button');
+        toggleButton.className = 'author-aktuelles-toggle';
+        toggleButton.type = 'button';
+        toggleButton.textContent = 'Mehr anzeigen';
+        toggleButton.addEventListener('click', () => {
+          aktuellesSection.classList.toggle('collapsed');
+          toggleButton.textContent = aktuellesSection.classList.contains('collapsed') 
+            ? 'Mehr anzeigen' 
+            : 'Weniger anzeigen';
+        });
+        textWrapper.appendChild(toggleButton);
+      }
+    } else {
+      // Content is short enough, ensure it's not collapsed
+      aktuellesSection.classList.remove('collapsed');
+      // Remove toggle button if it exists
+      const toggleButton = textWrapper.querySelector('.author-aktuelles-toggle');
+      if (toggleButton) {
+        toggleButton.remove();
+      }
+    }
+  };
+  
+  // Check height on load and after a short delay (to ensure content is rendered)
+  checkHeight();
+  setTimeout(checkHeight, 100);
+  
+  // Also check when window is resized
+  window.addEventListener('resize', checkHeight);
+}
+
+// Initialize aktuelles variant reveal effect (hover only, no click)
+function initAktuellesVariantReveal() {
+  const wrapper = document.querySelector('.author-aktuelles-image-wrapper');
+  if (!wrapper) return;
+  
+  const variantLayer = wrapper.querySelector('.author-aktuelles-variant-reveal');
+  const variantImgSharp = wrapper.querySelector('.author-aktuelles-variant-image-sharp');
+  const variantImgBlurred = wrapper.querySelector('.author-aktuelles-variant-image-blurred');
+  const revealMask = wrapper.querySelector('.author-aktuelles-reveal-mask');
+  const mainPhoto = wrapper.querySelector('.author-aktuelles-photo');
+  
+  if (!variantLayer || !variantImgSharp || !variantImgBlurred || !revealMask || !mainPhoto) return;
+  
+  // Check if alternative image exists
+  const alternativeImageUrl = 'img/upload/aktuelles-alternative.jpg';
+  const alternativeThumbUrl = getThumbnailUrl(alternativeImageUrl);
+  
+  // Preload alternative image
+  const img = new Image();
+  img.onload = () => {
+    // Alternative image exists, set up the variant images
+    variantImgSharp.src = alternativeThumbUrl;
+    variantImgBlurred.src = alternativeThumbUrl;
+    variantLayer.style.display = 'block';
+  };
+  img.onerror = () => {
+    // Alternative image doesn't exist, hide variant layer
+    variantLayer.style.display = 'none';
+  };
+  img.src = alternativeThumbUrl;
+  
+  // Update main photo to use thumbnail
+  if (mainPhoto && mainPhoto.src) {
+    mainPhoto.src = getThumbnailUrl(mainPhoto.src);
+  }
+  
+  // Detect touch device
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  
+  if (isTouchDevice) {
+    // Don't initialize hover effect on mobile
+    return;
+  }
+  
+  // Desktop hover effect with radial blur mask
+  let mouseX = 0;
+  let mouseY = 0;
+  let animationFrame = null;
+  const EXTERNAL_RADIUS = 150;
+  
+  function isWithinRadius(clientX, clientY) {
+    const rect = wrapper.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const maxDistance = Math.max(rect.width, rect.height) / 2 + EXTERNAL_RADIUS;
+    const distance = Math.sqrt(Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2));
+    return distance <= maxDistance;
+  }
+  
+  function updateRevealMask() {
+    // Don't show effect if alternative image doesn't exist
+    if (variantLayer.style.display === 'none') {
+      return;
+    }
+    
+    const rect = wrapper.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const withinRadius = isWithinRadius(mouseX, mouseY);
+    
+    if (!withinRadius) {
+      variantLayer.style.opacity = '0';
+      variantImgSharp.style.maskImage = '';
+      variantImgSharp.style.webkitMaskImage = '';
+      variantImgBlurred.style.maskImage = '';
+      variantImgBlurred.style.webkitMaskImage = '';
+      variantImgBlurred.style.opacity = '0';
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      return;
+    }
+    
+    variantLayer.style.display = 'block';
+    variantLayer.style.opacity = '1';
+    
+    // Calculate position relative to wrapper
+    const relativeX = mouseX - rect.left;
+    const relativeY = mouseY - rect.top;
+    
+    // Calculate center position as percentage
+    const percentX = (relativeX / rect.width) * 100;
+    const percentY = (relativeY / rect.height) * 100;
+    
+    // Create masks for both layers with smooth transitions
+    const radius = rect.width * 1.0; // 100% of displayed image width
+    
+    // Sharp center mask: opaque in center, smoothly fades to transparent
+    const sharpRadiusPercent = 50; // 50% of the radius is fully opaque (crystal clear)
+    const sharpMaskGradient = `radial-gradient(circle ${radius}px at ${percentX}% ${percentY}%, rgba(255,255,255,1) 0%, rgba(255,255,255,1) ${sharpRadiusPercent}%, rgba(255,255,255,0.9) ${sharpRadiusPercent + 5}%, rgba(255,255,255,0.7) ${sharpRadiusPercent + 10}%, rgba(255,255,255,0.5) ${sharpRadiusPercent + 15}%, rgba(255,255,255,0.3) ${sharpRadiusPercent + 20}%, rgba(255,255,255,0.1) ${sharpRadiusPercent + 30}%, rgba(255,255,255,0) ${sharpRadiusPercent + 50}%)`;
+    
+    // Apply mask: sharp image shows center, smoothly transitions to blurred image
+    variantImgSharp.style.maskImage = sharpMaskGradient;
+    variantImgSharp.style.webkitMaskImage = sharpMaskGradient;
+    variantImgSharp.style.maskSize = 'cover';
+    variantImgSharp.style.webkitMaskSize = 'cover';
+    
+    // Blurred background mask: transparent in center (where sharp shows), opaque at edges
+    const blurredMaskGradient = `radial-gradient(circle ${radius}px at ${percentX}% ${percentY}%, rgba(255,255,255,0) 0%, rgba(255,255,255,0) ${sharpRadiusPercent}%, rgba(255,255,255,0.1) ${sharpRadiusPercent + 5}%, rgba(255,255,255,0.3) ${sharpRadiusPercent + 10}%, rgba(255,255,255,0.5) ${sharpRadiusPercent + 15}%, rgba(255,255,255,0.7) ${sharpRadiusPercent + 20}%, rgba(255,255,255,0.9) ${sharpRadiusPercent + 30}%, rgba(255,255,255,1) ${sharpRadiusPercent + 50}%)`;
+    
+    variantImgBlurred.style.maskImage = blurredMaskGradient;
+    variantImgBlurred.style.webkitMaskImage = blurredMaskGradient;
+    variantImgBlurred.style.maskSize = 'cover';
+    variantImgBlurred.style.webkitMaskSize = 'cover';
+    variantImgBlurred.style.opacity = '1';
+    
+    animationFrame = requestAnimationFrame(updateRevealMask);
+  }
+  
+  wrapper.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    if (!animationFrame) {
+      animationFrame = requestAnimationFrame(updateRevealMask);
+    }
+  });
+  
+  wrapper.addEventListener('mouseleave', () => {
+    variantLayer.style.opacity = '0';
+    variantImgBlurred.style.maskImage = '';
+    variantImgBlurred.style.webkitMaskImage = '';
+    variantImgBlurred.style.opacity = '0';
+    revealMask.style.opacity = '0';
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = null;
+    }
+  });
 }
 
 // Initialize variant reveal effect for author portrait

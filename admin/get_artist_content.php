@@ -80,21 +80,27 @@ if (preg_match($patternBio, $indexContent, $matches)) {
     }
 }
 
-// Extract author-aktuelles content (now in author-aktuelles-wrapper with container, outside header)
-$patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+// Extract author-aktuelles content (now in author-aktuelles-wrapper with container and layout, outside header)
+$patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles-layout">\s*<div\s+class="author-aktuelles-image-wrapper">.*?<\/div>\s*<div\s+class="author-aktuelles-text-wrapper">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/s';
 $aktuellesContent = '';
 if (preg_match($patternAktuelles, $indexContent, $matches)) {
     $aktuellesContent = trim($matches[1]);
 } else {
-    // Fallback: try to find author-aktuelles without container wrapper
-    $patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>/s';
-    if (preg_match($patternAktuelles, $indexContent, $matches)) {
+    // Fallback: try pattern without text-wrapper (for backwards compatibility)
+    $patternAktuellesOld = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles-layout">\s*<div\s+class="author-aktuelles-image-wrapper">.*?<\/div>\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/s';
+    if (preg_match($patternAktuellesOld, $indexContent, $matches)) {
         $aktuellesContent = trim($matches[1]);
     } else {
-        // Final fallback: try to find author-aktuelles without wrapper
-        $patternAktuelles = '/<div\s+class="author-aktuelles">(.*?)<\/div>/s';
-        if (preg_match($patternAktuelles, $indexContent, $matches)) {
+        // Fallback: try pattern without layout wrapper (for backwards compatibility)
+        $patternAktuellesSimple = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+        if (preg_match($patternAktuellesSimple, $indexContent, $matches)) {
             $aktuellesContent = trim($matches[1]);
+        } else {
+            // Final fallback: try to find author-aktuelles without wrapper
+            $patternAktuelles = '/<div\s+class="author-aktuelles">(.*?)<\/div>/s';
+            if (preg_match($patternAktuelles, $indexContent, $matches)) {
+                $aktuellesContent = trim($matches[1]);
+            }
         }
     }
 }
