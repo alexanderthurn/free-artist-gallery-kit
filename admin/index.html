@@ -1712,13 +1712,32 @@
       
       let successCount = 0;
       let errorCount = 0;
+      let skippedCount = 0;
       
       for (const g of livePaintings) {
         const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
-        if (!originalVariant) continue;
+        if (!originalVariant) {
+          skippedCount++;
+          continue;
+        }
         
         try {
-          await removeFromGallery(originalVariant.name, {});
+          // Call remove_from_gallery.php directly without refresh to avoid updating the list during processing
+          const body = new FormData();
+          body.set('image', originalVariant.name);
+          const res = await fetch('remove_from_gallery.php', { method: 'POST', body });
+          if (!res.ok) {
+            const msg = await res.text();
+            console.error(`Error setting ${g.base} to draft:`, msg);
+            errorCount++;
+            continue;
+          }
+          const data = await res.json().catch(() => ({}));
+          if (!data.ok) {
+            console.error(`Error setting ${g.base} to draft:`, data.error || 'Unknown');
+            errorCount++;
+            continue;
+          }
           successCount++;
         } catch (error) {
           console.error(`Error setting ${g.base} to draft:`, error);
@@ -1726,13 +1745,26 @@
         }
       }
       
-      if (errorCount === 0) {
-        showToast(`Alle ${successCount} Gemälde erfolgreich auf Entwurf gesetzt`, 'success');
-      } else {
-        showToast(`${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      // Refresh once at the end
+      await refresh();
+      
+      // Show summary message
+      let message = '';
+      if (successCount > 0) {
+        message = `${successCount} Gemälde erfolgreich auf Entwurf gesetzt`;
+      }
+      if (errorCount > 0) {
+        message += (message ? ', ' : '') + `${errorCount} Fehler`;
+      }
+      if (skippedCount > 0) {
+        message += (message ? ', ' : '') + `${skippedCount} übersprungen (kein Originalbild)`;
       }
       
-      await refresh();
+      if (errorCount === 0 && skippedCount === 0) {
+        showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Entwurf gesetzt`, 'success');
+      } else {
+        showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      }
     }
 
     // Set all paintings to live
@@ -1752,13 +1784,32 @@
       
       let successCount = 0;
       let errorCount = 0;
+      let skippedCount = 0;
       
       for (const g of draftPaintings) {
         const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
-        if (!originalVariant) continue;
+        if (!originalVariant) {
+          skippedCount++;
+          continue;
+        }
         
         try {
-          await copyToGallery(originalVariant.name, {});
+          // Call copyToGallery without refresh to avoid updating the list during processing
+          const body = new FormData();
+          body.set('image', originalVariant.name);
+          const res = await fetch('copy_to_gallery.php', { method: 'POST', body });
+          if (!res.ok) {
+            const msg = await res.text();
+            console.error(`Error setting ${g.base} to live:`, msg);
+            errorCount++;
+            continue;
+          }
+          const data = await res.json().catch(() => ({}));
+          if (!data.ok) {
+            console.error(`Error setting ${g.base} to live:`, data.error || 'Unknown');
+            errorCount++;
+            continue;
+          }
           successCount++;
         } catch (error) {
           console.error(`Error setting ${g.base} to live:`, error);
@@ -1766,13 +1817,26 @@
         }
       }
       
-      if (errorCount === 0) {
-        showToast(`Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
-      } else {
-        showToast(`${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      // Refresh once at the end
+      await refresh();
+      
+      // Show summary message
+      let message = '';
+      if (successCount > 0) {
+        message = `${successCount} Gemälde erfolgreich auf Live gesetzt`;
+      }
+      if (errorCount > 0) {
+        message += (message ? ', ' : '') + `${errorCount} Fehler`;
+      }
+      if (skippedCount > 0) {
+        message += (message ? ', ' : '') + `${skippedCount} übersprungen (kein Originalbild)`;
       }
       
-      await refresh();
+      if (errorCount === 0 && skippedCount === 0) {
+        showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
+      } else {
+        showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, errorCount > 0 ? 'error' : 'success');
+      }
     }
 
     window.addEventListener('DOMContentLoaded', () => {
