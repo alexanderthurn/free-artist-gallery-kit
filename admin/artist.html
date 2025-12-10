@@ -236,6 +236,27 @@
           </div>
         </div>
       </div>
+
+      <div class="field">
+        <div class="editor-toolbar">
+          <label class="label-no-margin">Aktuelles</label>
+          <button type="button" class="mode-toggle" data-field="aktuelles" data-mode="text">Plaintext</button>
+        </div>
+        <div class="editor-container">
+          <textarea id="aktuelles" name="aktuelles" class="editor-textarea" placeholder="HTML-Code hier einfügen..."></textarea>
+          <div class="html-editor-wrapper" id="aktuelles-html-wrapper">
+            <div class="html-editor-toolbar">
+              <button type="button" onclick="formatText('aktuelles', 'bold')" title="Fett">B</button>
+              <button type="button" onclick="formatText('aktuelles', 'italic')" title="Kursiv">I</button>
+              <button type="button" onclick="formatText('aktuelles', 'underline')" title="Unterstrichen">U</button>
+              <button type="button" onclick="formatText('aktuelles', 'insertUnorderedList')" title="Aufzählung">• Liste</button>
+              <button type="button" onclick="formatText('aktuelles', 'insertOrderedList')" title="Nummerierte Liste">1. Liste</button>
+              <button type="button" onclick="formatText('aktuelles', 'createLink')" title="Link einfügen">🔗 Link</button>
+            </div>
+            <div id="aktuelles-html" class="html-editor" contenteditable="true" placeholder="HTML-Inhalt hier bearbeiten..."></div>
+          </div>
+        </div>
+      </div>
       
       <div class="button-group mt-24">
         <button type="submit" class="primary">Speichern</button>
@@ -317,7 +338,8 @@
     // Editor mode state - both start in HTML editor mode
     const editorModes = {
       short: 'html',
-      bio: 'html'
+      bio: 'html',
+      aktuelles: 'html'
     };
     
     // Switch editor mode
@@ -628,8 +650,8 @@
         }
       });
       
-      // Initialize both editors to HTML mode (default)
-      ['short', 'bio'].forEach(field => {
+      // Initialize all editors to HTML mode (default)
+      ['short', 'bio', 'aktuelles'].forEach(field => {
         const textarea = document.getElementById(field);
         const htmlWrapper = document.getElementById(field + '-html-wrapper');
         const htmlEditor = document.getElementById(field + '-html');
@@ -656,7 +678,7 @@
       });
       
       // Setup HTML editors with paste and input handlers
-      ['short', 'bio'].forEach(field => {
+      ['short', 'bio', 'aktuelles'].forEach(field => {
         const htmlEditor = document.getElementById(field + '-html');
         
         // Clean HTML on paste
@@ -808,6 +830,10 @@
           const cleaned = editorModes.bio === 'html' ? cleanHTML(data.bio) : data.bio;
           setFieldContent('bio', cleaned);
         }
+        if (data.aktuelles) {
+          const cleaned = editorModes.aktuelles === 'html' ? cleanHTML(data.aktuelles) : data.aktuelles;
+          setFieldContent('aktuelles', cleaned);
+        }
       } catch (error) {
         showToast('Fehler: ' + error.message, 'error');
       }
@@ -948,7 +974,7 @@
       
       try {
         // Ensure content is synced before submission
-        ['short', 'bio'].forEach(field => {
+        ['short', 'bio', 'aktuelles'].forEach(field => {
           if (editorModes[field] === 'html') {
             const htmlEditor = document.getElementById(field + '-html');
             const textarea = document.getElementById(field);
@@ -971,6 +997,7 @@
         formData.append('colorPrimaryRgb', document.getElementById('colorPrimaryRgb').value);
         formData.append('short', getFieldContent('short'));
         formData.append('bio', getFieldContent('bio'));
+        formData.append('aktuelles', getFieldContent('aktuelles'));
         
         const res = await fetch('save_artist.php', {
           method: 'POST',

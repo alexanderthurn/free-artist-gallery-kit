@@ -80,6 +80,25 @@ if (preg_match($patternBio, $indexContent, $matches)) {
     }
 }
 
+// Extract author-aktuelles content (now in author-aktuelles-wrapper with container, outside header)
+$patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+$aktuellesContent = '';
+if (preg_match($patternAktuelles, $indexContent, $matches)) {
+    $aktuellesContent = trim($matches[1]);
+} else {
+    // Fallback: try to find author-aktuelles without container wrapper
+    $patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>/s';
+    if (preg_match($patternAktuelles, $indexContent, $matches)) {
+        $aktuellesContent = trim($matches[1]);
+    } else {
+        // Final fallback: try to find author-aktuelles without wrapper
+        $patternAktuelles = '/<div\s+class="author-aktuelles">(.*?)<\/div>/s';
+        if (preg_match($patternAktuelles, $indexContent, $matches)) {
+            $aktuellesContent = trim($matches[1]);
+        }
+    }
+}
+
 // Extract page title from meta tag or title tag
 $pageTitle = '';
 $patternPageTitle = '/<meta\s+name="page-title"\s+content="([^"]+)"/i';
@@ -212,6 +231,7 @@ echo json_encode([
     'colorPrimaryRgb' => $colorPrimaryRgb,
     'alternativeImageCount' => $alternativeImageCount,
     'short' => $shortContent,
-    'bio' => $bioContent
+    'bio' => $bioContent,
+    'aktuelles' => $aktuellesContent
 ]);
 

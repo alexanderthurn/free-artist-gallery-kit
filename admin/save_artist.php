@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!isset($_POST['short']) || !isset($_POST['bio'])) {
+if (!isset($_POST['short']) || !isset($_POST['bio']) || !isset($_POST['aktuelles'])) {
     http_response_code(400);
     echo json_encode(['ok' => false, 'error' => 'Missing required fields']);
     exit;
@@ -17,6 +17,7 @@ if (!isset($_POST['short']) || !isset($_POST['bio'])) {
 
 $shortContent = $_POST['short'];
 $bioContent = $_POST['bio'];
+$aktuellesContent = $_POST['aktuelles'];
 $pageTitle = isset($_POST['pageTitle']) ? trim($_POST['pageTitle']) : '';
 $artistName = isset($_POST['name']) ? trim($_POST['name']) : '';
 $artistEmail = isset($_POST['email']) ? trim($_POST['email']) : '';
@@ -51,6 +52,7 @@ if ($indexContent === false) {
 $currentData = [
     'short' => trim($shortContent),
     'bio' => trim($bioContent),
+    'aktuelles' => trim($aktuellesContent),
     'pageTitle' => $pageTitle,
     'name' => $artistName,
     'email' => $artistEmail,
@@ -194,6 +196,41 @@ $indexContent = preg_replace(
     $indexContent,
     1
 );
+
+// Find and replace author-aktuelles div (outside header, in author-aktuelles-wrapper with container)
+$patternAktuelles = '/<div\s+class="author-aktuelles-wrapper">\s*<div\s+class="container">\s*<div\s+class="author-aktuelles">(.*?)<\/div>\s*<\/div>\s*<\/div>/s';
+if (preg_match($patternAktuelles, $indexContent, $matches)) {
+    // Replace existing author-aktuelles
+    $indexContent = preg_replace(
+        $patternAktuelles,
+        '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles">' . $aktuellesContent . '</div></div></div>',
+        $indexContent,
+        1
+    );
+} else {
+    // Insert author-aktuelles-wrapper after </header>
+    $patternHeaderEnd = '/<\/header>\s*(?=<)/s';
+    if (preg_match($patternHeaderEnd, $indexContent)) {
+        $indexContent = preg_replace(
+            $patternHeaderEnd,
+            '</header>' . "\n  \n  " . '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles">' . $aktuellesContent . '</div></div></div>',
+            $indexContent,
+            1
+        );
+    } else {
+        // Fallback: try to find </header> and insert after it
+        $headerEndPos = strpos($indexContent, '</header>');
+        if ($headerEndPos !== false) {
+            $insertPos = $headerEndPos + 9; // Move past </header>
+            $indexContent = substr_replace(
+                $indexContent,
+                "\n  \n  " . '<div class="author-aktuelles-wrapper"><div class="container"><div class="author-aktuelles">' . $aktuellesContent . '</div></div></div>',
+                $insertPos,
+                0
+            );
+        }
+    }
+}
 
 // Update page title tag
 if (!empty($pageTitle)) {
@@ -531,6 +568,7 @@ if ($shouldCreateBackup) {
         'timestamp' => $timestamp,
         'short' => trim($shortContent),
         'bio' => trim($bioContent),
+        'aktuelles' => trim($aktuellesContent),
         'pageTitle' => $pageTitle,
         'name' => $artistName,
         'email' => $artistEmail,
