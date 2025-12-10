@@ -1803,36 +1803,26 @@
       
       let successCount = 0;
       let errorCount = 0;
-      let skippedCount = 0;
-      const skippedPaintings = [];
       
       for (const g of draftPaintings) {
-        // Check if variants array exists and has items
-        if (!g.variants || !Array.isArray(g.variants) || g.variants.length === 0) {
-          skippedCount++;
-          skippedPaintings.push({
-            base: g.base,
-            galleryFilename: g.gallery_filename || null
-          });
-          console.log(`Übersprungen: ${g.base} - Keine Varianten vorhanden. Variants:`, g.variants);
-          continue;
+        // Determine image name: use original variant if available, otherwise first variant, otherwise construct from base
+        let imageName = null;
+        if (g.variants && Array.isArray(g.variants) && g.variants.length > 0) {
+          const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
+          if (originalVariant && originalVariant.name) {
+            imageName = originalVariant.name;
+          }
         }
         
-        const originalVariant = (g.variants.find(v => v.variant === 'original') || g.variants[0]);
-        if (!originalVariant || !originalVariant.name) {
-          skippedCount++;
-          skippedPaintings.push({
-            base: g.base,
-            galleryFilename: g.gallery_filename || null
-          });
-          console.log(`Übersprungen: ${g.base} - Kein gültiges Variant gefunden. Variants:`, g.variants);
-          continue;
+        // Fallback: construct image name from base if no variants available
+        if (!imageName) {
+          imageName = g.base + '_original.' + (g.ext || 'jpg');
         }
         
         try {
           // Call copyToGallery without refresh to avoid updating the list during processing
           const body = new FormData();
-          body.set('image', originalVariant.name);
+          body.set('image', imageName);
           const res = await fetch('copy_to_gallery.php', { method: 'POST', body });
           if (!res.ok) {
             const msg = await res.text();
@@ -1856,60 +1846,35 @@
       // Refresh once at the end
       await refresh();
       
-      // Check if there's a discrepancy (more draft paintings than successful + skipped + errors)
-      const totalProcessed = successCount + skippedCount + errorCount;
+      // Check if there's a discrepancy (more draft paintings than successful + errors)
+      const totalProcessed = successCount + errorCount;
       const discrepancy = draftPaintings.length - totalProcessed;
       
       // Debug logging
       console.log('Zusammenfassung:', {
         totalDraftPaintings: draftPaintings.length,
         successCount,
-        skippedCount,
         errorCount,
         totalProcessed,
-        discrepancy,
-        skippedPaintings: skippedPaintings.map(p => p.galleryFilename || p.base)
+        discrepancy
       });
       
       // Show summary message
-      if (skippedCount > 0 || discrepancy > 0) {
-        // Show detailed message with skipped paintings using HTML toast
-        let htmlMessage = `<div style="font-weight: 600; margin-bottom: 8px;">${successCount} erfolgreich`;
-        if (skippedCount > 0) {
-          htmlMessage += `, ${skippedCount} übersprungen (kein Originalbild)`;
-        }
-        if (discrepancy > 0) {
-          htmlMessage += `, ${discrepancy} nicht verarbeitet`;
-        }
-        htmlMessage += `:</div>`;
-        
-        if (skippedPaintings.length > 0) {
-          skippedPaintings.forEach((p) => {
-            const identifier = escapeHtml(p.galleryFilename || p.base);
-            htmlMessage += `<div style="padding-left: 12px; color: #666; font-size: 0.9em; margin: 4px 0;">• ${identifier}</div>`;
-          });
-        }
-        
-        if (errorCount > 0) {
-          htmlMessage += `<div style="margin-top: 8px; color: #dc3545;">${errorCount} Fehler</div>`;
-        }
-        
-        showToastHTML(htmlMessage, skippedCount > 0 || discrepancy > 0 ? 'error' : 'success', 15000);
+      let message = '';
+      if (successCount > 0) {
+        message = `${successCount} Gemälde erfolgreich auf Live gesetzt`;
+      }
+      if (errorCount > 0) {
+        message += (message ? ', ' : '') + `${errorCount} Fehler`;
+      }
+      if (discrepancy > 0) {
+        message += (message ? ', ' : '') + `${discrepancy} nicht verarbeitet`;
+      }
+      
+      if (errorCount === 0 && discrepancy === 0) {
+        showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
       } else {
-        // Show simple message if no skipped paintings
-        let message = '';
-        if (successCount > 0) {
-          message = `${successCount} Gemälde erfolgreich auf Live gesetzt`;
-        }
-        if (errorCount > 0) {
-          message += (message ? ', ' : '') + `${errorCount} Fehler`;
-        }
-        
-        if (errorCount === 0) {
-          showToast(message || `Alle ${successCount} Gemälde erfolgreich auf Live gesetzt`, 'success');
-        } else {
-          showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, 'error');
-        }
+        showToast(message || `${successCount} erfolgreich, ${errorCount} Fehler`, 'error');
       }
     }
 
