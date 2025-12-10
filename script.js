@@ -438,25 +438,20 @@ function initAktuellesVariantReveal() {
     animationFrame = requestAnimationFrame(updateRevealMask);
   }
   
-  wrapper.addEventListener('mousemove', (e) => {
+  // Global mouse move handler to track mouse position everywhere
+  function handleGlobalMouseMove(e) {
     mouseX = e.clientX;
     mouseY = e.clientY;
     if (!animationFrame) {
-      animationFrame = requestAnimationFrame(updateRevealMask);
+      updateRevealMask();
     }
-  });
+  }
   
-  wrapper.addEventListener('mouseleave', () => {
-    variantLayer.style.opacity = '0';
-    variantImgBlurred.style.maskImage = '';
-    variantImgBlurred.style.webkitMaskImage = '';
-    variantImgBlurred.style.opacity = '0';
-    revealMask.style.opacity = '0';
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = null;
-    }
-  });
+  // Start tracking mouse movement globally
+  document.addEventListener('mousemove', handleGlobalMouseMove);
+  
+  // Initial check
+  updateRevealMask();
 }
 
 // Initialize variant reveal effect for author portrait
